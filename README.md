@@ -51,7 +51,7 @@ A arquitetura do projeto segue o padrão modular em um ecossistema React, garant
 
 | Painel Administrativo | Monitor de Chamadas (TV) |
 | :---: | :---: |
-| ![Painel Admin](https://github.com/wesleytj/smart-exit-school/tree/master/docs/screenshots/dashboard_institucional.png) | ![Monitor TV](https://github.com/wesleytj/smart-exit-school/tree/master/docs/screenshots/telao_saida.png) |
+| ![Painel Admin](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/dashboard_institucional.png) | ![Monitor TV](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/telao_saida.png) |
 
 ## Como executar localmente
 
