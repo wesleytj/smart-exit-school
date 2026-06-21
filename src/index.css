@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #f97316; /* Padrão Laranja */
+  --color-secondary: #3b82f6; /* Padrão Azul */
+  --color-darkbg: #161616; /* Fundo Escuro */
+}
+
+@custom-variant dark (&:is(.dark *));
