@@ -2,6 +2,8 @@
 
 Sistema web moderno para gestão e monitoramento da saída de alunos em instituições de ensino, desenvolvido pela **AllTech Solutions**.
 
+![Preview Smart Exit School](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/preview_ses.gif)
+
 ## Descrição
 
 O **Smart Exit School** é uma plataforma robusta desenvolvida no modelo **SaaS (Software as a Service)**, focada em otimizar e organizar a logística de saída escolar. Operando como uma Single Page Application (SPA) multi-instituição, o sistema conecta o fluxo operacional das escolas com painéis em tempo real (Telão/TV), garantindo que os alunos sejam chamados de forma clara, segura e eficiente.
