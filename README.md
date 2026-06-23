@@ -61,7 +61,7 @@ Siga as instruções abaixo para configurar o ambiente de desenvolvimento em sua
 
 ```bash
 # 1. Clone o repositório
-git clone <repository-url>
+git clone https://github.com/wesleytj/smart-exit-school.git
 cd smart-exit-school
 
 # 2. Instale as dependências do projeto
