@@ -9,6 +9,12 @@ import {
 } from "lucide-react"
 
 import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
+import { authService } from "../services/authService"
+import { schoolService } from "../services/schoolService"
+import { gateService } from "../services/gateService"
+import { callService } from "../services/callService"
+import { themeService } from "../services/themeService"
+import { storageClient } from "../services/core/storageClient"
 
 // ==================================================================
 // CONFIGURAÇÕES GLOBAIS E DADOS ESTÁTICOS (Fora do Componente)
@@ -44,9 +50,7 @@ export default function InstitutionPanel() {
   // ==================================================================
   const [school, setSchool] = useState(null);
   const [activeTab, setActiveTab] = useState("monitor");
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem("@SmartExit:darkMode") === "true";
-  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // ==================================================================
   // SEÇÃO 3: ESTADOS DAS FUNCIONALIDADES (Telas)
@@ -94,19 +98,22 @@ export default function InstitutionPanel() {
 
   // 4.1 Carregamento Inicial (Autenticação e Dados)
   useEffect(() => {
-    let allSchools = JSON.parse(localStorage.getItem("@SmartExit:schools"));
-    if (!allSchools || allSchools.length === 0) {
-      allSchools = MOCK_SCHOOLS;
-      localStorage.setItem("@SmartExit:schools", JSON.stringify(allSchools));
-    }
+    async function loadInitialData() {
+      await schoolService.seedInitialMock(MOCK_SCHOOLS);
 
-    const loggedSchool = JSON.parse(localStorage.getItem("@SmartExit:loggedSchool"));
-    if (!loggedSchool) {
-      navigate("/login");
-    } else {
+      const loggedSchool = await authService.getCurrentSession();
+      if (!loggedSchool) {
+        navigate("/login");
+        return;
+      }
+
       let loadedClasses = loggedSchool.classes || [];
       if (loadedClasses.length > 0 && typeof loadedClasses[0] === 'string') {
-        loadedClasses = loadedClasses.map((c, i) => ({ id: Date.now() + i, name: c, defaultExit: loggedSchool.exits?.[0] || "" }));
+        loadedClasses = loadedClasses.map((c, i) => ({
+          id: Date.now() + i,
+          name: c,
+          defaultExit: loggedSchool.exits?.[0] || ""
+        }));
       }
 
       setSchool({
@@ -116,7 +123,13 @@ export default function InstitutionPanel() {
         classes: loadedClasses
       });
     }
+
+    void loadInitialData();
   }, [navigate]);
+
+  useEffect(() => {
+    void themeService.getThemePreference().then(setIsDarkMode);
+  }, []);
 
   // 4.2 Sincroniza cores do banco com os inputs visuais temporários
   useEffect(() => {
@@ -129,21 +142,22 @@ export default function InstitutionPanel() {
   // 4.3 Carrega Portões do Banco
   useEffect(() => {
     if (school?.id) {
-      const savedGates = localStorage.getItem(`@SmartExit:gates:${school.id}`);
-      if (savedGates) setGatesList(JSON.parse(savedGates));
+      void gateService.getGatesBySchool(school.id).then((savedGates) => {
+        if (savedGates.length > 0) setGatesList(savedGates);
+      });
     }
   }, [school?.id]);
 
   // 4.4 Salva Portões no Banco sempre que a lista for alterada
   useEffect(() => {
     if (school?.id) {
-      localStorage.setItem(`@SmartExit:gates:${school.id}`, JSON.stringify(gatesList));
+      void gateService.saveGates(school.id, gatesList);
     }
   }, [gatesList, school?.id]);
 
   // 4.5 Aplica o Dark Mode na raiz do HTML (classe 'dark')
   useEffect(() => {
-    localStorage.setItem("@SmartExit:darkMode", isDarkMode);
+    void themeService.setThemePreference(isDarkMode);
     if (isDarkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
@@ -151,8 +165,7 @@ export default function InstitutionPanel() {
   // 4.6 Carrega lista de alunos que já foram chamados na sessão
   useEffect(() => {
     if (school?.id) {
-      const savedCalls = JSON.parse(localStorage.getItem(`@SmartExit:called:${school.id}`)) || [];
-      setCalledStudents(savedCalls);
+      void callService.getCallsBySchool(school.id).then(setCalledStudents);
     }
   }, [school?.id]);
 
@@ -167,22 +180,20 @@ export default function InstitutionPanel() {
   // ==================================================================
 
   // --- Funções Globais e do Sistema ---
-  function saveSchoolData(updatedSchool) {
+  async function saveSchoolData(updatedSchool) {
     setSchool(updatedSchool);
-    localStorage.setItem("@SmartExit:loggedSchool", JSON.stringify(updatedSchool));
-    const allSchools = JSON.parse(localStorage.getItem("@SmartExit:schools")) || [];
-    const updatedSchools = allSchools.map(s => s.id === updatedSchool.id ? updatedSchool : s);
-    localStorage.setItem("@SmartExit:schools", JSON.stringify(updatedSchools));
+    await authService.updateCurrentSession(updatedSchool);
+    await schoolService.saveSchool(updatedSchool);
   }
 
-  function handleLogout() {
-    localStorage.removeItem("@SmartExit:loggedSchool");
+  async function handleLogout() {
+    await authService.logout();
     navigate("/login");
   }
 
-  function handleResetSystem() {
+  async function handleResetSystem() {
     if (window.confirm("🚨 ATENÇÃO: Isso vai apagar TODAS as turmas, alunos e portões de TODOS os perfis. O sistema voltará ao estado original de fábrica. Tem certeza?")) {
-      localStorage.clear();
+      await storageClient.clearAll();
       window.location.reload();
     }
   }
@@ -195,23 +206,7 @@ export default function InstitutionPanel() {
       secondaryColor: tempSecondaryColor
     };
 
-    setSchool(updatedSchool);
-
-    // Salva no banco de todas as instituições
-    const savedInstitutions = JSON.parse(localStorage.getItem("institutions") || "[]");
-    const updatedInstitutions = savedInstitutions.map(inst =>
-      inst.id === updatedSchool.id ? updatedSchool : inst
-    );
-    localStorage.setItem("institutions", JSON.stringify(updatedInstitutions));
-
-    // Salva na sessão atual também
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
-    if (currentUser && currentUser.id === updatedSchool.id) {
-      localStorage.setItem("currentUser", JSON.stringify(updatedSchool));
-    }
-
-    // Salva no MOCK principal
-    saveSchoolData(updatedSchool);
+    void saveSchoolData(updatedSchool);
     alert("Cores salvas com sucesso!");
   };
 
@@ -514,16 +509,16 @@ export default function InstitutionPanel() {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         exitGate: exitToUse
       };
-      const updatedCalls = [newCall, ...calledStudents];
-      setCalledStudents(updatedCalls);
-      localStorage.setItem(`@SmartExit:called:${school.id}`, JSON.stringify(updatedCalls));
+      void callService.addCall(school.id, newCall).then(() => {
+        setCalledStudents([newCall, ...calledStudents]);
+      });
     }
   }
 
   function handleDismissStudent(id) {
-    const updatedCalls = calledStudents.filter(s => s.id !== id);
-    setCalledStudents(updatedCalls);
-    localStorage.setItem(`@SmartExit:called:${school.id}`, JSON.stringify(updatedCalls));
+    void callService.dismissCall(school.id, id).then(async () => {
+      setCalledStudents(await callService.getCallsBySchool(school.id));
+    });
   }
 
   // ==================================================================

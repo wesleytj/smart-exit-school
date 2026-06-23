@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Mail, Lock, LogIn } from "lucide-react"
+import { authService } from "../services/authService"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -8,32 +9,20 @@ export default function Login() {
   const [error, setError] = useState("")
   const navigate = useNavigate()
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault()
-    setError("") // Limpa erros anteriores
+    setError("")
 
-    // 1. Verificação do Super Admin (Você)
     if (email === "admin@alltech.com" && password === "admin123") {
       navigate("/admin/institutions")
       return
     }
 
-    // 2. Verificação de Escolas Clientes
-    // Busca as escolas que você cadastrou no painel Admin
-    const savedSchools = JSON.parse(localStorage.getItem("@SmartExit:schools")) || []
-    
-    const schoolFound = savedSchools.find(
-      school => school.email === email && school.password === password
-    )
+    const schoolFound = await authService.login(email, password)
 
     if (schoolFound) {
-      // Salva qual escola está logada no momento
-      localStorage.setItem("@SmartExit:loggedSchool", JSON.stringify(schoolFound))
-      
-      // Manda para o painel do monitor (ou configuração no futuro)
       navigate("/painel")
     } else {
-      // Se não for nem admin e nem uma escola válida
       setError("E-mail ou senha incorretos.")
     }
   }

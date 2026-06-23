@@ -9,10 +9,10 @@ export const callService = {
   async addCall(schoolId, studentCallObject) {
     const calls = await this.getCallsBySchool(schoolId);
     const exists = calls.some(c => c.id === studentCallObject.id);
-    
+
     if (!exists) {
-      calls.push(studentCallObject);
-      await storageClient.set(`${STORAGE_KEYS.CALLED_PREFIX}${schoolId}`, calls);
+      const updatedCalls = [studentCallObject, ...calls];
+      await storageClient.set(`${STORAGE_KEYS.CALLED_PREFIX}${schoolId}`, updatedCalls);
     }
   },
 
@@ -22,20 +22,25 @@ export const callService = {
     await storageClient.set(`${STORAGE_KEYS.CALLED_PREFIX}${schoolId}`, updatedCalls);
   },
 
-  // Simula o Realtime Subscription do Supabase utilizando eventos de janela para a TV
   subscribeToCalls(schoolId, callback) {
-    const handleStorageChange = async (e) => {
+    const syncCalls = async () => {
+      callback(await this.getCallsBySchool(schoolId));
+    };
+
+    const handleStorageChange = (e) => {
       if (e.key === `${STORAGE_KEYS.CALLED_PREFIX}${schoolId}`) {
-        const updatedCalls = await this.getCallsBySchool(schoolId);
-        callback(updatedCalls);
+        void syncCalls();
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
-    // Retorna a função de unsubscribe
+    const fallbackTimer = setInterval(() => {
+      void syncCalls();
+    }, 2000);
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      clearInterval(fallbackTimer);
     };
   }
 };

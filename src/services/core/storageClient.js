@@ -1,13 +1,11 @@
-import { STORAGE_KEYS } from './keys';
-
 export const storageClient = {
   async get(key) {
     const data = localStorage.getItem(key);
     if (!data || data === "undefined") return null;
     try {
       return JSON.parse(data);
-    } catch (e) {
-      return data; // Retorna como string caso não seja um JSON válido (ex: 'true')
+    } catch {
+      return data;
     }
   },
 
@@ -18,7 +16,6 @@ export const storageClient = {
     } catch (error) {
       if (error.name === 'QuotaExceededError') {
         console.error('[Storage Error] Limite de armazenamento do navegador atingido.');
-        // Aqui poderia disparar um evento de erro global para a UI
       }
       throw error;
     }
@@ -29,7 +26,6 @@ export const storageClient = {
   },
 
   async clearAll() {
-    // Remoção segura: afeta apenas chaves pertencentes ao Smart Exit School
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);

@@ -4,6 +4,7 @@ import {
   ShieldAlert, X, Edit, Trash2, Ban, CheckCircle, Users 
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { schoolService } from "../services/schoolService"
 
 export default function InstitutionsManager() {
   const navigate = useNavigate()
@@ -25,23 +26,27 @@ export default function InstitutionsManager() {
     plan: "Basic"
   })
 
-  // Carrega os dados ao iniciar e limpa cadastros legados com "Pro"
   useEffect(() => {
-    const savedSchools = JSON.parse(localStorage.getItem("@SmartExit:schools")) || []
-    
-    // Mapeia as escolas antigas: se alguma ainda for "Pro", converte automaticamente para "Basic"
-    const sanitizedSchools = savedSchools.map(school => ({
-      ...school,
-      plan: school.plan === "Pro" ? "Basic" : (school.plan || "Basic")
-    }))
-    
-    setInstitutions(sanitizedSchools)
-  }, [])
+    async function loadInstitutions() {
+      const savedSchools = await schoolService.getAllSchools()
+      const sanitizedSchools = savedSchools.map(school => ({
+        ...school,
+        plan: school.plan === "Pro" ? "Basic" : (school.plan || "Basic")
+      }))
 
-  // Salva no LocalStorage sempre que 'institutions' mudar
-  useEffect(() => {
-    localStorage.setItem("@SmartExit:schools", JSON.stringify(institutions))
-  }, [institutions])
+      const hasLegacyPlans = sanitizedSchools.some(
+        (school, index) => savedSchools[index]?.plan === "Pro"
+      )
+
+      if (hasLegacyPlans) {
+        await Promise.all(sanitizedSchools.map(school => schoolService.saveSchool(school)))
+      }
+
+      setInstitutions(sanitizedSchools)
+    }
+
+    void loadInstitutions()
+  }, [])
 
   // Métricas do Dashboard
   const totalInstitutions = institutions.length
@@ -78,43 +83,57 @@ export default function InstitutionsManager() {
     setDropdownOpenId(null)
   }
 
-  function handleSaveSchool(e) {
+  async function handleSaveSchool(e) {
     e.preventDefault()
 
     if (editingId) {
-      // Editando
-      setInstitutions(institutions.map(school => 
-        school.id === editingId ? { ...school, ...formData } : school
+      const updatedSchool = institutions.find(school => school.id === editingId)
+      const savedSchool = { ...updatedSchool, ...formData }
+      await schoolService.saveSchool(savedSchool)
+      setInstitutions(institutions.map(school =>
+        school.id === editingId ? savedSchool : school
       ))
     } else {
-      // Criando nova
       const newSchool = {
         id: Date.now(),
         ...formData,
         status: "Ativo",
         students: 0,
-        exits: [] 
+        exits: []
       }
+      await schoolService.saveSchool(newSchool)
       setInstitutions([...institutions, newSchool])
     }
-    
+
     setIsModalOpen(false)
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (window.confirm("Tem certeza que deseja excluir esta instituição? Todos os dados serão perdidos.")) {
+      await schoolService.deleteSchool(id)
       setInstitutions(institutions.filter(school => school.id !== id))
     }
     setDropdownOpenId(null)
   }
 
-  function handleToggleStatus(id) {
-    setInstitutions(institutions.map(school => {
+  async function handleToggleStatus(id) {
+    let toggledSchool = null
+    const updatedInstitutions = institutions.map(school => {
       if (school.id === id) {
-        return { ...school, status: school.status === "Ativo" ? "Inativo" : "Ativo" }
+        toggledSchool = {
+          ...school,
+          status: school.status === "Ativo" ? "Inativo" : "Ativo"
+        }
+        return toggledSchool
       }
       return school
-    }))
+    })
+
+    if (toggledSchool) {
+      await schoolService.saveSchool(toggledSchool)
+    }
+
+    setInstitutions(updatedInstitutions)
     setDropdownOpenId(null)
   }
 

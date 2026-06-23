@@ -1,57 +1,55 @@
 import { useEffect, useState } from "react"
 import { Clock, GraduationCap, MapPin, User, Volume2 } from "lucide-react"
+import { authService } from "../services/authService"
+import { callService } from "../services/callService"
+import { themeService } from "../services/themeService"
+import { STORAGE_KEYS } from "../services/core/keys"
 
 export default function TvDisplay() {
   const [calledStudents, setCalledStudents] = useState([])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [schoolInfo, setSchoolInfo] = useState(null)
-  
-  // 1. Estado do Dark Mode (lendo do localStorage)
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('@SmartExit:darkMode') === 'true'
-  })
+  const [isDarkMode, setIsDarkMode] = useState(false)
 
-  // Atualiza o relógio da TV
+  useEffect(() => {
+    void themeService.getThemePreference().then(setIsDarkMode)
+  }, [])
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // Carrega os dados e escuta o local storage
   useEffect(() => {
-    const loggedSchool = JSON.parse(localStorage.getItem("@SmartExit:loggedSchool"))
-    if (loggedSchool) {
+    let unsubscribeCalls = () => {}
+
+    async function init() {
+      const loggedSchool = await authService.getCurrentSession()
+      if (!loggedSchool) return
+
       setSchoolInfo(loggedSchool)
-      
-      const fetchCalls = () => {
-        const calls = JSON.parse(localStorage.getItem(`@SmartExit:called:${loggedSchool.id}`)) || []
-        setCalledStudents(calls)
+      setCalledStudents(await callService.getCallsBySchool(loggedSchool.id))
+      unsubscribeCalls = callService.subscribeToCalls(loggedSchool.id, setCalledStudents)
+    }
+
+    const handleStorageChange = (e) => {
+      if (e.key === STORAGE_KEYS.LOGGED_SCHOOL) {
+        void authService.getCurrentSession().then((updatedSchool) => {
+          if (updatedSchool) setSchoolInfo(updatedSchool)
+        })
       }
 
-      fetchCalls()
-
-      // Escuta as mudanças em tempo real
-      const handleStorageChange = (e) => {
-        if (e.key === `@SmartExit:called:${loggedSchool.id}`) fetchCalls()
-        
-        if (e.key === `@SmartExit:loggedSchool`) {
-          const updatedSchool = JSON.parse(e.newValue);
-          if (updatedSchool) setSchoolInfo(updatedSchool);
-        }
-
-        // BÔNUS: Ouve a mudança do Dark Mode em tempo real!
-        if (e.key === '@SmartExit:darkMode') {
-          setIsDarkMode(e.newValue === 'true')
-        }
+      if (e.key === STORAGE_KEYS.DARK_MODE) {
+        void themeService.getThemePreference().then(setIsDarkMode)
       }
+    }
 
-      window.addEventListener("storage", handleStorageChange)
-      const fallbackTimer = setInterval(fetchCalls, 2000)
+    window.addEventListener("storage", handleStorageChange)
+    void init()
 
-      return () => {
-        window.removeEventListener("storage", handleStorageChange)
-        clearInterval(fallbackTimer)
-      }
+    return () => {
+      unsubscribeCalls()
+      window.removeEventListener("storage", handleStorageChange)
     }
   }, [])
 
@@ -77,11 +75,9 @@ export default function TvDisplay() {
   };
 
   return (
-    // O wrapper principal que injeta a classe "dark" no Tailwind se estiver ativado
     <div className={isDarkMode ? "dark" : ""}>
       <div style={customStyles} className="h-screen w-screen bg-[#f4f7fb] dark:bg-[#020817] flex flex-col overflow-hidden font-sans select-none transition-colors duration-300">
         
-        {/* CABEÇALHO */}
         <header className="h-20 bg-white dark:bg-[#1a1a1a] border-b border-slate-200 dark:border-[#2a2a2a] flex justify-between items-center px-10 shadow-sm shrink-0 transition-colors duration-300" onClick={toggleFullScreen} title="Clique para Tela Cheia">
           <div className="flex items-center gap-4 cursor-pointer">
             <div className="w-12 h-12 bg-[#020817] dark:bg-black rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm shrink-0 border border-transparent dark:border-[#333333]">
@@ -104,10 +100,8 @@ export default function TvDisplay() {
           </div>
         </header>
 
-        {/* ÁREA PRINCIPAL */}
         <main className="flex-1 p-8 flex flex-col gap-6 overflow-hidden">
           
-          {/* CHAMADA ATUAL (Full Width) */}
           <section className="shrink-0 flex flex-col">
             <h3 className="text-primary font-bold text-xl uppercase tracking-wider mb-3">Chamada Atual</h3>
             
@@ -152,7 +146,6 @@ export default function TvDisplay() {
             )}
           </section>
 
-          {/* CHAMADAS RECENTES (Cards Menores) */}
           <section className="flex-1 flex flex-col min-h-0">
             <h3 className="text-secondary font-bold text-lg uppercase tracking-wider mb-3 flex items-center gap-2">
               <Clock size={20} /> Chamadas Recentes
@@ -195,7 +188,6 @@ export default function TvDisplay() {
           </section>
         </main>
 
-        {/* RODAPÉ */}
         <footer className="h-12 bg-slate-900 dark:bg-black flex items-center justify-center text-white font-medium text-sm shrink-0 gap-2 border-t border-slate-800 transition-colors">
           <Volume2 size={16} className="text-primary" />
           Mantenha o corredor livre e seguro. Contamos com a colaboração de todos!
