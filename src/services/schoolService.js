@@ -1,9 +1,20 @@
 import { storageClient } from './core/storageClient';
 import { STORAGE_KEYS } from './core/keys';
+import { supabase } from '../lib/supabase';
 
 export const schoolService = {
   async getAllSchools() {
-    return await storageClient.get(STORAGE_KEYS.SCHOOLS) || [];
+    const { data, error } =
+      await supabase
+        .from('schools')
+        .select('*');
+
+    if (error) {
+      console.error(error);
+      return [];
+    }
+
+    return data;
   },
 
   async getSchoolById(id) {
@@ -14,13 +25,13 @@ export const schoolService = {
   async saveSchool(schoolData) {
     const schools = await this.getAllSchools();
     const index = schools.findIndex(s => s.id === schoolData.id);
-    
+
     if (index >= 0) {
       schools[index] = schoolData;
     } else {
       schools.push(schoolData);
     }
-    
+
     await storageClient.set(STORAGE_KEYS.SCHOOLS, schools);
     return schoolData;
   },
