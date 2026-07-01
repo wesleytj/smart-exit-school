@@ -2,7 +2,7 @@
 
 Sistema web moderno para gestão e monitoramento da saída de alunos em instituições de ensino, desenvolvido pela **AllTech Solutions**.
 
-![Preview Smart Exit School](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/preview_ses.gif)
+![Preview Smart Exit School](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/preview_ses.gif)
 
 ## Descrição
 
@@ -53,7 +53,7 @@ A arquitetura do projeto segue o padrão modular em um ecossistema React, garant
 
 | Painel Administrativo | Monitor de Chamadas (TV) |
 | :---: | :---: |
-| ![Painel Admin](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/dashboard_institucional.png) | ![Monitor TV](https://github.com/wesleytj/smart-exit-school/blob/master/docs/screenshots/telao_saida.png) |
+| ![Painel Admin](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/dashboard_institucional.png) | ![Monitor TV](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/telao_saida.png) |
 
 ## Como executar localmente
 

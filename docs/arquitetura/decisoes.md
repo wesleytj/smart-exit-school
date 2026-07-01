@@ -131,7 +131,7 @@ Esses relacionamentos pertencem à tabela school_members.
 
 Status: ✅ Congelado
 
-Decisão
+### Decisão
 
 Valores armazenados no banco serão códigos em inglês.
 
@@ -243,13 +243,15 @@ A interface poderá apresentar nomes mais amigáveis sem alterar os códigos arm
 
 ---
 
-## ADR-013 — Status do vínculo
+## ADR-013 — Padronização de Status das Entidades
 
 **Status:** ✅ Congelado
 
 ### Decisão
 
-A tabela `school_members` utilizará um campo `status` para controlar se um vínculo está ativo.
+Sempre que uma entidade do domínio necessitar representar apenas se um registro está disponível para utilização, será utilizado o campo:
+
+status
 
 Valores permitidos:
 
@@ -258,9 +260,31 @@ Valores permitidos:
 
 ### Motivação
 
-Preservar histórico de usuários sem necessidade de exclusão física dos registros.
+Esse padrão simplifica a modelagem do banco de dados, mantém consistência entre as tabelas e reduz a complexidade das regras de negócio.
 
-Essa estratégia facilita auditoria e futuras reativações.
+Estados mais específicos deverão ser modelados apenas quando representarem conceitos próprios do domínio.
+
+Exemplos:
+
+- payments
+  - pending
+  - paid
+  - cancelled
+
+- pickups
+  - pending
+  - approved
+  - denied
+  - completed
+
+Nesses casos, o campo representa o fluxo de negócio e não apenas a disponibilidade do registro.
+
+### Consequências
+
+- Consistência entre entidades administrativas.
+- Menor curva de aprendizado.
+- CRUDs simplificados.
+- Facilita filtros e consultas.
 
 ---
 
@@ -415,3 +439,325 @@ Essa estratégia facilita:
 - colaboração entre desenvolvedores
 
 Além de seguir boas práticas adotadas na indústria.
+
+---
+
+## ADR-020 — Estrutura Acadêmica Flexível
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+O Smart Exit School modelará a estrutura acadêmica em dois níveis distintos:
+
+- `academic_levels`
+- `academic_groups`
+
+O sistema **não possuirá** tabelas específicas para:
+
+- Turmas (A, B, C...)
+- Séries
+- Turnos
+
+Essas informações serão armazenadas como atributos livres dentro dos grupos acadêmicos.
+
+### Exemplos
+
+Educação Infantil
+
+Level:
+- Educação Infantil
+
+Groups:
+- Pré 4 A
+- Pré 5 B
+
+Ensino Fundamental
+
+Level:
+- Ensino Fundamental I
+
+Groups:
+- 1º Ano A
+- 3º Ano B
+- 5º Ano C
+
+Escolas com códigos próprios
+
+Level:
+- Ensino Fundamental
+
+Groups:
+- EF3MA
+- EF7TB
+- 311
+- 212
+
+### Motivação
+
+Cada instituição organiza suas turmas de maneira diferente.
+
+Alguns exemplos reais:
+
+- 5º Ano A
+- 5º Ano B
+- EF3MA
+- EIpre5A
+- 311
+- 212
+
+Modelar cada uma dessas possibilidades através de tabelas específicas aumentaria significativamente a complexidade do banco sem gerar benefícios práticos.
+
+A responsabilidade pela nomenclatura pertence à escola.
+
+O Smart Exit School apenas organiza esses grupos de forma consistente.
+
+### Consequências
+
+- Banco de dados mais simples.
+- Flexibilidade para diferentes redes de ensino.
+- Compatível com escolas brasileiras e internacionais.
+- Evita futuras migrações estruturais relacionadas ao modelo acadêmico.
+
+---
+
+## ADR-021 — Processo de modelagem do banco de dados
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+Toda nova migration será desenvolvida em duas etapas:
+
+1. Modelagem conceitual (domínio, relacionamentos e decisões arquiteturais).
+2. Implementação SQL somente após o congelamento da modelagem.
+
+### Motivação
+
+- Reduz retrabalho.
+- Evita alterações em migrations já publicadas.
+- Mantém a documentação sincronizada com o banco.
+- Facilita revisão técnica e colaboração.
+
+---
+
+## ADR-022 — Padronização de entidades administrativas
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+Tabelas de configuração (cadastros administrativos) seguirão um padrão comum sempre que fizer sentido.
+
+Campos preferenciais:
+
+- status
+- external_id
+- created_at
+- updated_at
+
+Opcionalmente:
+
+- display_order
+
+O comportamento e os valores do campo `status`, quando utilizado, seguem a ADR-013.
+
+### Regras de Integridade
+
+Sempre que possível, regras universais do domínio deverão ser protegidas pelo banco de dados através de `CHECK Constraints`.
+
+Exemplos:
+
+- valores permitidos para `status`;
+- `display_order > 0`;
+- outras validações estruturais que sejam invariavelmente verdadeiras.
+
+Regras específicas de negócio ou de interface deverão permanecer na camada da aplicação.
+
+### Motivação
+
+- Consistência do banco.
+- Menor curva de aprendizado.
+- Facilita manutenção.
+- Facilita integrações.
+- Simplifica o desenvolvimento do frontend.
+
+### Consequências
+
+- Interfaces administrativas tornam-se mais consistentes.
+- CRUDs compartilham praticamente o mesmo comportamento.
+- Facilita reutilização de componentes React.
+
+---
+
+## ADR-023 — Turnos Acadêmicos como entidade própria
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+O Smart Exit School modelará os turnos acadêmicos através da tabela `academic_shifts`.
+
+A tabela `academic_groups` possuirá uma chave estrangeira (`academic_shift_id`) apontando para essa entidade.
+
+O turno **não será armazenado** como texto livre dentro de `academic_groups`.
+
+### Estrutura
+
+academic_levels
+        │
+        │
+academic_groups ───────── academic_shifts
+
+### Exemplos de turnos
+
+- Morning
+- Afternoon
+- Full-time
+- Night
+
+A tradução desses valores será responsabilidade do frontend.
+
+### Motivação
+
+O turno representa um conceito do domínio acadêmico e será utilizado em diversas funcionalidades do sistema, como:
+
+- organização das filas de saída;
+- filtros;
+- dashboards;
+- relatórios;
+- integrações com ERP;
+- importação via Excel;
+- regras de negócio.
+
+Modelá-lo como entidade evita duplicação de valores, padroniza os dados e facilita futuras evoluções.
+
+### Consequências
+
+- Banco de dados mais consistente.
+- Evita valores diferentes para o mesmo turno.
+- Facilita internacionalização.
+- Simplifica consultas e filtros.
+- Mantém a arquitetura preparada para crescimento.
+
+---
+
+## ADR-024 — Identificação institucional do aluno
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+A tabela students possuirá um campo student_identifier para armazenar o identificador institucional do aluno.
+
+Esse identificador poderá representar diferentes conceitos conforme a instituição, como:
+
+- Número de matrícula;
+- Código interno;
+- Identificador da carteirinha;
+- Código utilizado por dispositivos físicos.
+
+### Motivação
+
+As instituições de ensino utilizam diferentes padrões para identificar seus alunos.
+
+Além disso, futuras integrações com catracas, RFID, QR Code e outros dispositivos poderão utilizar esse identificador como referência, sem depender do UUID interno do sistema.
+
+---
+
+## ADR-025 — Separação entre Aluno e Matrícula
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+A tabela `students` representará exclusivamente a identidade permanente do aluno.
+
+Ela não armazenará informações temporárias como:
+
+- turma;
+- nível acadêmico;
+- turno;
+- ano letivo.
+
+A tabela `student_enrollments` representará o vínculo do aluno com uma escola em um determinado ano letivo.
+
+A associação do aluno a uma turma específica será responsabilidade da futura tabela `student_group_assignments`.
+
+### Motivação
+
+A identidade do aluno permanece a mesma durante toda sua vida escolar.
+
+A matrícula representa seu vínculo com uma instituição em um determinado ano.
+
+Já a turma pode mudar ao longo do mesmo ano letivo sem que uma nova matrícula seja criada.
+
+Separar esses conceitos preserva o histórico acadêmico e evita que uma única entidade represente responsabilidades distintas.
+
+### Consequências
+
+- Cada entidade representa um único conceito do domínio.
+- Trocas de turma não exigem nova matrícula.
+- O histórico de movimentações entre turmas poderá ser preservado.
+- A arquitetura permanece preparada para futuras evoluções.
+
+---
+
+## ADR-026 — Matrícula única por escola e ano letivo
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+Um aluno poderá possuir apenas uma matrícula ativa por escola em um mesmo ano letivo.
+
+A matrícula poderá ser reativada quando necessário, preservando o histórico do registro.
+
+### Motivação
+
+A matrícula representa o vínculo do aluno com uma instituição em determinado ano letivo.
+
+Permitir múltiplas matrículas ativas para a mesma escola e ano geraria inconsistências nas regras de negócio.
+
+Ao mesmo tempo, manter o registro e apenas alterar seu status preserva o histórico e evita duplicações desnecessárias.
+
+### Consequências
+
+- Garante integridade dos dados.
+- Evita duplicidade de matrículas.
+- Permite reativação de alunos.
+- Mantém o histórico consistente.
+
+---
+
+## ADR-027 — Identidade permanente do aluno
+
+**Status:** ✅ Congelado
+
+### Decisão
+
+A entidade `students` representa exclusivamente a identidade permanente do aluno dentro de uma instituição.
+
+Ela não armazenará informações relacionadas à vida acadêmica, como:
+
+- turma;
+- turno;
+- nível acadêmico;
+- ano letivo.
+
+Essas informações serão mantidas em entidades próprias.
+
+Além disso, todo aluno deverá possuir um identificador institucional (`student_identifier`), único dentro da escola.
+
+### Motivação
+
+Separar identidade de informações temporárias simplifica a modelagem, preserva o histórico acadêmico e evita duplicação de registros.
+
+O identificador institucional também permite integração com sistemas legados, carteirinhas estudantis, catracas, RFID e outros dispositivos físicos sem depender do UUID interno do sistema.
+
+### Consequências
+
+- Separação clara entre identidade e matrícula.
+- Histórico acadêmico preservado.
+- Preparação para integrações futuras.
+- Maior consistência dos dados.
