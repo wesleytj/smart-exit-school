@@ -123,6 +123,11 @@ erDiagram
     }
 ```
 
+### Fluxo de Desenvolvimento Local
+
+O desenvolvimento de novas alterações no schema utiliza a **Supabase CLI** em conjunto com o **Docker**. 
+O comando `supabase start` sobe uma réplica exata do ambiente de produção localmente, permitindo a criação de novas migrations (`supabase migration new <nome>`) e testes isolados antes do deploy.
+
 ### Tabelas — Authentication Core
 
 #### `schools`
