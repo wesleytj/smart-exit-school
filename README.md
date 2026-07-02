@@ -75,8 +75,9 @@ cp .env.example .env.local   # se .env.example existir; ou crie manualmente
 # VITE_SUPABASE_URL=
 # VITE_SUPABASE_ANON_KEY=
 
-# 4. Aplique migrations locais (opcional — requer Supabase CLI)
-npx supabase db reset
+# 4. Inicie o banco de dados local (Requer Docker Desktop rodando e Supabase CLI)
+supabase start
+supabase db reset
 
 # 5. Inicie o servidor de desenvolvimento
 npm run dev

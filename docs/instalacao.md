@@ -8,13 +8,12 @@ Tutorial completo para configurar e executar o projeto localmente.
 
 | Requisito | Versão | Observação |
 |-----------|--------|------------|
-| Node.js | **Não especificado** no projeto | Recomendado: LTS 20.x ou 22.x |
-| npm | Incluso com Node.js | Usado pelo projeto |
+| Node.js | LTS 20.x ou 22.x | Gerenciador de pacotes local |
+| npm | Configurado globalmente | Variáveis de ambiente (PATH) devem estar corretas |
 | Git | Qualquer versão recente | Para clonar o repositório |
 | Navegador moderno | Chrome, Firefox, Edge, Safari | ES Modules + localStorage |
-
-| Supabase CLI | Opcional | Para migrations locais (`npx supabase`) |
-| Docker | Opcional | Supabase local via CLI |
+| Docker Desktop | Mais recente | **Obrigatório** para rodar o banco localmente |
+| Supabase CLI | Mais recente | Instalado globalmente (`npm install -g supabase`) |
 
 ---
 
@@ -63,6 +62,21 @@ Para limpar dados legados do navegador:
 ```javascript
 // DevTools Console
 localStorage.clear()
+```
+
+### 3.1 Inicializar o Banco de Dados Local (Docker + Supabase)
+
+Para desenvolvimento de migrations e banco de dados, é necessário rodar a stack local do Supabase. Certifique-se de que o **Docker Desktop** está aberto e rodando.
+
+```bash
+# Iniciar os containers do Supabase (banco, auth, studio, etc)
+supabase start
+
+# O console exibirá as credenciais locais, como o Studio URL (geralmente [http://127.0.0.1:54323](http://127.0.0.1:54323)) e as chaves locais.
+# Atualize o seu `.env.local` com as chaves locais fornecidas pelo comando start, caso vá testar a conexão.
+
+# Aplicar migrations atuais e rodar o seed
+supabase db reset
 ```
 
 ---
