@@ -2,9 +2,14 @@
 
 ## Visão geral
 
-O sistema utiliza autenticação **100% client-side**, sem servidor de autenticação, tokens JWT, cookies de sessão ou OAuth.
+O sistema utiliza autenticação **em transição**:
 
-A "sessão" consiste em objetos JSON persistidos no `localStorage` do navegador.
+| Camada | Estado |
+|--------|--------|
+| **Alvo (ADR-004)** | Supabase Auth — sem senhas no banco |
+| **Implementado hoje** | Email/senha em localStorage + Super Admin hardcoded |
+
+A "sessão" operacional consiste em objetos JSON em `@SmartExit:loggedSchool` via `authService`.
 
 ```mermaid
 flowchart LR

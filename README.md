@@ -39,6 +39,7 @@ O projeto adota uma stack moderna e consolidada no ecossistema de desenvolviment
 - **Tailwind CSS 4** (Utility-first framework via `@tailwindcss/vite`)
 - **React Router DOM 7** (Roteamento de interface)
 - **Lucide React** (Biblioteca de ícones SVG consistentes)
+- **Supabase** (PostgreSQL + Auth — schema em migração; client `@supabase/supabase-js`)
 
 ## Arquitetura geral
 
@@ -46,7 +47,9 @@ A arquitetura do projeto segue o padrão modular em um ecossistema React, garant
 
 - `/components`: Estruturas de interface agnósticas e reutilizáveis (Botões, Modais, Inputs).
 - `/pages`: Componentes de visualização de alto nível atrelados às rotas da aplicação.
-- `/services`: Camada de abstração de dados (isolando o motor de persistência da interface de usuário).
+- `/services`: Camada de abstração de dados (DAL) — isolando persistência da UI.
+- `/lib`: Client Supabase.
+- `/supabase`: Migrations SQL, seed e configuração do banco PostgreSQL.
 - `/assets`: Recursos estáticos e mídias globais.
 
 ## Screenshots
@@ -67,11 +70,19 @@ cd smart-exit-school
 # 2. Instale as dependências do projeto
 npm install
 
-# 3. Inicie o servidor de desenvolvimento
+# 3. Configure variáveis de ambiente (Supabase)
+cp .env.example .env.local   # se .env.example existir; ou crie manualmente
+# VITE_SUPABASE_URL=
+# VITE_SUPABASE_ANON_KEY=
+
+# 4. Aplique migrations locais (opcional — requer Supabase CLI)
+npx supabase db reset
+
+# 5. Inicie o servidor de desenvolvimento
 npm run dev
 
-# Acesse a URL exibida no seu terminal (geralmente http://localhost:5173).
-# Para fins de desenvolvimento local e testes, inicialize o banco de dados simulado através do menu de configurações do próprio sistema ou utilizando os scripts de seed fornecidos na documentação interna.
+# Acesse a URL exibida no terminal (geralmente http://localhost:5173).
+# O frontend ainda utiliza localStorage para operações operacionais; o schema PostgreSQL está em migração.
 ```
 
 ## Documentação
@@ -103,7 +114,15 @@ O desenvolvimento do Smart Exit School é contínuo. Nossos próximos grandes ma
 ## Status atual do projeto
 
 **Fase:** `Beta` / `Em Desenvolvimento Ativo`.
-O sistema encontra-se funcional em sua fundação frontend e fluxos de negócio. Estamos na fase de consolidação de infraestrutura em nuvem e APIs para liberação da versão de produção 1.0.
+
+| Área | Status |
+|------|--------|
+| Frontend SPA + DAL | ✅ Funcional |
+| Schema PostgreSQL (Auth + Academic) | ✅ Migrations 0001–0002 |
+| Integração Supabase no frontend | ⚠️ Parcial (`schoolService` leitura) |
+| Supabase Auth (ADR-004) | ❌ Pendente no frontend |
+| RLS | ❌ Pendente |
+| Produção 1.0 | 🚧 Em consolidação |
 
 ## Sobre a AllTech Solutions
 

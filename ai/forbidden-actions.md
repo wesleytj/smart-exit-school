@@ -8,7 +8,7 @@ Ações que IAs **NÃO devem realizar** ao trabalhar neste projeto, salvo solici
 
 | # | Ação proibida | Motivo |
 |---|---------------|--------|
-| 1 | Inventar backend, API ou banco de dados | Não existem no projeto |
+| 1 | Inventar backend ou banco não documentado | Schema Supabase existe — seguir ADRs e migrations |
 | 2 | Assumir integrações externas (Firebase, Supabase, etc.) | Não identificadas |
 | 3 | Documentar funcionalidades não presentes no código | Requisito do projeto |
 | 4 | Instalar dependências sem necessidade clara | Stack mínima intencional |

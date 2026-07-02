@@ -2,7 +2,7 @@
 
 ## One-liner
 
-SaaS frontend para gestão de saída escolar com monitor operacional e telão, 100% React + localStorage.
+SaaS frontend para gestão de saída escolar. DAL em services; runtime localStorage; PostgreSQL Supabase em migração (schema Auth + Academic).
 
 ## Owner
 
@@ -14,7 +14,7 @@ AllTech Solutions (AES)
 
 ## Stack
 
-React 19 | Vite 8 | Tailwind 4 | React Router 7 | Lucide | localStorage
+React 19 | Vite 8 | Tailwind 4 | React Router 7 | Lucide | localStorage (runtime) | Supabase PostgreSQL (schema)
 
 ## Routes
 
@@ -43,7 +43,9 @@ Register students → Call on monitor → Display on TV → Confirm exit
 
 ## Data Store
 
-Browser localStorage only. No server DB.
+- **Runtime:** localStorage via DAL (`storageClient`)
+- **Schema:** PostgreSQL (Supabase) — migrations 0001–0002
+- **Gap:** `schoolService` reads Supabase, writes localStorage
 
 ## Key Files
 

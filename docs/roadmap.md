@@ -17,7 +17,7 @@ Itens com base existente no código que precisam de conclusão ou correção.
 | Bloquear login instituição Inativa | Status existe; não enforced | Alta |
 | Remover código morto | `StudentCard`, `students.js`, `App.css`, `call.mp3` | Baixa |
 | Reproduzir som de chamada | `public/sounds/call.mp3` existe | Média |
-| Corrigir chaves legado | `institutions`, `currentUser` duplicadas | Média |
+| Corrigir chaves legado | `institutions`, `currentUser` | ✅ Removido na Fase 1 DAL | — |
 | Sincronizar telão mesma aba | Depende de polling 2s | Baixa |
 
 ---
@@ -34,7 +34,11 @@ Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
 | API REST funcional | API Key gerada; sem endpoints | Diamond |
 | Webhooks | Mencionado em Configurações Diamond | Diamond |
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
-| Backend + banco de dados | Arquitetura atual 100% client | Todos |
+| Completar migração Supabase (Fase 2) | `schoolService` híbrido; demais services em localStorage | Todos |
+| Supabase Auth no frontend (ADR-004) | Login ainda legado | Todos |
+| RLS e políticas de acesso | Migrations sem RLS | Todos |
+| Migration Pickup Core (gates, calls) | Domínio operacional ainda em localStorage | Todos |
+| Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Todos |
 | Autenticação segura | Senhas plaintext, admin hardcoded | Todos |
 | Testes automatizados | Ausentes | Todos |
 | CI/CD pipeline | Ausente | Todos |
@@ -78,7 +82,7 @@ quadrantChart
     Whitelabel: [0.45, 0.6]
     Super Admin: [0.35, 0.7]
     Import CSV: [0.4, 0.65]
-    Backend/API: [0.9, 0.05]
+    Backend/API: [0.5, 0.35]
     App Responsáveis: [0.95, 0.02]
     Relatórios: [0.7, 0.1]
     Fleet/Geo: [0.85, 0.05]

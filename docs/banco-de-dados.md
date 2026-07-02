@@ -1,285 +1,266 @@
 # Banco de Dados — Smart Exit School
 
-## Situação atual
+## Situação atual (híbrida)
 
-**Não há banco de dados relacional, NoSQL ou servidor de persistência identificado no projeto.**
+O projeto opera em **dois modelos de persistência simultâneos**:
 
-Todos os dados são armazenados no **localStorage** do navegador, serializados como JSON. Os dados são:
+| Camada | Tecnologia | Status | Uso no runtime |
+|--------|------------|--------|----------------|
+| **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Leitura parcial via `schoolService.getAllSchools()` |
+| **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão, CRUD operacional, chamadas, portões, tema |
 
-- **Locais ao navegador/dispositivo** — não sincronizam entre máquinas
-- **Voláteis** — podem ser apagados pelo usuário ou pelo reset de fábrica
-- **Sem schema formal** — estrutura inferida do código
+A migração para Supabase está **em andamento**. O schema relacional já existe; a maior parte do frontend ainda persiste via localStorage.
 
-Este documento descreve o **modelo lógico de persistência** equivalente a um schema de banco.
+Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)  
+Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
 
 ---
 
-## Diagrama ER (modelo lógico)
+## PostgreSQL — Schema implementado
+
+Migrations em `supabase/migrations/`:
+
+| Migration | Arquivo | Domínio |
+|-----------|---------|---------|
+| 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core |
+| 0002 | `20260701014657_create_academic_core.sql` | Academic Core |
+
+Seed idempotente: `supabase/seed.sql` (roles, academic_shifts)
+
+### Diagrama ER (PostgreSQL)
 
 ```mermaid
 erDiagram
-    SCHOOL ||--o{ CLASS : has
-    SCHOOL ||--o{ STUDENT : has
-    SCHOOL ||--o{ GATE : has
-    SCHOOL ||--o{ CALLED_STUDENT : has
-    CLASS ||--o{ STUDENT : contains
+    schools ||--o{ school_members : has
+    schools ||--o{ academic_levels : has
+    schools ||--o{ academic_groups : has
+    schools ||--o{ students : has
 
-    SCHOOL {
-        string id PK
-        string name
-        string email
-        string password
-        string plan
-        string status
-        number students
-        array exits
-        array classes
-        array studentsList
-        string primaryColor
-        string secondaryColor
-        string customLogo
-        string language
-        string apiKey
+    profiles ||--o{ school_members : has
+    roles ||--o{ school_members : assigns
+
+    academic_levels ||--o{ academic_groups : contains
+    academic_shifts ||--o{ academic_groups : schedules
+
+    students ||--o{ student_enrollments : has
+
+    schools {
+        uuid id PK
+        text slug UK
+        text name
+        text status
+        text plan
+        text timezone
+        text locale
+        text currency
+        text logo_url
+        text primary_color
+        text secondary_color
+        text external_id
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    CLASS {
-        number id PK
-        string name
-        string defaultExit
+    profiles {
+        uuid id PK_FK_auth_users
+        text full_name
+        text avatar_url
+        text phone
     }
 
-    STUDENT {
-        number id PK
-        string name
-        string grade
-        string defaultExit
+    roles {
+        uuid id PK
+        text name UK
+        text description
     }
 
-    GATE {
-        string id PK
-        string name
-        string time
-        array defaultClasses
+    school_members {
+        uuid id PK
+        uuid school_id FK
+        uuid profile_id FK
+        uuid role_id FK
+        text status
     }
 
-    CALLED_STUDENT {
-        number id PK
-        string name
-        string grade
-        string defaultExit
-        string time
-        string exitGate
+    academic_levels {
+        uuid id PK
+        uuid school_id FK
+        text name
+        int display_order
+        text status
+    }
+
+    academic_shifts {
+        uuid id PK
+        text name UK
+        text description
+    }
+
+    academic_groups {
+        uuid id PK
+        uuid school_id FK
+        uuid academic_level_id FK
+        uuid academic_shift_id FK
+        text name
+        int display_order
+        text status
+    }
+
+    students {
+        uuid id PK
+        uuid school_id FK
+        text student_identifier
+        text full_name
+        date birth_date
+        text status
+    }
+
+    student_enrollments {
+        uuid id PK
+        uuid student_id FK
+        int academic_year
+        text status
     }
 ```
 
----
+### Tabelas — Authentication Core
 
-## Chaves localStorage
+#### `schools`
 
-### `@SmartExit:schools`
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `slug` | text | NOT NULL, UNIQUE |
+| `name` | text | NOT NULL |
+| `status` | text | NOT NULL, default `trial`, CHECK: trial/active/inactive/suspended |
+| `plan` | text | NOT NULL, default `basic`, CHECK: basic/pro/enterprise |
+| `timezone` | text | NOT NULL, default `America/Sao_Paulo` |
+| `locale` | text | NOT NULL, default `pt-BR` |
+| `currency` | text | NOT NULL, default `BRL` |
+| `logo_url` | text | nullable |
+| `primary_color` | text | nullable |
+| `secondary_color` | text | nullable |
+| `external_id` | text | nullable |
+| `created_at` | timestamptz | NOT NULL, default now() |
+| `updated_at` | timestamptz | NOT NULL, default now() |
 
-**Tipo:** `School[]` (array JSON)
+Índices: `idx_schools_external_id`, `idx_schools_status`, `idx_schools_plan`
 
-**Descrição:** Registro master de todas as instituições. Fonte de verdade para login de escolas e painel Super Admin.
+**ADR-005:** não armazena email/senha (pertencem ao Supabase Auth).
 
-| Campo | Tipo | Obrigatório | Descrição |
-|-------|------|-------------|-----------|
-| `id` | string \| number | Sim | Identificador único |
-| `name` | string | Sim | Nome da instituição |
-| `email` | string | Sim | E-mail de login |
-| `password` | string | Sim | Senha em texto plano |
-| `plan` | string | Sim | `Basic`, `Premium`, `Diamond`, `Trial` |
-| `status` | string | Sim | `Ativo` ou `Inativo` |
-| `students` | number | Não | Contador de alunos (derivado) |
-| `exits` | string[] | Não | Lista de portões legados (nomes) |
-| `classes` | Class[] | Não | Turmas cadastradas |
-| `studentsList` | Student[] | Não | Alunos cadastrados |
-| `primaryColor` | string | Não | Hex color (Premium/Diamond) |
-| `secondaryColor` | string | Não | Hex color (Premium/Diamond) |
-| `customLogo` | string | Não | Data URL base64 da imagem |
-| `language` | string | Não | Ex: `Português (BR)` |
-| `apiKey` | string | Não | Chave gerada localmente |
+#### `roles`
 
-**Constraints identificadas:**
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK |
+| `name` | text | NOT NULL, UNIQUE, CHECK: owner/administrator/secretary/gatekeeper |
+| `description` | text | nullable |
 
-- Login compara `email` + `password` exatos
-- Plano legado `"Pro"` é convertido para `"Basic"` no carregamento
-- Escolas mock são inseridas se array vazio (ver MOCK_SCHOOLS)
+#### `profiles`
 
-**Índices:** Nenhum — busca linear com `.find()` e `.filter()`
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK, FK → `auth.users(id)` ON DELETE CASCADE |
+| `full_name` | text | NOT NULL |
 
----
+#### `school_members`
 
-### `@SmartExit:loggedSchool`
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK |
+| `school_id` | uuid | FK → schools ON DELETE CASCADE |
+| `profile_id` | uuid | FK → profiles ON DELETE CASCADE |
+| `role_id` | uuid | FK → roles ON DELETE RESTRICT |
+| `status` | text | CHECK: active/inactive |
+| | | UNIQUE `(school_id, profile_id)` → `school_members_school_profile_unique` |
 
-**Tipo:** `School` (objeto JSON)
+Índices: `idx_school_members_school_id`, `idx_school_members_profile_id`, `idx_school_members_role_id`
 
-**Descrição:** Cópia da escola autenticada na sessão atual. Atualizada a cada `saveSchoolData()`.
+### Tabelas — Academic Core
 
-Mesma estrutura de `School` acima.
+#### `academic_levels`
 
----
+- UNIQUE `(school_id, name)` → `academic_levels_school_name_unique`
+- FK `school_id` → schools ON DELETE CASCADE
+- CHECK `display_order > 0`, status active/inactive
 
-### `@SmartExit:gates:{schoolId}`
+#### `academic_shifts`
 
-**Tipo:** `Gate[]`
+- Catálogo global (morning, afternoon, full_time, night)
+- UNIQUE em `name`
 
-**Descrição:** Portões avançados por instituição (separados de `school.exits`).
+#### `academic_groups`
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| `id` | string | ID único (timestamp string) |
-| `name` | string | Nome do portão |
-| `time` | string | Horário padrão (`type="time"`, formato HH:mm) |
-| `defaultClasses` | string[] | Nomes das turmas vinculadas como saída padrão |
+- FKs: school, academic_level (RESTRICT), academic_shift (RESTRICT)
+- UNIQUE `(school_id, academic_level_id, academic_shift_id, name)`
 
-**Relacionamentos:**
+#### `students`
 
-- Ao salvar portão como padrão, atualiza `defaultExit` em turmas e alunos correspondentes
-- **Não sincroniza automaticamente** com `school.exits`
+- UNIQUE `(school_id, student_identifier)` → `students_school_identifier_unique`
+- CHECK `birth_date <= current_date`
 
----
+#### `student_enrollments`
 
-### `@SmartExit:called:{schoolId}`
+- UNIQUE `(student_id, academic_year)` → `student_enrollments_student_year_unique`
+- FK student ON DELETE CASCADE
+- **Pendente (ADR-025):** tabela `student_group_assignments` para vínculo com turma
 
-**Tipo:** `CalledStudent[]`
+### O que ainda NÃO existe no PostgreSQL
 
-**Descrição:** Fila de alunos chamados na sessão (monitor + telão).
+| Domínio | Entidades previstas |
+|---------|---------------------|
+| Pickup Core | gates, pickup_events, called_students |
+| Audit Core | audit logs |
+| Acadêmico | `student_group_assignments` |
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| `id` | number | ID do aluno |
-| `name` | string | Nome |
-| `grade` | string | Turma |
-| `defaultExit` | string | Saída padrão original |
-| `time` | string | Horário da chamada (locale pt-BR) |
-| `exitGate` | string | Portão efetivo da chamada |
+### Segurança do banco
 
-**Regras:**
-
-- Aluno não pode ser chamado duas vezes (verificação por `id`)
-- Ordem: mais recente primeiro (`[newCall, ...calledStudents]`)
-- Persiste entre recarregamentos da página
-
----
-
-### `@SmartExit:darkMode`
-
-**Tipo:** string (`"true"` | `"false"`)
-
-**Descrição:** Preferência global de tema escuro. Aplicada via classe `dark` em `document.documentElement`.
-
----
-
-### Chaves legadas (uso inconsistente)
-
-| Chave | Tipo | Uso |
-|-------|------|-----|
-| `institutions` | `School[]` | Escrita parcial em `handleSaveColors()` — **não é fonte principal** |
-| `currentUser` | `School` | Escrita parcial em `handleSaveColors()` — **não usada no login** |
+- **RLS (Row Level Security):** não implementado nas migrations atuais
+- **Triggers `updated_at`:** não implementados
+- **Políticas de acesso:** pendentes (crítico antes de produção)
 
 ---
 
-## Entidades embutidas
+## localStorage — Persistência runtime (frontend)
 
-### Class (Turma)
+Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `storageClient`.
 
-```json
-{
-  "id": 1700000000000,
-  "name": "1º Ano B",
-  "defaultExit": "Portão Principal"
-}
+### Chaves ativas
+
+| Chave | Conteúdo |
+|-------|----------|
+| `@SmartExit:schools` | Array JSON de escolas (modelo legado com email/password) |
+| `@SmartExit:loggedSchool` | Sessão da escola logada |
+| `@SmartExit:darkMode` | Preferência de tema |
+| `@SmartExit:gates:{schoolId}` | Portões avançados |
+| `@SmartExit:called:{schoolId}` | Fila de chamadas |
+
+### Inconsistência crítica: `schoolService`
+
+```javascript
+// getAllSchools() → Supabase .from('schools')
+// saveSchool() / deleteSchool() → localStorage
 ```
 
-**Migração legada:** Turmas antigas armazenadas como `string[]` são convertidas para objetos no carregamento.
+Leitura e escrita usam backends diferentes até conclusão da Fase 2.
 
-### Student (Aluno)
+### Gap schema DB ↔ frontend legado
 
-```json
-{
-  "id": 1700000000000,
-  "name": "João Pedro",
-  "grade": "1º Ano B",
-  "defaultExit": "Portão Principal"
-}
-```
-
-### MOCK_SCHOOLS (seed de fábrica)
-
-Três escolas pré-configuradas inseridas quando `@SmartExit:schools` está vazio:
-
-| ID | Nome | E-mail | Plano | exits |
-|----|------|--------|-------|-------|
-| mock-basic | Teste - Basic | teste@basic.com | Basic | Portão Principal |
-| mock-premium | Teste - Premium | teste@premium.com | Premium | Portão Principal, Portão Sul |
-| mock-diamond | Teste - Diamond | teste@diamond.com | Diamond | Portão Principal, Portão VIP |
-
----
-
-## Fluxos de dados
-
-### Criação de instituição (Super Admin)
-
-```
-InstitutionsManager.handleSaveSchool()
-  → institutions state
-  → @SmartExit:schools
-```
-
-Campos iniciais: `status: "Ativo"`, `students: 0`, `exits: []`
-
-### Login de escola
-
-```
-Login.handleLogin()
-  → find em @SmartExit:schools
-  → @SmartExit:loggedSchool
-```
-
-### Operação CRUD no painel
-
-```
-InstitutionPanel.saveSchoolData()
-  → @SmartExit:loggedSchool
-  → @SmartExit:schools (atualiza item por id)
-```
-
-### Chamada de aluno
-
-```
-handleCallStudent()
-  → state calledStudents
-  → @SmartExit:called:{schoolId}
-  → TvDisplay (storage event / polling)
-```
-
-### Reset de fábrica
-
-```
-handleResetSystem()
-  → localStorage.clear()
-  → window.location.reload()
-  → MOCK_SCHOOLS reinseridos no próximo load
-```
-
----
-
-## Índices e constraints
-
-| Aspecto | Status |
-|---------|--------|
-| Índices de banco | N/A — localStorage |
-| Unique constraints | Não enforced (duplicatas de nome de aluno evitadas apenas na importação CSV) |
-| Foreign keys | Lógicas apenas (`student.grade` → `class.name`) |
-| Transações | Não |
-| Migrations | Conversão inline de `classes` string → object |
+| Conceito | PostgreSQL | Frontend (localStorage) |
+|----------|------------|-------------------------|
+| Plano | basic/pro/enterprise | Basic/Premium/Diamond/Trial |
+| Status escola | trial/active/inactive/suspended | Ativo/Inativo |
+| ID escola | UUID | number/string timestamp |
+| Autenticação | Supabase Auth (ADR-004) | email/password plaintext |
+| Turma | academic_groups | classes[] |
+| Aluno | students + enrollments | studentsList[] |
+| Portão | *(não migrado)* | exits[] + gatesList |
 
 ---
 
 ## Pontos que precisam de validação
 
-- Se `school.exits` e `gatesList` devem convergir num modelo único de portão
-- Se senhas devem permanecer em texto plano em produção
-- Estratégia de backup/export dos dados localStorage
-- Limite de tamanho do localStorage (~5MB) para logos base64 e listas grandes
+- Mapeamento oficial Basic/Premium/Diamond → basic/pro/enterprise
+- Estratégia de migração de dados localStorage → PostgreSQL
+- Cronograma de implementação de RLS
+- Migration 0003: Pickup Core (gates, calls)
