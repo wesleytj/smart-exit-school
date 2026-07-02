@@ -2,9 +2,12 @@
 
 ## Situação atual
 
-**Não há API REST, GraphQL, WebSocket ou endpoints HTTP implementados neste projeto.**
+**Não há API REST própria.** A aplicação expõe rotas SPA e acessa dados via:
 
-A aplicação é 100% client-side. Toda comunicação de dados ocorre via leitura/escrita direta no `localStorage` do navegador.
+1. **localStorage** — via services (maioria das operações)
+2. **Supabase PostgREST** — leitura parcial em `schoolService.getAllSchools()`
+
+Não há GraphQL, WebSocket server-side ou endpoints HTTP customizados.
 
 ---
 

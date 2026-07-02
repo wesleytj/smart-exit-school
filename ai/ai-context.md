@@ -8,7 +8,7 @@
 
 **Smart Exit School** é um SaaS frontend para escolas gerenciarem a **saída de alunos** no fim do expediente. Desenvolvido pela **AllTech Solutions**, permite cadastrar turmas/alunos, chamar alunos para portões específicos e exibir chamadas em um **telão (TV)**.
 
-**Estado atual:** MVP/protótipo **100% client-side** — sem backend, sem banco de dados, dados em `localStorage`.
+**Estado atual:** SPA React com **DAL (services)** — persistência majoritária em **localStorage**, schema **PostgreSQL (Supabase)** parcialmente implementado e integração incremental em andamento.
 
 ---
 
@@ -39,7 +39,9 @@ flowchart LR
 | Roteamento | React Router DOM 7 |
 | CSS | Tailwind CSS 4 |
 | Ícones | Lucide React |
-| Dados | localStorage (JSON) |
+| Dados runtime | localStorage via `storageClient` |
+| Dados persistentes (alvo) | PostgreSQL via Supabase |
+| Migrations | `supabase/migrations/` (Auth + Academic Core) |
 
 **Ausente:** TypeScript, backend, API, testes, CI/CD, i18n real.
 

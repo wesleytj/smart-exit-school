@@ -16,17 +16,21 @@ O projeto está configurado como **aplicação estática** gerada pelo Vite.
 
 ## Variáveis de ambiente
 
-**Não identificadas.**
+O projeto utiliza variáveis Vite para Supabase. Arquivo `.env.local` é ignorado pelo Git (`.gitignore`).
 
-- Não há arquivo `.env`, `.env.example` ou `.env.production`
-- Credenciais Super Admin estão **hardcoded** em `Login.jsx`
-- Não há uso de `import.meta.env.VITE_*`
+| Variável | Obrigatória | Descrição |
+|----------|-------------|-----------|
+| `VITE_SUPABASE_URL` | Sim (para Supabase) | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Sim (para Supabase) | Chave anon/public do Supabase |
+
+**Recomendação:** criar `.env.example` versionado com placeholders (não contém secrets).
+
+Credenciais Super Admin permanecem **hardcoded** em `Login.jsx` (legado).
 
 | Variável | Status |
 |----------|--------|
 | `VITE_API_URL` | Não existe |
 | `VITE_ADMIN_EMAIL` | Não existe (hardcoded) |
-| Secrets / API keys | Não configurados |
 
 ---
 

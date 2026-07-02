@@ -13,11 +13,8 @@ Tutorial completo para configurar e executar o projeto localmente.
 | Git | Qualquer versão recente | Para clonar o repositório |
 | Navegador moderno | Chrome, Firefox, Edge, Safari | ES Modules + localStorage |
 
-**Não necessário:**
-
-- Banco de dados
-- Docker
-- Variáveis de ambiente
+| Supabase CLI | Opcional | Para migrations locais (`npx supabase`) |
+| Docker | Opcional | Supabase local via CLI |
 
 ---
 
@@ -44,9 +41,24 @@ Isso instala as dependências definidas em `package.json` e resolve versões via
 
 ## 3. Configurar ambiente
 
-**Nenhuma configuração obrigatória.**
+Crie `.env.local` na raiz (ignorado pelo Git):
 
-O projeto não utiliza arquivos `.env`. Opcionalmente, você pode limpar dados anteriores no navegador:
+```env
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-anon
+```
+
+### Banco PostgreSQL (opcional)
+
+Com [Supabase CLI](https://supabase.com/docs/guides/cli) instalado:
+
+```bash
+npx supabase db reset   # aplica migrations + seed.sql
+```
+
+Ver [supabase/README.md](../supabase/README.md).
+
+Para limpar dados legados do navegador:
 
 ```javascript
 // DevTools Console

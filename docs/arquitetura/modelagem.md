@@ -2,7 +2,16 @@
 
 Este documento descreve as entidades de negócio do Smart Exit School.
 
-A modelagem apresentada é conceitual e serve como referência para as migrations SQL.
+**Estado da implementação:**
+
+| Domínio | Modelagem | Migration PostgreSQL |
+|---------|-----------|----------------------|
+| Authentication Core | ✅ | ✅ `20260628155403` |
+| Academic Core | ✅ | ✅ `20260701014657` |
+| Pickup Core | 📋 Planejado | ❌ Pendente |
+| Audit Core | 📋 Planejado | ❌ Pendente |
+
+Entidades marcadas como "possuirá" abaixo ainda não possuem migration.
 
 ---
 
@@ -18,8 +27,9 @@ Relacionamentos:
 - possui Academic Levels
 - possui Academic Groups
 - possui Students
-- possuirá Gates
-- possuirá Pickups
+- possui Student Enrollments
+- possuirá Gates *(Pickup Core — migration pendente)*
+- possuirá Pickups *(Pickup Core — migration pendente)*
 
 ---
 
@@ -106,7 +116,7 @@ Relacionamentos:
 
 - pertence a um Academic Level
 - pertence a um Academic Shift
-- possuirá Student Group Assignments
+- possuirá Student Group Assignments *(migration pendente — ADR-025)*
 
 ---
 
@@ -141,16 +151,18 @@ Armazena:
 
 Não representa a turma do aluno.
 
-Essa responsabilidade pertencerá futuramente à entidade Student Group Assignment.
+Essa responsabilidade pertencerá à entidade **Student Group Assignment** (migration futura — ADR-025).
 
 ---
 
 # Pickup Core
 
-(Em construção)
+**Status:** planejado — sem migration implementada.
+
+Entidades previstas: gates, pickup_events, called_students (ou equivalente conforme ADRs).
 
 ---
 
 # Audit Core
 
-(Em construção)
+**Status:** planejado — sem migration implementada.

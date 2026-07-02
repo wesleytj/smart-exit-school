@@ -12,7 +12,9 @@ Todas as versões abaixo foram extraídas de `package.json` e `package-lock.json
 | Roteamento | React Router DOM 7 |
 | CSS | Tailwind CSS 4 |
 | Ícones | Lucide React |
-| Persistência | localStorage (nativo do browser) |
+| Persistência runtime | localStorage via `storageClient` |
+| Banco de dados | PostgreSQL via Supabase (schema parcial) |
+| Auth (alvo) | Supabase Auth (ADR-004) |
 | Lint | ESLint 10 |
 
 ## Frameworks
@@ -42,6 +44,7 @@ Todas as versões abaixo foram extraídas de `package.json` e `package-lock.json
 | `tailwindcss` | ^4.2.4 | 4.2.4 | Estilos utility |
 | `@tailwindcss/vite` | ^4.2.4 | 4.2.4 | Plugin Vite para Tailwind 4 |
 | `lucide-react` | ^1.14.0 | 1.14.0 | Ícones SVG |
+| `@supabase/supabase-js` | ^2.108.2 | — | Client Supabase (PostgreSQL + Auth) |
 
 ## Dependências de desenvolvimento
 
@@ -126,20 +129,16 @@ Flat config (`eslint.config.js`):
 | Navegador | Moderno com ES Modules, localStorage, FileReader API |
 | Type module | `"type": "module"` no package.json |
 
-## Tecnologias explicitamente ausentes
+## Tecnologias explicitamente ausentes ou pendentes
 
-Com base na análise do código-fonte:
-
-- Backend (Node.js, Python, etc.)
-- Banco de dados (PostgreSQL, MongoDB, SQLite, etc.)
-- ORM / Query builder
-- Autenticação JWT/OAuth
-- HTTP client (axios, fetch para API própria)
-- State management global (Redux, Zustand, Jotai)
-- i18n (react-i18next, etc.) — seletor existe, tradução não
-- WebSockets / SSE
-- PWA / Service Workers
-- Testes automatizados
+| Tecnologia | Status |
+|------------|--------|
+| TypeScript | Não utilizado (apenas @types como devDep) |
+| API REST própria | Não implementada |
+| Supabase Auth no frontend | Schema pronto; login ainda legado |
+| RLS (Row Level Security) | Não implementado nas migrations |
+| Testes automatizados | Não identificado |
+| CI/CD | Não identificado |
 
 ## Diagrama de dependências
 
