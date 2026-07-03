@@ -64,6 +64,12 @@ Os dados iniciais da aplicação ficam em:
 supabase/seed.sql
 ```
 
+Conteúdo atual:
+
+- Catálogos globais: `roles`, `academic_shifts`
+- Massa de desenvolvimento: escola, nível, turmas, aluno, matrícula, vínculo matrícula↔turma
+- Portões de exemplo (`gates`) para a escola `smart-exit-dev-school`
+
 O Seed deve ser idempotente.
 
 Sempre utilizar:

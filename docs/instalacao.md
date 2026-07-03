@@ -77,7 +77,7 @@ supabase start
 
 # Aplicar migrations atuais e rodar o seed
 supabase db reset
-# Após o reset, o ambiente local será populado com dados mínimos de desenvolvimento para validação do domínio acadêmico, incluindo escola, nível, turmas, aluno, matrícula e vínculo da matrícula com turma.
+# Após o reset, o ambiente local será populado com dados mínimos de desenvolvimento para validação dos domínios acadêmico e operacional, incluindo escola, nível, turmas, aluno, matrícula, vínculo matrícula↔turma e portões de exemplo.
 ```
 
 ---

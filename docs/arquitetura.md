@@ -36,6 +36,8 @@ graph TB
 |------------|---------|--------|
 | Schema Authentication Core | PostgreSQL | ✅ Migration 0001 |
 | Schema Academic Core | PostgreSQL | ✅ Migration 0002 |
+| Schema Enrollment Assignment | PostgreSQL | ✅ Migration 0003 |
+| Schema Pickup Core | PostgreSQL | ✅ Migration 0004 |
 | `schoolService.getAllSchools()` | Supabase | ⚠️ Leitura parcial |
 | Demais services | localStorage | ✅ Ativo |
 | Supabase Auth | Supabase | ❌ Frontend ainda usa login legado |

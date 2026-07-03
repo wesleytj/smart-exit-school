@@ -65,8 +65,8 @@ Infraestrutura de banco PostgreSQL via Supabase CLI.
 
 | Item | Responsabilidade |
 |------|------------------|
-| `migrations/` | Schema versionado (Auth Core, Academic Core) |
-| `seed.sql` | Dados iniciais idempotentes (roles, shifts) |
+| `migrations/` | Schema versionado (0001 Auth, 0002 Academic, 0003 Enrollment Assignment, 0004 Pickup Core) |
+| `seed.sql` | Dados iniciais idempotentes (roles, shifts, massa dev acadêmica e portões) |
 | `config.toml` | Configuração local Supabase |
 
 ### `src/services/`

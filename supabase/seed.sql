@@ -270,3 +270,36 @@ select
 from resolved_enrollment re
 cross join resolved_group_morning rgm
 on conflict do nothing;
+
+-- ============================================================
+-- GATES
+-- ============================================================
+
+insert into public.gates (
+    school_id,
+    name,
+    description,
+    display_order,
+    status
+)
+select
+    s.id,
+    gate_data.name,
+    gate_data.description,
+    gate_data.display_order,
+    gate_data.status
+from public.schools s
+cross join (
+    values
+        ('Portão Principal', 'Portão principal de saída da escola', 1, 'active'),
+        ('Portão Infantil', 'Portão dedicado à saída da educação infantil', 2, 'active'),
+        ('Portão Lateral', 'Portão lateral de apoio operacional', 3, 'active')
+) as gate_data(name, description, display_order, status)
+where s.slug = 'smart-exit-dev-school'
+on conflict (school_id, name)
+do update
+set
+    description = excluded.description,
+    display_order = excluded.display_order,
+    status = excluded.status,
+    updated_at = now();
