@@ -9,7 +9,7 @@ O projeto opera em **dois modelos de persistência simultâneos**:
 | **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Leitura parcial via `schoolService.getAllSchools()` |
 | **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão, CRUD operacional, chamadas, portões, tema |
 
-A migração para Supabase está **em andamento**. O schema relacional já existe para os domínios de autenticação e núcleo acadêmico; a maior parte do frontend ainda persiste via localStorage.
+A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico e fundação operacional de saída (Pickup Core); a maior parte do frontend ainda persiste via localStorage.
 
 - Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
 - Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
@@ -25,6 +25,7 @@ Migrations em `supabase/migrations/`:
 | 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core |
 | 0002 | `20260701014657_create_academic_core.sql` | Academic Core |
 | 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment |
+| 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -39,6 +40,7 @@ Atualmente o seed cobre:
   - aluno
   - matrícula
   - vínculo da matrícula com turma
+- Portões de exemplo (`gates`) para a escola de desenvolvimento
 
 ### Diagrama ER (PostgreSQL)
 
@@ -48,6 +50,8 @@ erDiagram
     schools ||--o{ academic_levels : has
     schools ||--o{ academic_groups : has
     schools ||--o{ students : has
+    schools ||--o{ gates : has
+    schools ||--o{ pickup_events : has
 
     profiles ||--o{ school_members : has
     roles ||--o{ school_members : assigns
@@ -57,7 +61,9 @@ erDiagram
 
     students ||--o{ student_enrollments : has
     student_enrollments ||--o{ student_group_assignments : assigned_to
+    student_enrollments ||--o{ pickup_events : triggers
     academic_groups ||--o{ student_group_assignments : receives
+    gates ||--o{ pickup_events : receives
 
     schools {
         uuid id PK
@@ -143,6 +149,30 @@ erDiagram
         uuid academic_group_id FK
         text status
         timestamptz assigned_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    gates {
+        uuid id PK
+        uuid school_id FK
+        text name
+        text description
+        int display_order
+        text status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    pickup_events {
+        uuid id PK
+        uuid school_id FK
+        uuid student_enrollment_id FK
+        uuid gate_id FK
+        text status
+        timestamptz called_at
+        timestamptz completed_at
+        timestamptz cancelled_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -336,11 +366,70 @@ Isso foi validado em ambiente local com tentativa de inserir um segundo vínculo
 
 ---
 
+## Tabelas — Pickup Core
+
+Introduzidas na **Migration 0004**. Modelam a fundação operacional do fluxo de saída escolar: portões físicos/lógicos da instituição e eventos de chamada de alunos.
+
+### `gates`
+
+Representa os portões de saída utilizados no fluxo operacional de liberação de alunos.
+
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `school_id` | uuid | NOT NULL, FK → `schools(id)` ON DELETE CASCADE |
+| `name` | text | NOT NULL |
+| `description` | text | nullable |
+| `display_order` | integer | NOT NULL, default `1`, CHECK `> 0` |
+| `status` | text | NOT NULL, default `active`, CHECK: `active` / `inactive` |
+| `created_at` | timestamptz | NOT NULL, default `now()` |
+| `updated_at` | timestamptz | NOT NULL, default `now()` |
+
+**Regras principais:**
+
+- UNIQUE `(school_id, name)` → `gates_school_name_unique`
+- Índices: `idx_gates_school_id`, `idx_gates_status`
+
+**Seed de desenvolvimento** (escola `smart-exit-dev-school`):
+
+- Portão Principal
+- Portão Infantil
+- Portão Lateral
+
+### `pickup_events`
+
+Representa eventos operacionais de saída: chamada ativa, conclusão da saída ou cancelamento da chamada.
+
+| Coluna | Tipo | Constraints |
+|--------|------|-------------|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `school_id` | uuid | NOT NULL, FK → `schools(id)` ON DELETE CASCADE |
+| `student_enrollment_id` | uuid | NOT NULL, FK → `student_enrollments(id)` ON DELETE CASCADE |
+| `gate_id` | uuid | NOT NULL, FK → `gates(id)` ON DELETE RESTRICT |
+| `status` | text | NOT NULL, default `called`, CHECK: `called` / `completed` / `cancelled` |
+| `called_at` | timestamptz | NOT NULL, default `now()` |
+| `completed_at` | timestamptz | nullable |
+| `cancelled_at` | timestamptz | nullable |
+| `created_at` | timestamptz | NOT NULL, default `now()` |
+| `updated_at` | timestamptz | NOT NULL, default `now()` |
+
+**Regras principais:**
+
+- CHECK `pickup_events_status_timestamps_check` — coerência entre `status` e timestamps:
+  - `called`: `completed_at` e `cancelled_at` nulos
+  - `completed`: `completed_at` preenchido, `cancelled_at` nulo
+  - `cancelled`: `cancelled_at` preenchido, `completed_at` nulo
+- Índice único parcial `pickup_events_active_enrollment_unique` — **no máximo uma chamada ativa** (`status = 'called'`) por matrícula
+- Índices: `idx_pickup_events_school_id`, `idx_pickup_events_student_enrollment_id`, `idx_pickup_events_gate_id`, `idx_pickup_events_status`, `idx_pickup_events_called_at`
+
+**Observação:** o seed atual **não inclui** eventos de pickup de exemplo; apenas os portões. Eventos devem ser criados manualmente ou via integração futura dos services.
+
+---
+
 ## O que ainda NÃO existe no PostgreSQL
 
 | Domínio | Entidades previstas |
 |---------|---------------------|
-| Pickup Core | `gates`, `pickup_events` |
 | Audit Core | `audit_logs` |
 
 ---
@@ -386,18 +475,19 @@ Dados de apoio para validar o núcleo acadêmico localmente após `supabase db r
 
 Atualmente, o seed inclui:
 
-- 1 escola de desenvolvimento
+- 1 escola de desenvolvimento (`smart-exit-dev-school`)
 - 1 nível acadêmico
-- 2 turmas de exemplo
-- 1 aluno de exemplo
-- 1 matrícula de exemplo
+- 2 turmas de exemplo (EF3MA, EF3TA)
+- 1 aluno de exemplo (João Teste / STU-0001)
+- 1 matrícula de exemplo (ano 2026)
 - 1 vínculo ativo entre matrícula e turma
+- 3 portões de exemplo (Portão Principal, Portão Infantil, Portão Lateral)
 
 Essa massa **não representa seed de produção**. Ela existe para facilitar:
 
 - Validação das migrations
 - Testes locais no Supabase Studio
-- Inspeção manual das relações do domínio acadêmico
+- Inspeção manual das relações dos domínios acadêmico e operacional
 
 ---
 
@@ -436,5 +526,5 @@ Ou seja, leitura e escrita ainda usam backends diferentes até a conclusão da m
 | Autenticação | Supabase Auth (ADR-004) | email/password plaintext |
 | Turma | `academic_groups` + `student_group_assignments` | `classes[]` |
 | Aluno | `students` + `student_enrollments` | `studentsList[]` |
-| Portão | (ainda não migrado) | `exits[]` + `gatesList` |
-| Chamada de saída | (ainda não migrado) | `called[]` / monitor local |
+| Portão | `gates` (schema ✅; frontend ❌) | `exits[]` + `gatesList` |
+| Chamada de saída | `pickup_events` (schema ✅; frontend ❌) | `called[]` / monitor local |

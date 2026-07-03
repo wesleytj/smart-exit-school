@@ -2,7 +2,7 @@
 
 ## One-liner
 
-SaaS frontend para gestão de saída escolar. DAL em services; runtime localStorage; PostgreSQL Supabase em migração (schema Auth + Academic).
+SaaS frontend para gestão de saída escolar. DAL em services; runtime localStorage; PostgreSQL Supabase em migração (schema Auth + Academic + Pickup).
 
 ## Owner
 
@@ -44,7 +44,7 @@ Register students → Call on monitor → Display on TV → Confirm exit
 ## Data Store
 
 - **Runtime:** localStorage via DAL (`storageClient`)
-- **Schema:** PostgreSQL (Supabase) — migrations 0001–0002
+- **Schema:** PostgreSQL (Supabase) — migrations 0001–0004
 - **Gap:** `schoolService` reads Supabase, writes localStorage
 
 ## Key Files

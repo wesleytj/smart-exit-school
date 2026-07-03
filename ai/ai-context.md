@@ -41,7 +41,7 @@ flowchart LR
 | Ícones | Lucide React |
 | Dados runtime | localStorage via `storageClient` |
 | Dados persistentes (alvo) | PostgreSQL via Supabase |
-| Migrations | `supabase/migrations/` (Auth + Academic Core) |
+| Migrations | `supabase/migrations/` (0001–0004: Auth, Academic, Enrollment Assignment, Pickup Core) |
 
 **Ausente:** TypeScript, backend, API, testes, CI/CD, i18n real.
 
