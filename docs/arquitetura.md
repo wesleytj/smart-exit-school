@@ -38,10 +38,11 @@ graph TB
 | Schema Academic Core | PostgreSQL | ✅ Migration 0002 |
 | Schema Enrollment Assignment | PostgreSQL | ✅ Migration 0003 |
 | Schema Pickup Core | PostgreSQL | ✅ Migration 0004 |
+| RLS Foundation | PostgreSQL | ✅ Migration 0005 |
+| Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
 | `schoolService.getAllSchools()` | Supabase | ⚠️ Leitura parcial |
 | Demais services | localStorage | ✅ Ativo |
 | Supabase Auth | Supabase | ❌ Frontend ainda usa login legado |
-| RLS | PostgreSQL | ❌ Não implementado |
 
 ## Camadas
 
@@ -75,7 +76,8 @@ Via `callService.subscribeToCalls()`:
 
 ## Backend / Banco de dados
 
-- **Supabase:** migrations em `supabase/migrations/`, seed em `supabase/seed.sql`
+- **Supabase:** migrations em `supabase/migrations/` (fundação até **0005 — RLS Foundation**), seed em `supabase/seed.sql`
+- **Database Auditor v1:** `scripts/db-auditor/` via `npm run audit:db` — valida a fundação do banco local até a Migration 0005 (tabelas esperadas, RLS foundation, policies/helper functions e invariantes do seed); não substitui testes funcionais nem o futuro Audit Core (`audit_logs`)
 - **Sem API REST própria** — acesso direto via Supabase client (parcial)
 - Detalhes: [banco-de-dados.md](banco-de-dados.md)
 
@@ -109,5 +111,5 @@ flowchart TD
 
 - Unificação dos clientes Supabase (`lib/supabase.js` vs `services/core/supabaseClient.js`)
 - Conclusão da Fase 2: services 100% Supabase
-- Implementação de RLS antes de exposição pública
+- Evolução da segurança além da RLS Foundation (grants, fixtures de membership, políticas por papel)
 - Mapeamento de planos frontend ↔ schema PostgreSQL
