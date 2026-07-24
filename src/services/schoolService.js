@@ -1,13 +1,10 @@
 import { storageClient } from './core/storageClient';
 import { STORAGE_KEYS } from './core/keys';
-import { supabase } from '../lib/supabase';
+import { schoolRepository } from '../repositories/schoolRepository';
 
 export const schoolService = {
   async getAllSchools() {
-    const { data, error } =
-      await supabase
-        .from('schools')
-        .select('*');
+    const { data, error } = await schoolRepository.getAll();
 
     if (error) {
       console.error(error);
