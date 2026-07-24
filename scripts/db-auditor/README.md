@@ -27,6 +27,7 @@ npm run audit:db
 |--------|--------|
 | `inspect-schema.mjs` | Expected `public` app tables exist |
 | `inspect-rls.mjs` | RLS enabled on those tables; expected policies; helper functions |
+| `inspect-grants.mjs` | Expected `authenticated` schema/table grants from Migration 0005 |
 | `inspect-seed.mjs` | Seed invariants (roles, shifts, dev school, academic mass, gates) |
 
 Result statuses:
@@ -67,6 +68,7 @@ scripts/db-auditor/
 ├── expected-foundation.mjs   # Declared contract (tables/policies/functions/seed)
 ├── inspect-schema.mjs
 ├── inspect-rls.mjs
+├── inspect-grants.mjs
 ├── inspect-seed.mjs
 ├── runtime.mjs               # env + query helpers
 └── README.md
@@ -78,7 +80,8 @@ scripts/db-auditor/
 
 Flagged intentionally — do not treat as silent success:
 
-- Grant matrix from Migration 0005 (SELECT-only vs write policies) is **not** asserted yet.
+- Write privileges (`INSERT`/`UPDATE`/`DELETE`) are **not** required by Migration 0005 even when write policies exist; the Auditor only asserts the declared `SELECT` grants (+ schema `USAGE`).
+- `profiles` has policies but no GRANT in 0005 — reported as **WARN**.
 - Seed does **not** create Auth users, `profiles`, `school_members`, or `pickup_events` — reported as **WARN**.
 - Runtime RLS isolation smoke (multi-tenant JWT tests) remains in `scripts/validate-rls-foundation.mjs` and is **out of scope** for Auditor v1.
 

@@ -11,8 +11,10 @@
  *
  * Ambiguities / intentional non-assertions (do not guess):
  * - Migration 0005 grants SELECT only on most tables, while several policies
- *   declare INSERT/UPDATE/DELETE. Grant matrix is NOT asserted in v1.
- * - `profiles` has RLS policies but no GRANT in 0005 — not asserted here.
+ *   declare INSERT/UPDATE/DELETE. The Auditor asserts the SELECT grants
+ *   declared in 0005; it does not invent write grants that the migration never issued.
+ * - `profiles` has RLS policies but no GRANT in 0005 — listed explicitly as
+ *   a table without authenticated grants (not a silent omission).
  * - Seed does NOT create auth.users, profiles, school_members, or pickup_events.
  * - Seed creates group EF3TA but only assigns the sample student to EF3MA.
  */
@@ -115,6 +117,38 @@ export const EXPECTED_POLICIES = [
   { table: 'pickup_events', name: 'pickup_events_update_member' },
   { table: 'pickup_events', name: 'pickup_events_delete_member' }
 ]
+
+// ------------------------------------------------------------
+// Grants (Migration 0005) — authenticated role, exact statements
+// ------------------------------------------------------------
+
+export const EXPECTED_SCHEMA_GRANTS = [
+  { role: 'authenticated', schema: 'public', privilege: 'USAGE' }
+]
+
+/**
+ * Table privileges explicitly granted to `authenticated` in Migration 0005.
+ * Only SELECT was issued — write privileges are not part of this contract.
+ */
+export const EXPECTED_TABLE_GRANTS = [
+  { role: 'authenticated', table: 'schools', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'roles', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'school_members', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'academic_levels', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'academic_shifts', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'academic_groups', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'students', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'student_enrollments', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'student_group_assignments', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'gates', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'pickup_events', privileges: ['SELECT'] }
+]
+
+/**
+ * Foundation tables with RLS policies but no GRANT to `authenticated` in 0005.
+ * Reported as WARN (documents the known migration posture; not a FAIL).
+ */
+export const TABLES_WITHOUT_AUTHENTICATED_GRANTS = ['profiles']
 
 // ------------------------------------------------------------
 // Seed invariants (supabase/seed.sql)

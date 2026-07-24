@@ -1,5 +1,6 @@
 import { inspectSchema } from './inspect-schema.mjs'
 import { inspectRls } from './inspect-rls.mjs'
+import { inspectGrants } from './inspect-grants.mjs'
 import { inspectSeed } from './inspect-seed.mjs'
 import { hasFailures, printReport } from './report.mjs'
 
@@ -22,11 +23,13 @@ async function run() {
 
   const schemaResults = await inspectSchema()
   const rlsResults = await inspectRls()
+  const grantsResults = await inspectGrants()
   const seedResults = await inspectSeed()
 
   const sections = [
     { name: 'Schema (tables)', results: schemaResults },
     { name: 'RLS foundation', results: rlsResults },
+    { name: 'Grants (authenticated)', results: grantsResults },
     { name: 'Seed invariants', results: seedResults }
   ]
 
