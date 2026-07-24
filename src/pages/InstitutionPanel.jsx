@@ -67,14 +67,11 @@ export default function InstitutionPanel() {
   const [gateFormTime, setGateFormTime] = useState("");
   const [gateFormIsDefault, setGateFormIsDefault] = useState(false);
   const [gateFormSelectedClasses, setGateFormSelectedClasses] = useState([]);
-  const [newExitName, setNewExitName] = useState(""); // Saídas simples legadas
 
   // --- 3.3 Gestão de Turmas ---
   const [classFormName, setClassFormName] = useState("");
   const [classFormExit, setClassFormExit] = useState("");
   const [editingClassId, setEditingClassId] = useState(null);
-  const [selectedClasses, setSelectedClasses] = useState([]);
-  const [bulkClassExitOption, setBulkClassExitOption] = useState("");
 
   // --- 3.4 Gestão de Alunos ---
   const [studentFormName, setStudentFormName] = useState("");
@@ -116,12 +113,16 @@ export default function InstitutionPanel() {
         }));
       }
 
-      setSchool({
+      const nextSchool = {
         ...loggedSchool,
         studentsList: loggedSchool.studentsList || [],
         exits: loggedSchool.exits || [],
         classes: loadedClasses
-      });
+      };
+
+      setSchool(nextSchool);
+      setTempPrimaryColor(nextSchool.primaryColor || DEFAULT_PRIMARY_COLOR);
+      setTempSecondaryColor(nextSchool.secondaryColor || DEFAULT_SECONDARY_COLOR);
     }
 
     void loadInitialData();
@@ -130,14 +131,6 @@ export default function InstitutionPanel() {
   useEffect(() => {
     void themeService.getThemePreference().then(setIsDarkMode);
   }, []);
-
-  // 4.2 Sincroniza cores do banco com os inputs visuais temporários
-  useEffect(() => {
-    if (school) {
-      setTempPrimaryColor(school.primaryColor || DEFAULT_PRIMARY_COLOR);
-      setTempSecondaryColor(school.secondaryColor || DEFAULT_SECONDARY_COLOR);
-    }
-  }, [school?.primaryColor, school?.secondaryColor]);
 
   // 4.3 Carrega Portões do Banco
   useEffect(() => {
@@ -182,6 +175,15 @@ export default function InstitutionPanel() {
   // --- Funções Globais e do Sistema ---
   async function saveSchoolData(updatedSchool) {
     setSchool(updatedSchool);
+
+    if (
+      updatedSchool.primaryColor !== school.primaryColor ||
+      updatedSchool.secondaryColor !== school.secondaryColor
+    ) {
+      setTempPrimaryColor(updatedSchool.primaryColor || DEFAULT_PRIMARY_COLOR);
+      setTempSecondaryColor(updatedSchool.secondaryColor || DEFAULT_SECONDARY_COLOR);
+    }
+
     await authService.updateCurrentSession(updatedSchool);
     await schoolService.saveSchool(updatedSchool);
   }
@@ -288,18 +290,6 @@ export default function InstitutionPanel() {
     }
   };
 
-  function handleAddExit(e) {
-    e.preventDefault();
-    if (!newExitName) return;
-    saveSchoolData({ ...school, exits: [...school.exits, newExitName] });
-    setNewExitName("");
-  }
-
-  function handleRemoveExit(exitToRemove) {
-    saveSchoolData({ ...school, exits: school.exits.filter(e => e !== exitToRemove) });
-    if (selectedExitFilter === exitToRemove) setSelectedExitFilter("Todos");
-  }
-
   // --- Gestão de Turmas ---
   function handleSubmitClass(e) {
     e.preventDefault();
@@ -340,30 +330,6 @@ export default function InstitutionPanel() {
   function handleRemoveClass(id) {
     const updatedClasses = school.classes.filter(c => c.id !== id);
     saveSchoolData({ ...school, classes: updatedClasses });
-    setSelectedClasses(prev => prev.filter(cId => cId !== id));
-  }
-
-  function handleToggleClass(id) {
-    setSelectedClasses(prev => prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]);
-  }
-
-  function handleToggleAllClasses(e) {
-    if (e.target.checked) setSelectedClasses(school.classes.map(c => c.id));
-    else setSelectedClasses([]);
-  }
-
-  function handleApplyBulkClassChanges() {
-    if (!bulkClassExitOption || selectedClasses.length === 0) return;
-    const updatedClasses = school.classes.map(c => selectedClasses.includes(c.id) ? { ...c, defaultExit: bulkClassExitOption } : c);
-    const classNamesUpdated = updatedClasses.filter(c => selectedClasses.includes(c.id)).map(c => c.name);
-    const updatedStudentsList = school.studentsList.map(s => {
-      if (classNamesUpdated.includes(s.grade)) return { ...s, defaultExit: bulkClassExitOption };
-      return s;
-    });
-
-    saveSchoolData({ ...school, classes: updatedClasses, studentsList: updatedStudentsList });
-    setSelectedClasses([]);
-    setBulkClassExitOption("");
   }
 
   // --- Gestão de Alunos ---

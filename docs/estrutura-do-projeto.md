@@ -27,6 +27,18 @@ smart-exit-school/
 │   ├── seed.sql
 │   └── README.md
 │
+├── scripts/
+│   ├── validate-rls-foundation.mjs  # Smoke parcial de RLS (legado)
+│   └── db-auditor/                  # Database Auditor v1
+│       ├── index.mjs
+│       ├── expected-foundation.mjs
+│       ├── inspect-schema.mjs
+│       ├── inspect-rls.mjs
+│       ├── inspect-seed.mjs
+│       ├── report.mjs
+│       ├── runtime.mjs
+│       └── README.md
+│
 └── src/
     ├── main.jsx
     ├── App.jsx
@@ -65,9 +77,27 @@ Infraestrutura de banco PostgreSQL via Supabase CLI.
 
 | Item | Responsabilidade |
 |------|------------------|
-| `migrations/` | Schema versionado (0001 Auth, 0002 Academic, 0003 Enrollment Assignment, 0004 Pickup Core) |
+| `migrations/` | Schema versionado (0001 Auth, 0002 Academic, 0003 Enrollment Assignment, 0004 Pickup Core, 0005 RLS Foundation) |
 | `seed.sql` | Dados iniciais idempotentes (roles, shifts, massa dev acadêmica e portões) |
 | `config.toml` | Configuração local Supabase |
+
+### `scripts/db-auditor/`
+
+Ferramenta técnica que **valida a fundação do banco local até a Migration 0005** (**Database Auditor v1**). **Não faz parte do domínio da aplicação** e não é o futuro Audit Core (`audit_logs`).
+
+Verifica presença das tabelas esperadas, RLS foundation, policies/helper functions esperadas e invariantes do seed atual. Não substitui testes funcionais nem o futuro Audit Core. Execução: `npm run audit:db`.
+
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `index.mjs` | Orquestra os inspectors e define o exit code |
+| `expected-foundation.mjs` | Contrato declarado (tabelas, policies, functions, seed) |
+| `inspect-schema.mjs` | Verifica existência das tabelas esperadas |
+| `inspect-rls.mjs` | Verifica RLS, policies e helper functions |
+| `inspect-seed.mjs` | Verifica invariantes do `seed.sql` |
+| `report.mjs` | Normaliza resultados `PASS` / `FAIL` / `WARN` / `SKIP` e imprime o relatório |
+| `runtime.mjs` | Helpers de conexão e consulta ao Postgres local |
+
+Detalhes: [banco-de-dados.md](banco-de-dados.md) e [scripts/db-auditor/README.md](../scripts/db-auditor/README.md).
 
 ### `src/services/`
 

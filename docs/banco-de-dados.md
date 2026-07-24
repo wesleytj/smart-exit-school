@@ -9,7 +9,7 @@ O projeto opera em **dois modelos de persistência simultâneos**:
 | **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Leitura parcial via `schoolService.getAllSchools()` |
 | **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão, CRUD operacional, chamadas, portões, tema |
 
-A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico e fundação operacional de saída (Pickup Core); a maior parte do frontend ainda persiste via localStorage.
+A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). A maior parte do frontend ainda persiste via localStorage.
 
 - Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
 - Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
@@ -17,6 +17,8 @@ A migração para Supabase está **em andamento**. O schema relacional já cobre
 ---
 
 ## PostgreSQL — Schema implementado
+
+A fundação atual do banco vai até a **Migration 0005 — RLS Foundation**.
 
 Migrations em `supabase/migrations/`:
 
@@ -26,6 +28,7 @@ Migrations em `supabase/migrations/`:
 | 0002 | `20260701014657_create_academic_core.sql` | Academic Core |
 | 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment |
 | 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core |
+| 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -41,6 +44,8 @@ Atualmente o seed cobre:
   - matrícula
   - vínculo da matrícula com turma
 - Portões de exemplo (`gates`) para a escola de desenvolvimento
+
+O seed atual **não cria** `auth.users`, `profiles`, `school_members` nem `pickup_events`. Essa ausência é lacuna conhecida do baseline de desenvolvimento, não violação do contrato do `seed.sql`.
 
 ### Diagrama ER (PostgreSQL)
 
@@ -185,14 +190,62 @@ O desenvolvimento de novas alterações no schema utiliza a Supabase CLI em conj
 **Fluxo padrão:**
 
 ```bash
-supabase start
-supabase db reset
+npx supabase start
+npx supabase db reset
+npm run audit:db
 ```
 
 - `supabase start` — sobe a stack local do Supabase (PostgreSQL, Studio, Auth e demais serviços necessários)
 - `supabase db reset` — recria o banco local, aplica todas as migrations e executa o `seed.sql`
+- `npm run audit:db` — valida a fundação do banco local até a Migration 0005 (Database Auditor v1)
 
 Esse fluxo é **obrigatório** para validar migrations antes de abrir Pull Request.
+
+---
+
+## Database Auditor v1
+
+Ferramenta técnica que **valida a fundação do banco local até a Migration 0005**. Implementação em `scripts/db-auditor/`.
+
+**Não confundir com Audit Core:** o Database Auditor v1 verifica o contrato técnico da fundação (migrations **0001–0005** + `seed.sql`). O **Audit Core** (`audit_logs` e afins) é um domínio funcional futuro e ainda não existe no PostgreSQL. O Auditor v1 **não** substitui testes funcionais nem o futuro Audit Core.
+
+### Objetivo
+
+Detectar drift entre a base local e o contrato declarado pelas migrations **0001–0005** e pelo `supabase/seed.sql`, após um `db reset`.
+
+### O que o Auditor v1 valida
+
+- presença das tabelas esperadas da fundação;
+- RLS foundation habilitado nas tabelas esperadas;
+- existência das policies e helper functions de RLS esperadas (Migration 0005);
+- invariantes do seed atual;
+- resultados com status `PASS` / `FAIL` / `WARN` / `SKIP` (exit code ≠ 0 apenas com `FAIL`).
+
+### O que o Auditor v1 não valida
+
+- matriz completa de `GRANT`s;
+- inventário completo de índices, constraints e FKs;
+- isolamento multi-tenant em runtime (JWT / memberships);
+- Audit Core / `audit_logs`;
+- testes funcionais ou de autorização ponta a ponta da aplicação.
+
+### Comando
+
+```bash
+npm run audit:db
+```
+
+### Fluxo recomendado
+
+```bash
+npx supabase start
+npx supabase db reset
+npm run audit:db
+```
+
+Documentação do módulo: [scripts/db-auditor/README.md](../scripts/db-auditor/README.md).
+
+O script legado `npm run validate:rls` continua disponível como smoke parcial de RLS e **não** substitui o Auditor v1.
 
 ---
 
@@ -430,31 +483,35 @@ Representa eventos operacionais de saída: chamada ativa, conclusão da saída o
 
 | Domínio | Entidades previstas |
 |---------|---------------------|
-| Audit Core | `audit_logs` |
+| Audit Core | `audit_logs` (domínio funcional futuro — distinto do Database Auditor v1) |
 
 ---
 
 ## Segurança do banco
 
-No momento, o schema relacional ainda está em fase de consolidação estrutural. Por isso, alguns itens de segurança e governança ainda não foram implementados.
+A **fundação de RLS** já existe na Migration 0005: RLS habilitado nas tabelas da fundação, policies de membership/self-access e helper functions. A consolidação de segurança ainda não está completa para produção.
 
-### Pendências atuais
+### Status atual
 
 | Item | Status |
 |------|--------|
-| RLS (Row Level Security) | Ainda não implementado nas migrations atuais |
+| RLS Foundation (Migration 0005) | ✅ Implementada (enable + policies + helpers) |
+| Database Auditor v1 | ✅ Valida a fundação até 0005 (tabelas esperadas, RLS foundation, policies/helpers e seed baseline) |
+| Matriz completa de `GRANT`s | ⚠️ Não é foco do Auditor v1; há assimetria conhecida entre policies de escrita e grants `SELECT` |
+| Isolamento multi-tenant em runtime | ⚠️ Smoke parcial em `validate:rls`; seed sem usuários/memberships |
 | Triggers automáticos de `updated_at` | Ainda não implementados |
-| Policies de acesso por escola/usuário | Pendentes |
+| Políticas por papel (`roles`) além de membership ativa | Pendente |
 | Integração completa com Supabase Auth no frontend | Pendente |
+| Audit Core (`audit_logs`) | Pendente (domínio futuro) |
 
 ### Observação importante
 
-Antes de produção, será obrigatório implementar:
+Antes de produção, ainda será necessário evoluir:
 
-- RLS em tabelas multi-tenant
-- Políticas por escola (`school_id`)
-- Políticas por papel de usuário (`roles`)
-- Revisão do fluxo de autenticação institucional
+- fixtures de membership para testes RLS completos;
+- alinhamento de grants com as policies;
+- políticas por papel de usuário, quando o produto exigir;
+- revisão do fluxo de autenticação institucional no frontend.
 
 ---
 
@@ -483,9 +540,19 @@ Atualmente, o seed inclui:
 - 1 vínculo ativo entre matrícula e turma
 - 3 portões de exemplo (Portão Principal, Portão Infantil, Portão Lateral)
 
+**Lacunas conhecidas do seed (não são falha do contrato do `seed.sql`):**
+
+- não cria usuários em `auth.users`
+- não cria `profiles`
+- não cria `school_members`
+- não cria `pickup_events`
+
+O Database Auditor v1 reporta essas ausências como `WARN`.
+
 Essa massa **não representa seed de produção**. Ela existe para facilitar:
 
 - Validação das migrations
+- Execução do Database Auditor v1 após reset local
 - Testes locais no Supabase Studio
 - Inspeção manual das relações dos domínios acadêmico e operacional
 

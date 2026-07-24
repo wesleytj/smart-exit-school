@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "validate:rls": "node scripts/validate-rls-foundation.mjs"
+    "validate:rls": "node scripts/validate-rls-foundation.mjs",
+    "audit:db": "node scripts/db-auditor/index.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

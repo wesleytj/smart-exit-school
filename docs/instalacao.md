@@ -52,10 +52,12 @@ VITE_SUPABASE_ANON_KEY=sua-chave-anon
 Com [Supabase CLI](https://supabase.com/docs/guides/cli) instalado:
 
 ```bash
+npx supabase start
 npx supabase db reset   # aplica migrations + seed.sql
+npm run audit:db        # valida a fundação do banco local até a Migration 0005
 ```
 
-Ver [supabase/README.md](../supabase/README.md).
+Ver [supabase/README.md](../supabase/README.md) e a seção 3.1 abaixo.
 
 Para limpar dados legados do navegador:
 
@@ -70,16 +72,21 @@ Para desenvolvimento de migrations e banco de dados, é necessário rodar a stac
 
 ```bash
 # Iniciar os containers do Supabase (banco, auth, studio, etc)
-supabase start
+npx supabase start
 
-# O console exibirá as credenciais locais, como o Studio URL (geralmente [http://127.0.0.1:54323](http://127.0.0.1:54323)) e as chaves locais.
+# O console exibirá as credenciais locais, como o Studio URL (geralmente http://127.0.0.1:54323) e as chaves locais.
 # Atualize o seu `.env.local` com as chaves locais fornecidas pelo comando start, caso vá testar a conexão.
 
 # Aplicar migrations atuais e rodar o seed
-supabase db reset
-# Após o reset, o ambiente local será populado com dados mínimos de desenvolvimento para validação dos domínios acadêmico e operacional, incluindo escola, nível, turmas, aluno, matrícula, vínculo matrícula↔turma e portões de exemplo.
+npx supabase db reset
+
+# Validar a fundação do banco local até a Migration 0005 (Database Auditor v1)
+npm run audit:db
 ```
 
+Após o reset, o ambiente local é populado com dados mínimos de desenvolvimento (escola, nível, turmas, aluno, matrícula, vínculo matrícula↔turma e portões). O comando `npm run audit:db` verifica presença das tabelas esperadas, RLS foundation, policies/helper functions esperadas e invariantes do seed atual.
+
+O Auditor v1 **não** substitui testes funcionais da aplicação nem o futuro domínio Audit Core (`audit_logs`).
 ---
 
 ## 4. Executar localmente
@@ -182,6 +189,8 @@ flowchart TD
 | `npm run build` | Build de produção |
 | `npm run preview` | Preview do build |
 | `npm run lint` | Executar ESLint |
+| `npm run audit:db` | Database Auditor v1 — valida a fundação do banco local até a Migration 0005 |
+| `npm run validate:rls` | Smoke parcial de RLS (script legado; não substitui o Auditor v1) |
 
 ---
 
