@@ -2,28 +2,52 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Mail, Lock, LogIn } from "lucide-react"
 import { authService } from "../services/authService"
+import { platformAdminService } from "../services/platformAdminService"
+import { supabase } from "../lib/supabase"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
 
   async function handleLogin(e) {
     e.preventDefault()
     setError("")
+    setIsSubmitting(true)
 
-    if (email === "admin@alltech.com" && password === "admin123") {
-      navigate("/admin/institutions")
-      return
-    }
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
-    const schoolFound = await authService.login(email, password)
+      if (!authError && data?.user) {
+        const isAdmin = await platformAdminService.isPlatformAdmin(data.user.id)
 
-    if (schoolFound) {
-      navigate("/painel")
-    } else {
-      setError("E-mail ou senha incorretos.")
+        if (isAdmin) {
+          navigate("/admin/institutions")
+          return
+        }
+
+        await supabase.auth.signOut()
+        setError("Esta conta não possui permissão de administrador da plataforma.")
+        return
+      }
+
+      const schoolFound = await authService.login(email, password)
+
+      if (schoolFound) {
+        navigate("/painel")
+      } else {
+        setError("E-mail ou senha incorretos.")
+      }
+    } catch (err) {
+      console.error(err)
+      setError("Não foi possível entrar. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -81,10 +105,11 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl mt-4 flex items-center justify-center gap-2 transition shadow-lg shadow-orange-500/30"
+            disabled={isSubmitting}
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl mt-4 flex items-center justify-center gap-2 transition shadow-lg shadow-orange-500/30"
           >
             <LogIn size={20} />
-            Entrar no Sistema
+            {isSubmitting ? "Entrando..." : "Entrar no Sistema"}
           </button>
         </form>
 

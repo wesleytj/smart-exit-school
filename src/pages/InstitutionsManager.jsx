@@ -5,9 +5,12 @@ import {
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { schoolService } from "../services/schoolService"
+import { usePlatformAdmin } from "../hooks/usePlatformAdmin"
+import { supabase } from "../lib/supabase"
 
 export default function InstitutionsManager() {
   const navigate = useNavigate()
+  const { isPlatformAdmin, isLoading: isPlatformAdminLoading } = usePlatformAdmin()
   
   // Estados Principais
   const [institutions, setInstitutions] = useState([])
@@ -27,6 +30,16 @@ export default function InstitutionsManager() {
   })
 
   useEffect(() => {
+    if (!isPlatformAdminLoading && !isPlatformAdmin) {
+      navigate("/login", { replace: true })
+    }
+  }, [isPlatformAdmin, isPlatformAdminLoading, navigate])
+
+  useEffect(() => {
+    if (!isPlatformAdmin) {
+      return
+    }
+
     async function loadInstitutions() {
       const savedSchools = await schoolService.getAllSchools()
       const sanitizedSchools = savedSchools.map(school => ({
@@ -46,22 +59,42 @@ export default function InstitutionsManager() {
     }
 
     void loadInstitutions()
-  }, [])
+  }, [isPlatformAdmin])
 
   // Métricas do Dashboard
   const totalInstitutions = institutions.length
-  const activeInstitutions = institutions.filter(s => s.status === "Ativo").length
+  const activeInstitutions = institutions.filter(s => isActiveSchoolStatus(s.status)).length
   const totalStudents = institutions.reduce((acc, curr) => acc + (curr.students || 0), 0)
 
   // Filtro de Busca
-  const filteredInstitutions = institutions.filter(school => 
-    school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    school.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredInstitutions = institutions.filter(school => {
+    const name = (school.name || "").toLowerCase()
+    const email = (school.email || school.slug || "").toLowerCase()
+    const query = searchQuery.toLowerCase()
+    return name.includes(query) || email.includes(query)
+  })
 
   // Ações
-  function handleLogout() {
+  async function handleLogout() {
+    await supabase.auth.signOut()
     navigate("/login")
+  }
+
+  if (isPlatformAdminLoading || !isPlatformAdmin) {
+    return null
+  }
+
+  function isActiveSchoolStatus(status) {
+    const normalized = String(status || "").toLowerCase()
+    return normalized === "ativo" || normalized === "active"
+  }
+
+  function toUiPlan(plan) {
+    const normalized = String(plan || "").toLowerCase()
+    if (normalized === "pro" || normalized === "premium") return "Premium"
+    if (normalized === "enterprise" || normalized === "diamond") return "Diamond"
+    if (normalized === "trial") return "Trial"
+    return "Basic"
   }
 
   function openCreateModal() {
@@ -75,9 +108,9 @@ export default function InstitutionsManager() {
     setEditingId(school.id)
     setFormData({ 
       name: school.name, 
-      email: school.email, 
-      password: school.password,
-      plan: school.plan === "Pro" ? "Basic" : (school.plan || "Basic") // Proteção contra o legado "Pro"
+      email: school.email || "", 
+      password: school.password || "",
+      plan: toUiPlan(school.plan)
     })
     setIsModalOpen(true)
     setDropdownOpenId(null)
@@ -88,21 +121,19 @@ export default function InstitutionsManager() {
 
     if (editingId) {
       const updatedSchool = institutions.find(school => school.id === editingId)
-      const savedSchool = { ...updatedSchool, ...formData }
-      await schoolService.saveSchool(savedSchool)
+      const savedSchool = await schoolService.saveSchool({ ...updatedSchool, ...formData })
       setInstitutions(institutions.map(school =>
         school.id === editingId ? savedSchool : school
       ))
     } else {
       const newSchool = {
-        id: Date.now(),
         ...formData,
-        status: "Ativo",
+        status: "active",
         students: 0,
         exits: []
       }
-      await schoolService.saveSchool(newSchool)
-      setInstitutions([...institutions, newSchool])
+      const savedSchool = await schoolService.saveSchool(newSchool)
+      setInstitutions([...institutions, savedSchool])
     }
 
     setIsModalOpen(false)
@@ -117,23 +148,21 @@ export default function InstitutionsManager() {
   }
 
   async function handleToggleStatus(id) {
-    let toggledSchool = null
-    const updatedInstitutions = institutions.map(school => {
-      if (school.id === id) {
-        toggledSchool = {
-          ...school,
-          status: school.status === "Ativo" ? "Inativo" : "Ativo"
-        }
-        return toggledSchool
-      }
-      return school
-    })
-
-    if (toggledSchool) {
-      await schoolService.saveSchool(toggledSchool)
+    const current = institutions.find(school => school.id === id)
+    if (!current) {
+      setDropdownOpenId(null)
+      return
     }
 
-    setInstitutions(updatedInstitutions)
+    const nextStatus = isActiveSchoolStatus(current.status) ? "inactive" : "active"
+    const savedSchool = await schoolService.saveSchool({
+      ...current,
+      status: nextStatus
+    })
+
+    setInstitutions(institutions.map(school =>
+      school.id === id ? savedSchool : school
+    ))
     setDropdownOpenId(null)
   }
 
@@ -244,7 +273,7 @@ export default function InstitutionsManager() {
                   
                   {/* Info Principal */}
                   <div className="flex items-center gap-3 pr-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${school.status === 'Ativo' ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isActiveSchoolStatus(school.status) ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
                       <Building size={20} />
                     </div>
                     <span className="font-semibold text-slate-800 truncate" title={school.name}>{school.name}</span>
@@ -252,21 +281,21 @@ export default function InstitutionsManager() {
                   
                   {/* Email e Plano */}
                   <div>
-                    <p className="text-slate-600 text-sm font-medium">{school.email}</p>
-                    <p className="text-xs text-orange-500 font-bold uppercase mt-0.5">Plano {school.plan}</p>
+                    <p className="text-slate-600 text-sm font-medium">{school.email || school.slug || "—"}</p>
+                    <p className="text-xs text-orange-500 font-bold uppercase mt-0.5">Plano {toUiPlan(school.plan)}</p>
                   </div>
 
                   {/* Alunos */}
-                  <p className="text-slate-600 font-medium">{school.students}</p>
+                  <p className="text-slate-600 font-medium">{school.students || 0}</p>
                   
                   {/* Status */}
                   <div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      school.status === 'Ativo' 
+                      isActiveSchoolStatus(school.status)
                         ? 'bg-green-50 text-green-600 border-green-200' 
                         : 'bg-red-50 text-red-500 border-red-200'
                     }`}>
-                      {school.status}
+                      {isActiveSchoolStatus(school.status) ? "Ativo" : "Inativo"}
                     </span>
                   </div>
 
@@ -300,8 +329,8 @@ export default function InstitutionsManager() {
                             onClick={() => handleToggleStatus(school.id)}
                             className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                           >
-                            <Ban size={16} className={school.status === 'Ativo' ? 'text-orange-500' : 'text-green-500'} /> 
-                            {school.status === 'Ativo' ? 'Suspender Acesso' : 'Reativar Acesso'}
+                            <Ban size={16} className={isActiveSchoolStatus(school.status) ? 'text-orange-500' : 'text-green-500'} /> 
+                            {isActiveSchoolStatus(school.status) ? 'Suspender Acesso' : 'Reativar Acesso'}
                           </button>
                           
                           <div className="h-px bg-slate-100 my-1" />

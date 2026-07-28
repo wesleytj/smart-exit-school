@@ -1,5 +1,3 @@
-import { storageClient } from './core/storageClient';
-import { STORAGE_KEYS } from './core/keys';
 import { schoolRepository } from '../repositories/schoolRepository';
 
 function adaptPlanForDatabase(plan) {
@@ -24,6 +22,23 @@ function adaptStatusForDatabase(status) {
   return 'active';
 }
 
+function slugifyName(name) {
+  const slug = String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || `school-${Date.now()}`;
+}
+
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function buildSchoolUpdatePayload(schoolData) {
   const payload = {};
 
@@ -38,6 +53,42 @@ function buildSchoolUpdatePayload(schoolData) {
   if (schoolData.status !== undefined) {
     payload.status = adaptStatusForDatabase(schoolData.status);
   }
+
+  if (schoolData.slug !== undefined) {
+    payload.slug = schoolData.slug;
+  }
+
+  const primaryColor = schoolData.primary_color ?? schoolData.primaryColor;
+  if (primaryColor !== undefined) {
+    payload.primary_color = primaryColor;
+  }
+
+  const secondaryColor = schoolData.secondary_color ?? schoolData.secondaryColor;
+  if (secondaryColor !== undefined) {
+    payload.secondary_color = secondaryColor;
+  }
+
+  const logoUrl = schoolData.logo_url ?? schoolData.customLogo;
+  if (logoUrl !== undefined) {
+    payload.logo_url = logoUrl;
+  }
+
+  const locale = schoolData.locale ?? schoolData.language;
+  if (locale !== undefined) {
+    payload.locale = locale;
+  }
+
+  return payload;
+}
+
+function buildSchoolCreatePayload(schoolData) {
+  const name = schoolData.name;
+  const payload = {
+    name,
+    slug: schoolData.slug || slugifyName(name),
+    plan: adaptPlanForDatabase(schoolData.plan ?? 'basic'),
+    status: adaptStatusForDatabase(schoolData.status ?? 'active')
+  };
 
   const primaryColor = schoolData.primary_color ?? schoolData.primaryColor;
   if (primaryColor !== undefined) {
@@ -71,48 +122,67 @@ export const schoolService = {
       return [];
     }
 
-    return data;
+    return data ?? [];
   },
 
   async getSchoolById(id) {
-    const schools = await this.getAllSchools();
-    return schools.find(s => s.id === id) || null;
+    const { data, error } = await schoolRepository.getById(id);
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+
+    return data;
   },
 
   async saveSchool(schoolData) {
-    const schools = await this.getAllSchools();
-    const index = schools.findIndex(s => s.id === schoolData.id);
+    if (isUuid(schoolData?.id)) {
+      const { data: existing, error: existingError } = await schoolRepository.getById(schoolData.id);
 
-    if (index >= 0) {
-      schools[index] = schoolData;
+      if (existingError) {
+        console.error(existingError);
+      }
 
-      const payload = buildSchoolUpdatePayload(schoolData);
-      if (Object.keys(payload).length > 0) {
-        const { error } = await schoolRepository.update(schoolData.id, payload);
+      if (existing) {
+        const payload = buildSchoolUpdatePayload(schoolData);
+
+        if (Object.keys(payload).length === 0) {
+          return existing;
+        }
+
+        const { data, error } = await schoolRepository.update(schoolData.id, payload);
+
         if (error) {
           console.error(error);
+          return schoolData;
         }
+
+        return data;
       }
-    } else {
-      schools.push(schoolData);
     }
 
-    await storageClient.set(STORAGE_KEYS.SCHOOLS, schools);
-    return schoolData;
+    const payload = buildSchoolCreatePayload(schoolData);
+    const { data, error } = await schoolRepository.create(payload);
+
+    if (error) {
+      console.error(error);
+      return schoolData;
+    }
+
+    return data;
   },
 
   async deleteSchool(id) {
-    const schools = await this.getAllSchools();
-    const updatedSchools = schools.filter(s => s.id !== id);
-    await storageClient.set(STORAGE_KEYS.SCHOOLS, updatedSchools);
+    const { error } = await schoolRepository.delete(id);
+
+    if (error) {
+      console.error(error);
+    }
   },
 
-  async seedInitialMock(mockData) {
-    const existing = await this.getAllSchools();
-    if (existing.length === 0) {
-      await storageClient.set(STORAGE_KEYS.SCHOOLS, mockData);
-      return mockData;
-    }
-    return existing;
+  async seedInitialMock() {
+    // School catalog is Supabase-only; localStorage seeding was removed.
+    return await this.getAllSchools();
   }
 };
