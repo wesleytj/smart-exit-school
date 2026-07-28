@@ -7,14 +7,14 @@ export const platformAdminService = {
       return false;
     }
 
-    const { data, error } = await platformAdminRepository.getByProfileId(profileId);
+    const { data, error } = await platformAdminRepository.isPlatformAdmin();
 
     if (error) {
       console.error(error);
       return false;
     }
 
-    return data !== null;
+    return data === true;
   },
 
   async getIsPlatformAdminForCurrentSession() {
