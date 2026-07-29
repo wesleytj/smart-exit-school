@@ -119,65 +119,35 @@ npm run preview
 
 ## 5. Primeiro acesso
 
-### Fluxo recomendado para teste
+### Platform Admin
 
-1. Acesse `http://localhost:5173` → redirect para `/login`
-2. Na primeira execução, `@SmartExit:schools` estará vazio
-3. Faça login com uma escola mock **ou** Super Admin
+1. `npx supabase start` + `npx supabase db reset`
+2. Crie um usuário no Supabase Auth (Studio local, tipicamente `http://127.0.0.1:54323`)
+3. O trigger (Migration 0010) cria o `profile`
+4. A Migration 0009 promove automaticamente o e-mail `admin@alltech.com` para `platform_admins` **se** esse usuário Auth existir; caso contrário, insira manualmente em `public.platform_admins`
+5. No app (`/login`), entre com o e-mail/senha do Auth
+6. Destino: `/admin/institutions` (exige `is_platform_admin() === true`)
 
-### Credenciais Super Admin
+### Instituições
 
-| Campo | Valor |
-|-------|-------|
-| E-mail | `admin@alltech.com` |
-| Senha | `admin123` |
+1. Com Platform Admin autenticado, use **Nova Instituição**
+2. Persistência: Supabase `public.schools` (via `schoolService` → `schoolRepository`)
+3. Campos no formulário/banco: `name`, `slug` (gerado), `plan`, `status`
 
-Destino: Painel Super Admin em `/admin/institutions`
+### Login de operador da instituição
 
-### Credenciais escolas mock
-
-Inseridas automaticamente no primeiro acesso ao `/painel` (se localStorage vazio):
-
-| E-mail | Senha | Plano |
-|--------|-------|-------|
-| teste@basic.com | 123456 | Basic |
-| teste@premium.com | 123456 | Premium |
-| teste@diamond.com | 123456 | Diamond |
-
-**Nota:** MOCK_SCHOOLS são seedados ao acessar `/painel`, não no login. Para login direto, acesse `/painel` uma vez ou crie escola via Super Admin.
-
-### Criar instituição customizada
-
-1. Login Super Admin
-2. "Nova Instituição"
-3. Preencher nome, e-mail, senha, plano
-4. Logout → Login com credenciais criadas
+**Não disponível.** Auth Tenant está planejado em ADR-029 (Supabase Auth + `school_members`).  
+`Login.jsx` autentica somente Platform Admin. O painel/TV ainda leem sessão operacional local se existir (`@SmartExit:loggedSchool`), sem fluxo de login ativo.
 
 ---
 
-## 6. Testar fluxo completo
+## 6. Testar fluxo Platform Admin + catálogo
 
-```mermaid
-flowchart TD
-    A[Login escola Premium] --> B[/painel]
-    B --> C[Cadastrar turma]
-    C --> D[Adicionar portão em exits via mock ou import]
-    D --> E[Cadastrar alunos]
-    E --> F[Monitor: Chamar aluno]
-    F --> G[Abrir /tv em nova aba]
-    G --> H[Verificar chamada no telão]
-    F --> I[Confirmar saída]
-```
+1. Login Platform Admin (Auth)
+2. Listar / criar / editar / suspender / excluir instituição
+3. Recarregar a página e confirmar persistência no Supabase
 
-### Passo a passo
-
-1. Login: `teste@premium.com` / `123456`
-2. Aba **Gestão de Turmas** → criar "3º A"
-3. Aba **Gestão de Alunos** → cadastrar aluno vinculado à turma
-4. Aba **Monitor de Saída** → clicar "Chamar"
-5. Clicar "Abrir Telão (TV)" ou acessar `/tv`
-6. Verificar exibição da chamada
-7. "Confirmar Saída" no monitor
+Fluxo operacional do painel (turmas/chamadas/TV) depende de sessão tenant legada e permanece limitado até Auth de escola.
 
 ---
 
@@ -189,8 +159,8 @@ flowchart TD
 | `npm run build` | Build de produção |
 | `npm run preview` | Preview do build |
 | `npm run lint` | Executar ESLint |
-| `npm run audit:db` | Database Auditor v1 — valida a fundação do banco local até a Migration 0005 |
-| `npm run validate:rls` | Smoke parcial de RLS (script legado; não substitui o Auditor v1) |
+| `npm run audit:db` | Database Auditor v1 — contrato até Migration 0005 |
+| `npm run validate:rls` | Smoke parcial de RLS (legado) |
 
 ---
 
@@ -198,24 +168,24 @@ flowchart TD
 
 ```
 smart-exit-school/
-├── node_modules/     # Criado após npm install
-├── dist/             # Criado após npm run build
+├── node_modules/     # Após npm install
+├── dist/             # Após npm run build
 └── ...
 ```
-
-Ambos estão no `.gitignore` (`node_modules`, `dist`).
 
 ---
 
 ## Problemas comuns
 
-Consulte [troubleshooting.md](troubleshooting.md) para lista detalhada.
+Consulte [troubleshooting.md](troubleshooting.md).
 
 | Problema | Solução rápida |
 |----------|----------------|
-| Login escola falha | Verificar se escola existe em `@SmartExit:schools` |
-| Telão vazio | Fazer login da escola antes; mesma origem localhost |
-| Dados inconsistentes | `localStorage.clear()` + reload |
+| Login Platform Admin falha | Verificar usuário Auth + linha em `platform_admins` |
+| Admin Auth OK mas sem permissão | `is_platform_admin()` falso → signOut; conferir `platform_admins` |
+| Login escola falha | Esperado com schema atual (sem email/senha em `schools`) |
+| Telão vazio | Requer sessão tenant (`loggedSchool`); mesma origem |
+| Dados LS inconsistentes | Limpar só chaves `@SmartExit:*` restantes (gates/calls/tema) |
 | Porta 5173 ocupada | Vite usa próxima porta automaticamente |
 
 ---

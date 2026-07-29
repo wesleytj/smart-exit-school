@@ -2,23 +2,20 @@
 
 ## Situação atual (híbrida)
 
-O projeto opera em **dois modelos de persistência simultâneos**:
+| Camada | Tecnologia | Uso no runtime |
+|--------|------------|----------------|
+| **PostgreSQL (Supabase)** | Migrations 0001–0005 + 0007–0012 | Catálogo `schools`, Platform Admin, schema acadêmico/pickup, RLS |
+| **localStorage** | `storageClient` | Sessão escolar, gates, calls, tema |
 
-| Camada | Tecnologia | Status | Uso no runtime |
-|--------|------------|--------|----------------|
-| **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Leitura parcial via `schoolService.getAllSchools()` |
-| **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão, CRUD operacional, chamadas, portões, tema |
+**Fonte de verdade do catálogo de instituições:** exclusivamente `public.schools` (via `schoolRepository`).
 
-A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). A maior parte do frontend ainda persiste via localStorage.
-
-- Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
-- Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
+- Modelagem: [arquitetura/modelagem.md](arquitetura/modelagem.md)
+- ADRs: [arquitetura/decisoes.md](arquitetura/decisoes.md)
+- Fluxos: [fluxos.md](fluxos.md)
 
 ---
 
 ## PostgreSQL — Schema implementado
-
-A fundação atual do banco vai até a **Migration 0005 — RLS Foundation**.
 
 Migrations em `supabase/migrations/`:
 
@@ -26,24 +23,27 @@ Migrations em `supabase/migrations/`:
 |-----------|---------|---------|
 | 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core |
 | 0002 | `20260701014657_create_academic_core.sql` | Academic Core |
-| 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment |
+| 0003 | `20260702204601_create_student_group_assignments.sql` | Enrollment Assignment |
 | 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core |
 | 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation |
+| 0007 | `20260727150000_create_platform_admins.sql` | Platform Admin table + RPC |
+| 0008 | `20260727160000_extend_schools_policies_for_platform_admin.sql` | SELECT/UPDATE schools (Platform) |
+| 0009 | `20260727170000_bootstrap_platform_admin.sql` | Bootstrap Platform Admin |
+| 0010 | `20260727180000_sync_auth_users_with_profiles.sql` | Trigger Auth → profiles |
+| 0011 | `20260728140000_enable_rls_platform_admins.sql` | RLS platform_admins |
+| 0012 | `20260728150000_schools_insert_delete_for_platform_admin.sql` | INSERT/DELETE schools (Platform) |
 
-**Seed idempotente:** `supabase/seed.sql`
+> Não há Migration 0006 no repositório.
 
-Atualmente o seed cobre:
+**Seed:** `supabase/seed.sql` (roles, shifts, escola/dev acadêmica, portões). **Não** cria `auth.users` / `profiles` / `school_members` / `pickup_events` de exemplo (exceto o que o seed declarar).
 
-- `roles`
-- `academic_shifts`
-- Massa mínima de desenvolvimento para validação do domínio acadêmico:
-  - escola
-  - nível acadêmico
-  - turmas
-  - aluno
-  - matrícula
-  - vínculo da matrícula com turma
-- Portões de exemplo (`gates`) para a escola de desenvolvimento
+O **Database Auditor v1** (`npm run audit:db`) valida o contrato até a **Migration 0005**.
+
+---
+
+## PostgreSQL — Schema implementado (detalhes)
+
+A fundação documentada em detalhe abaixo cobre Authentication, Academic, Pickup e RLS Foundation (0001–0005). Extensões Platform Admin (0007–0012) estão listadas na tabela acima.
 
 O seed atual **não cria** `auth.users`, `profiles`, `school_members` nem `pickup_events`. Essa ausência é lacuna conhecida do baseline de desenvolvimento, não violação do contrato do `seed.sql`.
 
@@ -560,38 +560,25 @@ Essa massa **não representa seed de produção**. Ela existe para facilitar:
 
 ## localStorage — Persistência runtime (frontend)
 
-Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `storageClient`.
-
-### Chaves ativas
+Chaves `@SmartExit:*` via `storageClient` (operacional; **não** catálogo de escolas):
 
 | Chave | Conteúdo |
 |-------|----------|
-| `@SmartExit:schools` | Array JSON de escolas (modelo legado com email/password) |
-| `@SmartExit:loggedSchool` | Sessão da escola logada |
+| `@SmartExit:loggedSchool` | Sessão da escola (painel/TV) |
 | `@SmartExit:darkMode` | Preferência de tema |
-| `@SmartExit:gates:{schoolId}` | Portões avançados |
+| `@SmartExit:gates:{schoolId}` | Portões (ainda não no Pickup Core do frontend) |
 | `@SmartExit:called:{schoolId}` | Fila de chamadas |
 
-### Inconsistência crítica: `schoolService`
+### Catálogo de escolas
 
-Atualmente existe um estado híbrido no frontend:
+`schoolService` → `schoolRepository` → `public.schools` (CREATE/READ/UPDATE/DELETE). Sem dual-write em localStorage.
 
-```javascript
-// getAllSchools() → Supabase .from('schools')
-// saveSchool() / deleteSchool() → localStorage
-```
+### Gap schema DB ↔ painel legado (tenant)
 
-Ou seja, leitura e escrita ainda usam backends diferentes até a conclusão da migração da camada de serviços.
-
-### Gap schema DB ↔ frontend legado
-
-| Conceito | PostgreSQL | Frontend (localStorage) |
-|----------|------------|-------------------------|
-| Plano | `basic` / `pro` / `enterprise` | Basic / Premium / Diamond / Trial |
-| Status escola | `trial` / `active` / `inactive` / `suspended` | Ativo / Inativo |
-| ID escola | UUID | number/string timestamp |
-| Autenticação | Supabase Auth (ADR-004) | email/password plaintext |
-| Turma | `academic_groups` + `student_group_assignments` | `classes[]` |
-| Aluno | `students` + `student_enrollments` | `studentsList[]` |
-| Portão | `gates` (schema ✅; frontend ❌) | `exits[]` + `gatesList` |
-| Chamada de saída | `pickup_events` (schema ✅; frontend ❌) | `called[]` / monitor local |
+| Conceito | PostgreSQL | Painel (ainda LS / blob) |
+|----------|------------|--------------------------|
+| Plano | `basic` / `pro` / `enterprise` | Basic / Premium / Diamond / Trial (UI) |
+| Status escola | `trial` / `active` / `inactive` / `suspended` | active/inactive (admin); labels PT na UI |
+| ID escola | UUID | UUID (catálogo); IDs locais em turmas/alunos |
+| Autenticação tenant | Auth + `school_members` (alvo) | `authService` legado (quebrado vs schema) |
+| Turma / aluno / portão / chamada | Tabelas acadêmicas + pickup | `classes[]`, `studentsList[]`, gates/calls em LS |

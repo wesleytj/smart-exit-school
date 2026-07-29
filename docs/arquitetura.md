@@ -2,114 +2,97 @@
 
 ## Visão geral
 
-O Smart Exit School é uma **SPA React** em transição arquitetural: o frontend opera via **camada de serviços (DAL)**, com persistência majoritariamente em **localStorage**, enquanto o **schema PostgreSQL (Supabase)** já está parcialmente definido e integrado de forma incremental.
+SPA React com **Service Layer** + **Repository Pattern**. Persistência **híbrida**:
+
+- **Supabase** = fonte de verdade do catálogo de escolas e da identidade Platform Admin
+- **localStorage** = sessão operacional do tenant, portões, fila de chamadas e tema
 
 ```mermaid
 graph TB
     subgraph Frontend["Frontend (React 19 + Vite)"]
-        Pages["Pages<br/>Login, Admin, Painel, TV"]
-        Services["Services Layer<br/>auth, school, gate, call, theme"]
+        Pages["Pages"]
+        Provider["PlatformAdminProvider"]
+        Services["Services"]
+        Repos["Repositories"]
         StorageClient["storageClient"]
         SupabaseJS["@supabase/supabase-js"]
     end
 
     subgraph Persistence["Persistência"]
-        LS[("localStorage<br/>Runtime atual")]
-        PG[("PostgreSQL<br/>Supabase")]
-        Auth["Supabase Auth<br/>(previsto ADR-004)"]
+        LS[("localStorage<br/>sessão / gates / calls")]
+        PG[("PostgreSQL<br/>schools / platform_admins")]
+        Auth["Supabase Auth"]
     end
 
     Pages --> Services
+    Pages --> Provider
+    Provider --> Services
+    Services --> Repos
     Services --> StorageClient
-    Services --> SupabaseJS
-    StorageClient --> LS
+    Repos --> SupabaseJS
     SupabaseJS --> PG
-    SupabaseJS -.-> Auth
-
-    style PG fill:#e8f5e9
-    style LS fill:#fff3e0
+    SupabaseJS --> Auth
+    StorageClient --> LS
 ```
-
-## Estado da migração
-
-| Componente | Destino | Status |
-|------------|---------|--------|
-| Schema Authentication Core | PostgreSQL | ✅ Migration 0001 |
-| Schema Academic Core | PostgreSQL | ✅ Migration 0002 |
-| Schema Enrollment Assignment | PostgreSQL | ✅ Migration 0003 |
-| Schema Pickup Core | PostgreSQL | ✅ Migration 0004 |
-| RLS Foundation | PostgreSQL | ✅ Migration 0005 |
-| Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
-| `schoolService.getAllSchools()` | Supabase | ⚠️ Leitura parcial |
-| Demais services | localStorage | ✅ Ativo |
-| Supabase Auth | Supabase | ❌ Frontend ainda usa login legado |
 
 ## Camadas
 
-| Camada | Tecnologia | Responsabilidade |
-|--------|------------|------------------|
-| Apresentação | React 19 + JSX | UI, formulários, navegação |
-| Roteamento | React Router DOM 7 | Rotas declarativas |
-| Estilização | Tailwind CSS 4 | Utility-first, dark mode |
-| Serviços | `src/services/*` | Abstração de dados (DAL) |
-| Storage local | `storageClient` | Adapter localStorage |
-| Storage remoto | `lib/supabase.js` | Client Supabase (parcial) |
-| Banco | PostgreSQL via Supabase | Schema relacional multi-tenant |
+| Camada | Local | Responsabilidade |
+|--------|-------|------------------|
+| Apresentação | `pages/`, `components/` | UI e rotas |
+| Estado Platform | `contexts/`, `hooks/` | `isPlatformAdmin` global |
+| Serviços | `services/` | Regras e orquestração |
+| Repositórios | `repositories/` | Acesso a tabelas/RPC Supabase |
+| Storage local | `services/core/storageClient.js` | Adapter localStorage |
+| Banco | `supabase/migrations/` | Schema multi-tenant + RLS |
 
-## Frontend
+## Estado da migração
 
-### Rotas
+| Componente | Status |
+|------------|--------|
+| Migrations 0001–0005 (Auth, Academic, Pickup, RLS foundation) | ✅ |
+| Migrations 0007–0012 (Platform Admin, policies schools, sync profiles) | ✅ |
+| Catálogo `schools` via `schoolRepository` (CRUD) | ✅ |
+| Platform Admin Auth + RPC + guard | ✅ |
+| `gateService` / `callService` / sessão escolar | ⚠️ localStorage |
+| Login operador tenant (Auth + `school_members`) | ❌ Pendente |
+| Database Auditor v1 | ✅ contrato até Migration 0005 (`npm run audit:db`) |
+
+> Não existe Migration 0006 no repositório; a numeração salta de 0005 para 0007.
+
+## Rotas
 
 | Rota | Componente | Proteção |
 |------|------------|----------|
-| `/` | Redirect → `/login` | — |
 | `/login` | `Login.jsx` | Pública |
-| `/admin/institutions` | `InstitutionsManager.jsx` | **Sem guard** |
-| `/painel` | `InstitutionPanel.jsx` | Sessão via `authService` |
-| `/tv` | `TvDisplay.jsx` | Depende de sessão no storage |
+| `/admin/institutions` | `InstitutionsManager.jsx` | `usePlatformAdmin` (redirect se falso) |
+| `/painel` | `InstitutionPanel.jsx` | Sessão `@SmartExit:loggedSchool` |
+| `/tv` | `TvDisplay.jsx` | Depende da sessão no storage |
 
-### Comunicação Telão ↔ Painel
+## Autenticação (resumo)
 
-Via `callService.subscribeToCalls()`:
-- Evento `storage` (cross-tab)
-- Polling fallback a cada 2 segundos
+Ver [fluxos.md](fluxos.md) e [autenticacao.md](autenticacao.md).
 
-## Backend / Banco de dados
+- **Platform:** Supabase Auth → `profiles` → `platform_admins` → `is_platform_admin()` (Login exclusivo)
+- **Tenant:** Auth Tenant **não implementado** (ADR-029). `authService` só gerencia sessão operacional local do painel/TV
 
-- **Supabase:** migrations em `supabase/migrations/` (fundação até **0005 — RLS Foundation**), seed em `supabase/seed.sql`
-- **Database Auditor v1:** `scripts/db-auditor/` via `npm run audit:db` — valida a fundação do banco local até a Migration 0005 (tabelas esperadas, RLS foundation, policies/helper functions e invariantes do seed); não substitui testes funcionais nem o futuro Audit Core (`audit_logs`)
-- **Sem API REST própria** — acesso direto via Supabase client (parcial)
+## Banco
+
+- Migrations: `supabase/migrations/` (até **0012**)
+- Seed: `supabase/seed.sql`
 - Detalhes: [banco-de-dados.md](banco-de-dados.md)
 
 ## Documentação arquitetural
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [arquitetura/decisoes.md](arquitetura/decisoes.md) | ADRs congeladas |
+| [arquitetura/decisoes.md](arquitetura/decisoes.md) | ADRs (inclui ADR-028 Platform vs Tenant) |
 | [arquitetura/modelagem.md](arquitetura/modelagem.md) | Modelo de domínio |
-| [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções de código e DB |
-| [arquitetura/checklist-modelagem.md](arquitetura/checklist-modelagem.md) | Fluxo de modelagem |
-| [arquitetura/arquitetura-futura.md](arquitetura/arquitetura-futura.md) | Funcionalidades planejadas |
+| [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções |
+| [fluxos.md](fluxos.md) | Fluxos runtime |
 
-## Fluxo de autenticação (estado atual vs alvo)
+## Dívida técnica conhecida
 
-```mermaid
-flowchart TD
-    subgraph Atual["Implementado hoje"]
-        L1[Login email/senha] --> LS1[localStorage session]
-        L1 --> AdminHardcoded[Super Admin hardcoded]
-    end
-
-    subgraph Alvo["ADR-004 — Supabase Auth"]
-        L2[Supabase Auth] --> JWT[JWT Session]
-        JWT --> Profiles[profiles]
-        Profiles --> Members[school_members]
-    end
-```
-
-## Pontos que precisam de validação
-
-- Unificação dos clientes Supabase (`lib/supabase.js` vs `services/core/supabaseClient.js`)
-- Conclusão da Fase 2: services 100% Supabase
-- Evolução da segurança além da RLS Foundation (grants, fixtures de membership, políticas por papel)
-- Mapeamento de planos frontend ↔ schema PostgreSQL
+- Migrar gates/calls para Pickup Core (Supabase)
+- Auth Tenant via Auth + `school_members` (ADR-029)
+- Remover sessão operacional `@SmartExit:loggedSchool` após Auth Tenant

@@ -10,7 +10,7 @@ Esses itens não fazem parte do MVP, porém influenciam decisões arquiteturais 
 
 Status
 
-Planejado
+Parcialmente implementado no painel (Premium/Diamond: logo e cores). Persistência de branding em `public.schools` (`logo_url`, cores) com sessão local ainda híbrida.
 
 ---
 

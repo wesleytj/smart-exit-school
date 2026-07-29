@@ -13,7 +13,7 @@ Itens com base existente no código que precisam de conclusão ou correção.
 | Unificar `school.exits` e `gatesList` | Dois sistemas de portão sem sync | Alta |
 | Expor UI para CRUD de `school.exits` | Handlers `handleAddExit`/`handleRemoveExit` sem UI | Alta |
 | UI bulk edit para turmas | Funções existem; interface ausente | Média |
-| Route guard Super Admin | `/admin/institutions` desprotegida | Alta |
+| Route guard Platform Admin | Guard via `usePlatformAdmin` em `InstitutionsManager` | ✅ Implementado |
 | Bloquear login instituição Inativa | Status existe; não enforced | Alta |
 | Remover código morto | `StudentCard`, `students.js`, `App.css`, `call.mp3` | Baixa |
 | Reproduzir som de chamada | `public/sounds/call.mp3` existe | Média |
@@ -34,12 +34,12 @@ Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
 | API REST funcional | API Key gerada; sem endpoints | Diamond |
 | Webhooks | Mencionado em Configurações Diamond | Diamond |
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
-| Completar migração Supabase (Fase 2) | `schoolService` híbrido; `gateService`/`callService` ainda em localStorage apesar do schema Pickup Core | Todos |
-| Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) validadas; services ainda usam localStorage | Todos |
-| Supabase Auth no frontend (ADR-004) | Login ainda legado | Todos |
-| RLS e políticas de acesso | Migrations sem RLS | Todos |
-| Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Todos |
-| Autenticação segura | Senhas plaintext, admin hardcoded | Todos |
+| Completar migração Supabase (Fase 2) | Catálogo `schools` já no Supabase; `gateService`/`callService` ainda em localStorage apesar do schema Pickup Core | Todos |
+| Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) no banco; services do painel ainda usam localStorage | Todos |
+| Login tenant via Auth/membership | Platform Admin ✅; Auth Tenant 🚧 (ADR-029) | Todos |
+| RLS tenant + Platform Admin | Foundation 0005 + policies Platform em `schools`/`platform_admins` (0007–0012); painel operacional ainda não consome RLS | Todos |
+| Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise (adapters no `schoolService`) | Todos |
+| Autenticação tenant segura | Ver seção Auth Tenant abaixo | Todos |
 | Testes automatizados | Ausentes | Todos |
 | CI/CD pipeline | Ausente | Todos |
 
@@ -80,7 +80,7 @@ quadrantChart
     CRUD Alunos/Turmas: [0.35, 0.8]
     Telão TV: [0.4, 0.75]
     Whitelabel: [0.45, 0.6]
-    Super Admin: [0.35, 0.7]
+    Platform Admin: [0.35, 0.7]
     Import CSV: [0.4, 0.65]
     Backend/API: [0.5, 0.35]
     App Responsáveis: [0.95, 0.02]
@@ -90,23 +90,42 @@ quadrantChart
 
 ---
 
+## Auth Tenant
+
+| Camada | Status |
+|--------|--------|
+| Platform Admin (Auth + `platform_admins` + RPC) | ✅ |
+| Auth Tenant (operadores da instituição) | 🚧 |
+
+### Planejado (ADR-029)
+
+- Supabase Auth
+- `school_members`
+- `roles`
+- RLS por membership
+- Remoção completa da sessão legado `@SmartExit:loggedSchool` como substituto de login
+
+### Estado atual
+
+- `Login.jsx` autentica somente Platform Admin
+- `authService` mantém sessão operacional local do painel/TV (sem match de credenciais)
+- `public.schools` não possui `email`/`password` (ADR-005)
+
+---
+
 ## TODOs explícitos no código-fonte
 
 | Local | Conteúdo | Tipo |
 |-------|----------|------|
-| `Login.jsx:33` | Comentário "configuração no futuro" | Comentário |
-| `InstitutionPanel.jsx` reports | "Em breve: Gráficos..." | Placeholder UI |
-| `InstitutionPanel.jsx` fleet | "Em breve: Painel de monitoramento..." | Placeholder UI |
-| `App.jsx:15` | Comentário sobre cores no InstitutionPanel | Comentário |
-
-**Nenhum `TODO`/`FIXME` formal** encontrado em arquivos do projeto (excluindo node_modules).
+| `authService.js` | `TODO(ADR-029)` — substituir sessão legado por Auth + `school_members` | Dívida Auth |
+| `InstitutionPanel.jsx` | `TODO(ADR-029)` — mesma substituição na carga da sessão | Dívida Auth |
+| Placeholders UI reports/fleet | "Em breve..." | Placeholder produto |
 
 ---
 
 ## Pontos que precisam de validação humana
 
 - Priorização oficial do backlog
-- Decisão build vs buy para backend
 - Escopo MVP produção vs protótipo demo
 - Prazo e escopo do plano Trial
 - Integração com sistemas existentes das escolas (TOTVS, Sophia, etc.)

@@ -1,9 +1,11 @@
 # Changelog Inicial — Smart Exit School
 
-Baseline documentado na criação da documentação técnica do projeto.
+> **Documento histórico.** Baseline da auditoria documental de **2025-06-21**.  
+> **Não descreve o estado atual** do sistema. Para arquitetura vigente, use [arquitetura.md](arquitetura.md), [fluxos.md](fluxos.md) e o [README](../README.md).  
+> Termos como “Super Admin” neste arquivo são históricos; o nome atual é **Platform Admin**.
 
 **Data da documentação:** 2025-06-21  
-**Versão do projeto:** `0.0.0` (package.json)
+**Versão do projeto à época:** `0.0.0` (package.json)
 
 ---
 

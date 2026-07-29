@@ -4,31 +4,31 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 ---
 
-## Super Admin (AllTech Solutions)
+## Platform Admin (AllTech Solutions)
 
 **Rota:** `/admin/institutions`  
-**Autenticação:** `admin@alltech.com` / `admin123`
+**Autenticação:** Supabase Auth (`signInWithPassword`) + RPC `is_platform_admin()` + guard em `InstitutionsManager`  
+**Provisionamento:** usuário Auth + linha em `public.platform_admins` (ver [instalacao.md](instalacao.md)).
 
 ### Implementadas
 
 | Funcionalidade | Descrição | Arquivo |
 |----------------|-----------|---------|
 | Dashboard de métricas | Total escolas, ativas, alunos gerenciados | `InstitutionsManager.jsx` |
-| Listagem de instituições | Tabela com nome, e-mail, plano, alunos, status | `InstitutionsManager.jsx` |
-| Busca | Por nome ou e-mail | `InstitutionsManager.jsx` |
-| Criar instituição | Modal com nome, e-mail, senha, plano | `InstitutionsManager.jsx` |
-| Editar instituição | Modal pré-preenchido | `InstitutionsManager.jsx` |
-| Excluir instituição | Com confirmação | `InstitutionsManager.jsx` |
-| Suspender/Reativar | Toggle status Ativo/Inativo | `InstitutionsManager.jsx` |
-| Logout | Navega para `/login` | `InstitutionsManager.jsx` |
-| Migração plano Pro → Basic | Automática no load | `InstitutionsManager.jsx` |
+| Listagem de instituições | Tabela com nome, plano, status (fonte: `public.schools`) | `InstitutionsManager.jsx` |
+| Busca | Por nome | `InstitutionsManager.jsx` |
+| Criar instituição | Modal → `schoolService` → Supabase | `InstitutionsManager.jsx` |
+| Editar instituição | Modal pré-preenchido → update Supabase | `InstitutionsManager.jsx` |
+| Excluir instituição | Com confirmação → delete Supabase | `InstitutionsManager.jsx` |
+| Suspender/Reativar | Toggle status | `InstitutionsManager.jsx` |
+| Logout | Encerra sessão Auth / navega para `/login` | `InstitutionsManager.jsx` |
+| Guard de rota | Redirect se não for Platform Admin | `InstitutionsManager.jsx` + `PlatformAdminProvider` |
 
 ### Incompletas / Ausentes
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Guard de rota (proteção da URL) | **Não implementado** |
-| Impersonar escola (login como cliente) | **Não identificado** |
+| Impersonar escola (login como cliente) | Planejado (ADR-028) — **não implementado** |
 | Billing / faturamento | **Não identificado** |
 | Logs de auditoria | **Não identificado** |
 | Gestão de planos Trial (expiração 14 dias) | Plano existe no select; **lógica ausente** |
@@ -38,7 +38,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Operador da escola (Painel institucional)
 
 **Rota:** `/painel`  
-**Autenticação:** credenciais cadastradas em `@SmartExit:schools`
+**Autenticação:** Auth Tenant **não implementado** (ADR-029). Sessão operacional legado em `@SmartExit:loggedSchool` quando existir; sem login ativo em `/login`.
 
 ### Aba: Monitor de Saída ✅
 
@@ -135,8 +135,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Funcionalidade | Status |
 |----------------|--------|
 | Logout | ✅ |
-| Seed MOCK_SCHOOLS (primeiro acesso) | ✅ |
-| Migração classes string → object | ✅ |
+| Migração classes string → object | ✅ (legado de sessão) |
 
 ---
 
@@ -222,8 +221,8 @@ graph TD
 
 ## Matriz resumida por perfil
 
-| Capacidade | Super Admin | Operador Escola | Telão | Responsável | Aluno |
-|------------|:-----------:|:---------------:|:-----:|:-----------:|:-----:|
+| Capacidade | Platform Admin | Operador Escola | Telão | Responsável | Aluno |
+|------------|:--------------:|:---------------:|:-----:|:-----------:|:-----:|
 | Login | ✅ | ✅ | — | ❌ | ❌ |
 | CRUD instituições | ✅ | ❌ | ❌ | ❌ | ❌ |
 | CRUD alunos/turmas | ❌ | ✅ | ❌ | ❌ | ❌ |

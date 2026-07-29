@@ -4,137 +4,99 @@
 
 ```
 smart-exit-school/
-├── .github/                  # Templates de Issue e Pull Request
-├── .gitignore
-├── eslint.config.js
-├── index.html
-├── package.json
-├── vite.config.js
-├── README.md
-│
-├── ai/                       # Contexto para ferramentas de IA
-├── docs/                     # Documentação técnica
+├── .github/
+├── ai/
+├── docs/
 │   └── arquitetura/          # ADRs, modelagem, padrões
-│
 ├── public/
-│   ├── favicon.svg
-│   ├── icons.svg
-│   └── sounds/call.mp3       # Não referenciado no código
-│
+├── scripts/
+│   ├── validate-rls-foundation.mjs
+│   └── db-auditor/           # Auditor v1 (contrato até Migration 0005)
 ├── supabase/
 │   ├── config.toml
-│   ├── migrations/           # Schema PostgreSQL versionado
+│   ├── migrations/           # 0001–0005, 0007–0012
 │   ├── seed.sql
 │   └── README.md
-│
-├── scripts/
-│   ├── validate-rls-foundation.mjs  # Smoke parcial de RLS (legado)
-│   └── db-auditor/                  # Database Auditor v1
-│       ├── index.mjs
-│       ├── expected-foundation.mjs
-│       ├── inspect-schema.mjs
-│       ├── inspect-rls.mjs
-│       ├── inspect-seed.mjs
-│       ├── report.mjs
-│       ├── runtime.mjs
-│       └── README.md
-│
 └── src/
     ├── main.jsx
     ├── App.jsx
-    ├── App.css               # Legado Vite — não importado
-    ├── index.css
-    │
-    ├── assets/               # Logotipos AllTech
+    ├── assets/
     ├── components/
     │   └── StudentCard.jsx   # Legado — não utilizado
+    ├── contexts/
+    │   ├── platformAdminContext.js
+    │   └── PlatformAdminProvider.jsx
+    ├── hooks/
+    │   └── usePlatformAdmin.js
     ├── lib/
-    │   └── supabase.js       # Client Supabase (usado por schoolService)
-    │
+    │   └── supabase.js
     ├── pages/
     │   ├── Login.jsx
     │   ├── InstitutionsManager.jsx
     │   ├── InstitutionPanel.jsx
     │   └── TvDisplay.jsx
-    │
-    └── services/             # Data Abstraction Layer (DAL)
+    ├── repositories/
+    │   ├── schoolRepository.js
+    │   └── platformAdminRepository.js
+    └── services/
         ├── authService.js
         ├── schoolService.js
+        ├── platformAdminService.js
         ├── gateService.js
         ├── callService.js
         ├── themeService.js
         └── core/
             ├── keys.js
-            ├── storageClient.js
-            └── supabaseClient.js  # Duplicata de lib/supabase.js
+            └── storageClient.js
 ```
 
-## Responsabilidade por pasta
+## Camadas de dados
 
-### `supabase/`
+```
+Page / Provider
+      ↓
+Service
+      ↓
+Repository  →  Supabase
+      ↓
+storageClient → localStorage (quando aplicável)
+```
 
-Infraestrutura de banco PostgreSQL via Supabase CLI.
+| Módulo | Persistência |
+|--------|--------------|
+| `schoolService` / `schoolRepository` | Supabase `public.schools` |
+| `platformAdminService` / `platformAdminRepository` | RPC `is_platform_admin()` |
+| `authService` | Sessão operacional local `@SmartExit:loggedSchool` (sem login; ADR-029) |
+| `gateService` | localStorage `@SmartExit:gates:{id}` |
+| `callService` | localStorage `@SmartExit:called:{id}` |
+| `themeService` | localStorage `@SmartExit:darkMode` |
 
-| Item | Responsabilidade |
-|------|------------------|
-| `migrations/` | Schema versionado (0001 Auth, 0002 Academic, 0003 Enrollment Assignment, 0004 Pickup Core, 0005 RLS Foundation) |
-| `seed.sql` | Dados iniciais idempotentes (roles, shifts, massa dev acadêmica e portões) |
-| `config.toml` | Configuração local Supabase |
+**Nota:** `Login.jsx` autentica somente Platform Admin (Supabase Auth). Catálogo de instituições: service → repository.
 
-### `scripts/db-auditor/`
+## Migrations (ordem)
 
-Ferramenta técnica que **valida a fundação do banco local até a Migration 0005** (**Database Auditor v1**). **Não faz parte do domínio da aplicação** e não é o futuro Audit Core (`audit_logs`).
+| Nº | Arquivo (resumo) |
+|----|------------------|
+| 0001 | Authentication core (`schools`, `profiles`, `roles`, `school_members`) |
+| 0002 | Academic core |
+| 0003 | Student group assignments |
+| 0004 | Pickup core (`gates`, `pickup_events`) |
+| 0005 | RLS foundation |
+| 0007 | `platform_admins` + `is_platform_admin()` |
+| 0008 | SELECT/UPDATE `schools` para Platform Admin |
+| 0009 | Bootstrap Platform Admin |
+| 0010 | Trigger `auth.users` → `profiles` |
+| 0011 | RLS `platform_admins` |
+| 0012 | INSERT/DELETE `schools` para Platform Admin |
 
-Verifica presença das tabelas esperadas, RLS foundation, policies/helper functions esperadas e invariantes do seed atual. Não substitui testes funcionais nem o futuro Audit Core. Execução: `npm run audit:db`.
+## Database Auditor
 
-| Arquivo | Responsabilidade |
-|---------|------------------|
-| `index.mjs` | Orquestra os inspectors e define o exit code |
-| `expected-foundation.mjs` | Contrato declarado (tabelas, policies, functions, seed) |
-| `inspect-schema.mjs` | Verifica existência das tabelas esperadas |
-| `inspect-rls.mjs` | Verifica RLS, policies e helper functions |
-| `inspect-seed.mjs` | Verifica invariantes do `seed.sql` |
-| `report.mjs` | Normaliza resultados `PASS` / `FAIL` / `WARN` / `SKIP` e imprime o relatório |
-| `runtime.mjs` | Helpers de conexão e consulta ao Postgres local |
+`npm run audit:db` valida a **fundação até Migration 0005** (contrato do Auditor v1). Migrations 0007–0012 existem no projeto, mas ainda não fazem parte desse contrato de auditoria.
 
-Detalhes: [banco-de-dados.md](banco-de-dados.md) e [scripts/db-auditor/README.md](../scripts/db-auditor/README.md).
-
-### `src/services/`
-
-Camada de abstração de dados. **Páginas não acessam localStorage ou Supabase diretamente.**
-
-| Service | Persistência atual |
-|---------|-------------------|
-| `authService` | localStorage |
-| `schoolService` | Supabase (read) + localStorage (write) ⚠️ híbrido |
-| `gateService` | localStorage |
-| `callService` | localStorage |
-| `themeService` | localStorage |
-
-### `src/lib/` vs `src/services/core/supabaseClient.js`
-
-Dois arquivos criam client Supabase idêntico — **duplicação a consolidar**.
-
-### `docs/arquitetura/`
-
-| Arquivo | Conteúdo |
-|---------|----------|
-| `decisoes.md` | ADRs congeladas (fonte de verdade arquitetural) |
-| `modelagem.md` | Entidades de domínio |
-| `padroes.md` | Convenções código/DB/commits |
-| `checklist-modelagem.md` | Fluxo antes de migrations |
-| `workflow.md` | Fluxo de trabalho |
-| `arquitetura-futura.md` | Roadmap arquitetural |
-
-## Arquivos órfãos / legado
+## Arquivos órfãos
 
 | Arquivo | Status |
 |---------|--------|
 | `src/App.css` | Não importado |
 | `src/components/StudentCard.jsx` | Não referenciado |
-| `src/data/` | Removido (pasta vazia/inexistente) |
 | `public/sounds/call.mp3` | Não referenciado |
-
-## Convenção localStorage
-
-Prefixo `@SmartExit:` — ver [banco-de-dados.md](banco-de-dados.md).

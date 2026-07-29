@@ -2,12 +2,14 @@
 
 ## Situação atual
 
-**Não há API REST própria.** A aplicação expõe rotas SPA e acessa dados via:
+**Não há API REST própria.** A aplicação é uma SPA que acessa dados via:
 
-1. **localStorage** — via services (maioria das operações)
-2. **Supabase PostgREST** — leitura parcial em `schoolService.getAllSchools()`
+1. **Supabase PostgREST + Auth + RPC** — catálogo de escolas (`public.schools`) e Platform Admin (`is_platform_admin()`)
+2. **localStorage** — via services: sessão escolar, gates, calls, tema
 
 Não há GraphQL, WebSocket server-side ou endpoints HTTP customizados.
+
+Detalhes de fluxo: [fluxos.md](fluxos.md).
 
 ---
 
@@ -19,15 +21,26 @@ Estas são rotas de **navegação frontend**, não endpoints de API.
 |------|---------|--------------|--------------|-----------|
 | `/` | GET | Redirect | Não | Redireciona para `/login` |
 | `/login` | GET | `Login` | Não | Tela de autenticação |
-| `/admin/institutions` | GET | `InstitutionsManager` | **Não enforced** | Painel Super Admin |
-| `/painel` | GET | `InstitutionPanel` | Sessão localStorage | Painel da escola |
-| `/tv` | GET | `TvDisplay` | **Não enforced** | Telão de chamadas |
+| `/admin/institutions` | GET | `InstitutionsManager` | Platform Admin (Auth + RPC + guard) | Gestão de instituições |
+| `/painel` | GET | `InstitutionPanel` | Sessão operacional local (Auth Tenant pendente) | Painel da instituição |
+| `/tv` | GET | `TvDisplay` | Sessão (para `schoolId`) | Telão de chamadas |
 
 \* Em SPA, todas as rotas respondem com o mesmo `index.html`; o "método" efetivo é sempre GET no servidor estático.
 
 ---
 
-## API Key (funcionalidade mock)
+## Integração Supabase (fonte de verdade — escolas / Platform Admin)
+
+| Operação | Camada | Destino |
+|----------|--------|---------|
+| Listar / CRUD escolas | `schoolService` → `schoolRepository` | `public.schools` |
+| Login Platform Admin | `supabase.auth.signInWithPassword` | Auth |
+| Checagem admin | `platformAdminService` → RPC | `public.is_platform_admin()` |
+| Sync Auth → profile | Trigger Migration 0010 | `auth.users` → `profiles` |
+
+---
+
+## API Key (funcionalidade de UI — sem backend)
 
 ### Geração
 
@@ -39,46 +52,22 @@ Estas são rotas de **navegação frontend**, não endpoints de API.
 
 **Não identificado.** A chave é:
 
-- Gerada e salva em `school.apiKey`
+- Gerada e salva no objeto de sessão da escola
 - Exibida no campo readonly em Configurações
 - **Nunca enviada** a nenhum servidor
 - **Nunca validada** em nenhuma requisição
-
-### Endpoints esperados (não implementados)
 
 A UI menciona "APIs, webhooks e idiomas secundários" para Diamond, mas **nenhum endpoint foi definido no código**.
 
 ---
 
-## Contratos de dados (localStorage como "API interna")
+## Contratos localStorage (operação do painel / telão)
 
-Estes contratos descrevem a interface de persistência usada pelos componentes.
+Catálogo de escolas: exclusivamente Supabase (`public.schools`). Chaves localStorage restantes:
 
-### GET `@SmartExit:schools`
+### PUT/GET `@SmartExit:loggedSchool`
 
-**Retorno:** `School[] | null`
-
-```json
-[
-  {
-    "id": "mock-basic",
-    "name": "Teste - Basic",
-    "email": "teste@basic.com",
-    "password": "123456",
-    "plan": "Basic",
-    "status": "Ativo",
-    "students": 0,
-    "exits": ["Portão Principal"],
-    "classes": [],
-    "studentsList": []
-  }
-]
-```
-
-### PUT `@SmartExit:loggedSchool`
-
-**Body:** Objeto `School` completo  
-**Efeito colateral:** Atualiza item correspondente em `@SmartExit:schools`
+**Body:** Objeto escola (sessão do operador). Persistido após login tenant bem-sucedido.
 
 ### GET/PUT `@SmartExit:called:{schoolId}`
 
@@ -112,6 +101,10 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 ]
 ```
 
+### GET/PUT `@SmartExit:darkMode`
+
+Preferência de tema (`"true"` / `"false"`).
+
 ---
 
 ## Eventos cross-tab (Telão)
@@ -128,7 +121,7 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 
 | Intervalo | Ação |
 |-----------|------|
-| 2000ms | `fetchCalls()` — relê `@SmartExit:called:{schoolId}` |
+| 2000ms | Relê `@SmartExit:called:{schoolId}` |
 
 ---
 
@@ -136,26 +129,25 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 
 | Operação | Requisito |
 |----------|-----------|
-| Login Super Admin | E-mail/senha hardcoded |
-| Login Escola | Match em `@SmartExit:schools` |
+| Login Platform Admin | Supabase Auth + `platform_admins` + RPC `is_platform_admin()` |
+| Login operador da instituição | **Não implementado** (ADR-029) |
 | Painel CRUD | `@SmartExit:loggedSchool` presente |
-| Telão | `@SmartExit:loggedSchool` (para obter `schoolId`) |
-| Admin panel | **Nenhum** |
+| Telão | `@SmartExit:loggedSchool` (para `schoolId`) |
+| Admin panel | Sessão Auth + Platform Admin (guard) |
 
 ---
 
 ## Exemplos de uso (desenvolvimento local)
 
-### Autenticar como escola (via console)
+### Inspecionar chaves Smart Exit
 
 ```javascript
-const schools = JSON.parse(localStorage.getItem('@SmartExit:schools'))
-const school = schools.find(s => s.email === 'teste@premium.com')
-localStorage.setItem('@SmartExit:loggedSchool', JSON.stringify(school))
-window.location.href = '/painel'
+Object.keys(localStorage)
+  .filter(k => k.startsWith('@SmartExit'))
+  .forEach(k => console.log(k, JSON.parse(localStorage.getItem(k))))
 ```
 
-### Simular chamada de aluno
+### Simular chamada de aluno (sessão já autenticada)
 
 ```javascript
 const school = JSON.parse(localStorage.getItem('@SmartExit:loggedSchool'))
@@ -170,13 +162,7 @@ const calls = [{
 localStorage.setItem(`@SmartExit:called:${school.id}`, JSON.stringify(calls))
 ```
 
-### Inspecionar todos os dados
-
-```javascript
-Object.keys(localStorage)
-  .filter(k => k.startsWith('@SmartExit'))
-  .forEach(k => console.log(k, JSON.parse(localStorage.getItem(k))))
-```
+Provisionamento Platform Admin: ver [instalacao.md](instalacao.md) e [autenticacao.md](autenticacao.md).
 
 ---
 
@@ -188,12 +174,3 @@ Object.keys(localStorage)
 | REST API com API Key | Diamond | Não implementado |
 | Geolocalização responsáveis | Diamond | Não implementado |
 | Integração vans/frotas | Diamond | Não implementado |
-
----
-
-## Pontos que precisam de validação
-
-- Especificação OpenAPI/Swagger para API futura
-- Base URL e versionamento (`/v1/...`)
-- Autenticação via Bearer token vs API Key header
-- Webhooks: eventos (`student.called`, `student.dismissed`, etc.)

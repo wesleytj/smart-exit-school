@@ -12,9 +12,9 @@ Todas as versões abaixo foram extraídas de `package.json` e `package-lock.json
 | Roteamento | React Router DOM 7 |
 | CSS | Tailwind CSS 4 |
 | Ícones | Lucide React |
-| Persistência runtime | localStorage via `storageClient` |
-| Banco de dados | PostgreSQL via Supabase (schema parcial) |
-| Auth (alvo) | Supabase Auth (ADR-004) |
+| Persistência runtime | Híbrida: Supabase (`schools`, Platform Admin) + localStorage (sessão/gates/calls/tema) |
+| Banco de dados | PostgreSQL via Supabase (migrations 0001–0005, 0007–0012) |
+| Auth | Supabase Auth (Platform Admin); tenant legado incompleto |
 | Lint | ESLint 10 |
 
 ## Frameworks

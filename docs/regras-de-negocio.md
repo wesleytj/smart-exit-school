@@ -9,8 +9,9 @@ Documentação derivada exclusivamente do comportamento implementado no código-
 ### 1.1 Multi-instituição
 
 - Uma instância da aplicação serve múltiplas escolas (instituições)
-- Cada instituição possui credenciais próprias (`email` + `password`)
-- Dados de cada escola são isolados logicamente por `school.id` nas chaves localStorage
+- Catálogo de instituições: **Supabase** `public.schools` (única fonte de verdade)
+- Isolamento de schema/RLS por `school_id` / membership; operação do painel ainda usa chaves localStorage por `school.id` para gates/calls/sessão
+- Login de operador da instituição: ADR-029 (pendente)
 
 ### 1.2 Planos de assinatura
 
@@ -26,26 +27,28 @@ Plano legado `"Pro"` é automaticamente convertido para `"Basic"`.
 ### 1.3 Status da instituição
 
 - Valores: `"Ativo"` | `"Inativo"`
-- Super Admin pode suspender/reativar via toggle
+- Platform Admin pode suspender/reativar via toggle
 - **Regra não implementada:** login não verifica `status === "Inativo"` — escola inativa ainda consegue autenticar se credenciais forem válidas
 
 ---
 
 ## 2. Autenticação e sessão
 
-### 2.1 Super Admin
+### 2.1 Platform Admin
 
-- Credenciais fixas no código: `admin@alltech.com` / `admin123`
+- Login via Supabase Auth (`signInWithPassword`)
+- Checagem via RPC `is_platform_admin()` (`platformAdminService` / `PlatformAdminProvider`)
 - Redireciona para `/admin/institutions`
-- **Não persiste sessão** — logout apenas navega para `/login`
-- Rota admin **não possui guard** — URL acessível diretamente
+- Sessão Auth gerenciada pelo cliente Supabase
+- Rota admin protegida pelo guard em `InstitutionsManager` (`usePlatformAdmin`)
+- Bootstrap opcional: Migration 0009 promove profile com e-mail `admin@alltech.com` quando Auth + profile já existem
 
-### 2.2 Escola cliente
+### 2.2 Operador da instituição (Auth Tenant)
 
-- Autenticação contra array `@SmartExit:schools`
-- Match exato de e-mail e senha (case-sensitive não verificado explicitamente)
-- Sessão salva em `@SmartExit:loggedSchool`
-- Logout remove `@SmartExit:loggedSchool`
+- **Não implementado** (ADR-029)
+- `Login.jsx` não autentica operadores escolares
+- `authService` apenas lê/grava sessão operacional `@SmartExit:loggedSchool` (painel/TV)
+- `public.schools` não possui `email`/`password` (ADR-005)
 
 ### 2.3 Painel institucional
 
@@ -167,7 +170,7 @@ Funções `handleToggleClass`, `handleApplyBulkClassChanges` existem mas **não 
 
 - Adição via `handleAddExit` — **UI não identificada na aba Portões atual**
 - Remoção via `handleRemoveExit` — **UI não identificada**
-- MOCK_SCHOOLS já incluem exits iniciais
+- Escolas novas no Supabase **não** trazem `exits` no schema — dependem do modelo de sessão/UI local
 
 ---
 
@@ -230,9 +233,9 @@ Funções `handleToggleClass`, `handleApplyBulkClassChanges` existem mas **não 
 ## 11. Reset de fábrica
 
 - Disponível em Configurações → Zona de Perigo
-- `localStorage.clear()` — apaga **todos** os dados do domínio
+- `localStorage.clear()` — apaga **dados locais** do domínio (sessão, gates, calls, tema)
 - Recarrega página
-- Reinicializa com MOCK_SCHOOLS
+- **Não** recria catálogo de instituições (permanece no Supabase)
 
 ---
 
@@ -240,14 +243,15 @@ Funções `handleToggleClass`, `handleApplyBulkClassChanges` existem mas **não 
 
 | Regra | Implementada? |
 |-------|---------------|
-| Senhas hasheadas | **Não** — texto plano |
+| Senhas hasheadas (Platform Admin) | **Sim** — Supabase Auth |
+| Login operador da instituição | **Não** — ADR-029 |
 | HTTPS enforcement | N/A (client-side) |
-| Route guards | Parcial (`/painel` apenas) |
+| Route guards | `/painel` (sessão local) + `/admin/institutions` (Platform Admin) |
 | Validação status Inativo no login | **Não** |
 | Rate limiting | **Não** |
 | CSRF protection | N/A |
 | Sanitização XSS em inputs | **Não identificada** |
-| Controle de sessão expirável | **Não** |
+| Controle de sessão expirável | Auth Platform: sessão Supabase; painel LS: **Não** |
 
 ---
 

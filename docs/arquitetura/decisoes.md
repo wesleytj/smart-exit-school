@@ -60,9 +60,14 @@ Status: ✅ Congelado
 
 Decisão
 
-Toda autenticação será realizada pelo Supabase Auth.
+Toda autenticação de identidade será realizada pelo Supabase Auth.
 
-O sistema não armazenará senhas.
+O sistema não armazenará senhas em tabelas de domínio (`schools`, etc.).
+
+Estado atual (implementação):
+
+- **Platform Admin:** Supabase Auth + `public.platform_admins` + RPC `is_platform_admin()` — implementado.
+- **Tenant (operadores da instituição):** Auth Tenant ainda não implementado — ver ADR-029.
 
 Motivação
 
@@ -78,14 +83,16 @@ Status: ✅ Congelado
 
 Decisão
 
-A tabela schools representa apenas uma organização.
+A tabela `schools` representa apenas uma organização (instituição).
 
 Não armazenará:
 
 - email
 - password
 
-Essas informações pertencem ao usuário autenticado.
+Essas informações pertencem ao usuário autenticado (Supabase Auth), nunca à linha da escola.
+
+Consequência: qualquer login por `school.email` / `school.password` é incompatível com este ADR e não deve existir no código.
 
 ---
 
@@ -795,7 +802,7 @@ Esse modelo resolve isolamento multi-tenant, mas **não representa** o administr
 - Forçar Platform Admin em `school_members` quebraria o isolamento multi-tenant, misturaria papéis incompatíveis e tornaria policies RLS de CRUD em `schools` incorretas ou inseguras.
 - Operações de ciclo de vida do tenant (criar, suspender, excluir, alterar plano) são responsabilidade da **plataforma**, não de um membro da escola.
 
-Sem um domínio Platform explícito, não há base correta para policies RLS de `INSERT`, `UPDATE` e `DELETE` em `public.schools` no contexto do Super Admin.
+Sem um domínio Platform explícito, não há base correta para policies RLS de `INSERT`, `UPDATE` e `DELETE` em `public.schools` no contexto do Platform Admin.
 
 ### Decisão
 
@@ -805,7 +812,7 @@ A autorização da plataforma será organizada em **dois domínios distintos**.
 
 Papéis de operação da plataforma (não são papéis de escola):
 
-- Super Admin
+- Platform Admin (autoridade global sobre o ciclo de vida das instituições)
 - Support
 - Financeiro
 - Comercial (se necessário futuramente)
@@ -878,7 +885,7 @@ Eventos adicionais (ações realizadas durante a sessão) poderão ser incluído
 
 - Permitir CRUD correto de `schools` na Issue #16 e nas etapas seguintes.
 - Separar claramente operação SaaS de operação escolar.
-- Evitar gambiarras de membership fictício para Super Admin.
+- Evitar gambiarras de membership fictício para Platform Admin.
 - Preparar suporte técnico seguro via impersonation auditável.
 - Preservar multi-tenant sem contaminar `school_members` com papéis de plataforma.
 
@@ -886,21 +893,21 @@ Eventos adicionais (ações realizadas durante a sessão) poderão ser incluído
 
 #### Policies RLS
 
-- Policies de ciclo de vida de `schools` (`INSERT` / `UPDATE` / `DELETE` / suspensão / plano) deverão considerar o domínio **Platform**, não apenas `is_active_school_member`.
-- Policies de dados do tenant continuam baseadas em membership ativa.
-- A policy atual de UPDATE para `owner` / `administrator` (membros do tenant) permanece no domínio Tenant; autoridade Platform será modelada em etapa futura (sem implementação nesta ADR).
+- Policies de ciclo de vida de `schools` (`INSERT` / `UPDATE` / `DELETE`) para Platform Admin **já implementadas** (Migrations 0008 e 0012), via `public.is_platform_admin()`.
+- Policies de dados do tenant continuam baseadas em membership ativa (`is_active_school_member`).
+- UPDATE por `owner` / `administrator` do tenant permanece no domínio Tenant; Platform Admin também pode atualizar.
 
 #### Auth
 
-- Autenticação continua no Supabase Auth (ADR-004).
-- Autorização Platform exigirá modelo próprio (ex.: papéis/flags de plataforma), distinto de `school_members`.
-- Impersonation não substitui Auth; é um contexto operacional adicional sobre a sessão Platform.
+- Autenticação Platform usa Supabase Auth (ADR-004) + tabela `platform_admins` + RPC `is_platform_admin()`.
+- Autorização Platform é distinta de `school_members`.
+- Impersonation não substitui Auth; permanece futuro (Audit Core).
 
 #### School CRUD
 
-- Criação, exclusão, suspensão e mudança de plano de escolas são responsabilidade Platform.
-- Edições de configuração institucional pelo tenant (quando permitidas) permanecem no escopo Tenant.
-- O frontend Super Admin (`/admin/institutions`) deverá, no futuro, operar sob identidade Platform — não sob membership forçada.
+- Criação, exclusão, suspensão e mudança de plano de escolas são responsabilidade Platform — **CRUD de catálogo no frontend já opera sob Platform Admin**.
+- Edições operacionais do tenant (turmas/alunos/portões) ainda usam persistência local no painel.
+- `/admin/institutions` exige `usePlatformAdmin` (sessão Auth + RPC).
 
 #### Audit Core
 
@@ -917,3 +924,33 @@ Eventos adicionais (ações realizadas durante a sessão) poderão ser incluído
 - Isolamento por escola via `school_members` é preservado.
 - Platform opera *cross-tenant* por autoridade explícita de plataforma, não por vínculos artificiais em todas as escolas.
 - Um mesmo `profile` poderá, em cenários futuros, ser usuário Platform e também membro Tenant em escolas distintas — mas as autoridades não se confundem: Platform ≠ membership.
+
+---
+
+## ADR-029 — Auth Tenant (operadores da instituição)
+
+**Status:** 🚧 Proposed / Planned
+
+**Depends on:** ADR-004, ADR-005, ADR-006, ADR-028
+
+### Context
+
+Platform Admin authentication is implemented (Supabase Auth + `platform_admins` + `is_platform_admin()`).
+
+Institution operator login must **not** use credentials on `public.schools` (ADR-005 forbids `email` / `password` on schools). A legacy localStorage session (`@SmartExit:loggedSchool`) remains only for panel/TV operational state until Tenant Auth ships.
+
+### Decision (planned)
+
+Tenant authentication will use:
+
+1. Supabase Auth (identity — ADR-004)
+2. `public.school_members` (membership to an institution)
+3. Tenant `roles` (ADR-006)
+4. Existing tenant RLS helpers / policies
+5. Complete removal of legacy institution session login paths
+
+### Consequences
+
+- `Login.jsx` currently serves **Platform Admin only**.
+- `authService` holds **tenant session storage only** (no credential matching).
+- Implementing Tenant Auth is the next auth-focused PR; no palliative email/password on schools.
