@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 
+/**
+ * Acesso CRUD puro a public.schools.
+ * Sem regras de negócio — adaptações ficam no schoolService.
+ */
 export const schoolRepository = {
   async getAll() {
     return await supabase

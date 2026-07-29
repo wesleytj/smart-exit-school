@@ -1,19 +1,17 @@
 -- ============================================================
 -- Smart Exit School
--- Initial Schema
 -- Migration 0002
+-- File: 20260701014657_create_academic_core.sql
 -- Description:
 --   Creates the academic structure of the system,
---   including levels, shifts, groups, students,
---   and enrollments.
+--   including levels, shifts, groups, students, and enrollments.
 --
+-- Scope:
+--   academic_levels, academic_shifts, academic_groups, students,
+--   student_enrollments
 --
--- Tables:
---   - academic_levels
---   - academic_shifts
---   - academic_groups
---   - students
---   - student_enrollments
+-- Depends on:
+--   Migration 0001
 -- ============================================================
 -- Required for gen_random_uuid()
 create extension if not exists pgcrypto;

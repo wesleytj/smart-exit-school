@@ -24,8 +24,6 @@ export default function InstitutionsManager() {
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    password: "",
     plan: "Basic"
   })
 
@@ -69,9 +67,9 @@ export default function InstitutionsManager() {
   // Filtro de Busca
   const filteredInstitutions = institutions.filter(school => {
     const name = (school.name || "").toLowerCase()
-    const email = (school.email || school.slug || "").toLowerCase()
+    const slug = (school.slug || "").toLowerCase()
     const query = searchQuery.toLowerCase()
-    return name.includes(query) || email.includes(query)
+    return name.includes(query) || slug.includes(query)
   })
 
   // Ações
@@ -99,17 +97,15 @@ export default function InstitutionsManager() {
 
   function openCreateModal() {
     setEditingId(null)
-    setFormData({ name: "", email: "", password: "", plan: "Basic" }) // Alterado para "Basic"
+    setFormData({ name: "", plan: "Basic" })
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
 
   function openEditModal(school) {
     setEditingId(school.id)
-    setFormData({ 
-      name: school.name, 
-      email: school.email || "", 
-      password: school.password || "",
+    setFormData({
+      name: school.name,
       plan: toUiPlan(school.plan)
     })
     setIsModalOpen(true)
@@ -169,13 +165,13 @@ export default function InstitutionsManager() {
   return (
     <div className="min-h-screen bg-[#f4f7fb] flex flex-col relative">
       
-      {/* HEADER SUPER ADMIN */}
+      {/* Cabeçalho Platform Admin */}
       <header className="bg-gradient-to-r from-[#020817] to-[#02142d] text-white px-8 py-4 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-4">
           <ShieldAlert className="text-orange-500" size={28} />
           <div>
-            <h1 className="text-xl font-bold">Painel Super Admin</h1>
-            <p className="text-xs text-slate-400">AllTech Solutions - Master Control</p>
+            <h1 className="text-xl font-bold">Painel Platform Admin</h1>
+            <p className="text-xs text-slate-400">AllTech Solutions — gestão de instituições</p>
           </div>
         </div>
         
@@ -246,7 +242,7 @@ export default function InstitutionsManager() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text" 
-              placeholder="Buscar por nome ou e-mail..." 
+              placeholder="Buscar por nome ou slug..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-blue-500 transition"
@@ -258,7 +254,7 @@ export default function InstitutionsManager() {
         <div className="bg-white rounded-b-2xl border border-slate-200 overflow-visible shadow-sm relative z-0">
           <div className="grid grid-cols-[3fr_2fr_1fr_1fr_auto] px-6 py-4 border-b border-slate-100 bg-slate-50 text-sm font-semibold text-slate-600">
             <p>Nome da Instituição</p>
-            <p>Acesso e Plano</p>
+            <p>Instituição / Plano</p>
             <p>Alunos</p>
             <p>Status</p>
             <p className="text-center w-10">Ações</p>
@@ -279,9 +275,9 @@ export default function InstitutionsManager() {
                     <span className="font-semibold text-slate-800 truncate" title={school.name}>{school.name}</span>
                   </div>
                   
-                  {/* Email e Plano */}
+                  {/* Slug e Plano */}
                   <div>
-                    <p className="text-slate-600 text-sm font-medium">{school.email || school.slug || "—"}</p>
+                    <p className="text-slate-600 text-sm font-medium">{school.slug || "—"}</p>
                     <p className="text-xs text-orange-500 font-bold uppercase mt-0.5">Plano {toUiPlan(school.plan)}</p>
                   </div>
 
@@ -381,30 +377,6 @@ export default function InstitutionsManager() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">E-mail do Responsável</label>
-                <input 
-                  required
-                  type="email" 
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  placeholder="ti@escola.com.br" 
-                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 outline-none focus:border-orange-500 focus:bg-white transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Senha de Acesso</label>
-                <input 
-                  required
-                  type="text" 
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  placeholder="Ex: mudar123" 
-                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 outline-none focus:border-orange-500 focus:bg-white transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-slate-700">Plano</label>
                 <select 
                   value={formData.plan}
@@ -423,7 +395,7 @@ export default function InstitutionsManager() {
                   type="submit"
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20"
                 >
-                  {editingId ? "Salvar Alterações" : "Gerar Acesso"}
+                  {editingId ? "Salvar Alterações" : "Criar Instituição"}
                 </button>
               </div>
             </form>

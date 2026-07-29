@@ -3,20 +3,15 @@
 -- Migration 0008
 -- File: 20260727160000_extend_schools_policies_for_platform_admin.sql
 -- Description:
---   Extends public.schools RLS policies so Platform Admins
---   (public.is_platform_admin — Migration 0007 / ADR-028) receive
---   the same school-level access previously limited to tenant
---   owner / administrator paths, plus SELECT for cross-tenant
---   platform operations.
+--   Extends public.schools SELECT/UPDATE RLS policies so Platform
+--   Admins (public.is_platform_admin — ADR-028) can operate
+--   cross-tenant alongside tenant owner/administrator paths.
 --
 -- Scope:
---   - public.schools policies only
---   - Reuses public.is_platform_admin()
---   - Does not alter other tables, Auth, frontend, or repositories
+--   public.schools policies (select/update)
 --
 -- Depends on:
---   - Migration 0005 (schools_select_member, is_active_school_member)
---   - Migration 0007 (is_platform_admin, platform_admins)
+--   Migrations 0005, 0007
 -- ============================================================
 
 -- ============================================================

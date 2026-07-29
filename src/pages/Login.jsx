@@ -1,10 +1,13 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Mail, Lock, LogIn } from "lucide-react"
-import { authService } from "../services/authService"
 import { platformAdminService } from "../services/platformAdminService"
 import { supabase } from "../lib/supabase"
 
+/**
+ * Login exclusivo do Platform Admin (Supabase Auth + is_platform_admin).
+ * Auth Tenant (operadores da instituição) ainda não está implementado (ADR-029).
+ */
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -23,26 +26,20 @@ export default function Login() {
         password
       })
 
-      if (!authError && data?.user) {
-        const isAdmin = await platformAdminService.isPlatformAdmin(data.user.id)
-
-        if (isAdmin) {
-          navigate("/admin/institutions")
-          return
-        }
-
-        await supabase.auth.signOut()
-        setError("Esta conta não possui permissão de administrador da plataforma.")
+      if (authError || !data?.user) {
+        setError("E-mail ou senha incorretos.")
         return
       }
 
-      const schoolFound = await authService.login(email, password)
+      const isAdmin = await platformAdminService.isPlatformAdmin(data.user.id)
 
-      if (schoolFound) {
-        navigate("/painel")
-      } else {
-        setError("E-mail ou senha incorretos.")
+      if (isAdmin) {
+        navigate("/admin/institutions")
+        return
       }
+
+      await supabase.auth.signOut()
+      setError("Esta conta não possui permissão de administrador da plataforma.")
     } catch (err) {
       console.error(err)
       setError("Não foi possível entrar. Tente novamente.")
@@ -55,23 +52,23 @@ export default function Login() {
     <div className="min-h-screen bg-[#f4f7fb] flex flex-col justify-center items-center p-4">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
         
-        {/* HEADER DO LOGIN */}
+        {/* Cabeçalho */}
         <div className="flex flex-col items-center mb-10">
           <div className="w-20 h-20 bg-[#020817] rounded-2xl flex items-center justify-center mb-4 shadow-lg">
             <span className="text-white font-bold text-2xl">AES</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Smart Exit School</h1>
-          <p className="text-slate-500 text-sm mt-1">Acesse sua conta para continuar</p>
+          <p className="text-slate-500 text-sm mt-1">Acesso Platform Admin</p>
         </div>
 
-        {/* MENSAGEM DE ERRO */}
+        {/* Mensagem de erro */}
         {error && (
           <div className="bg-red-50 text-red-500 p-3 rounded-xl text-sm font-semibold text-center mb-4 border border-red-100">
             {error}
           </div>
         )}
 
-        {/* FORMULÁRIO */}
+        {/* Formulário */}
         <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 ml-1">E-mail</label>
@@ -82,7 +79,7 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@escola.com.br"
+                placeholder="admin@empresa.com"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition"
               />
             </div>

@@ -3,34 +3,16 @@
 -- Migration 0009
 -- File: 20260727170000_bootstrap_platform_admin.sql
 -- Description:
---   Bootstraps Platform Admin authority (ADR-028) by inserting a
---   row into public.platform_admins for an already-provisioned
---   profile. Auth identities must be created via Supabase Auth
---   (Dashboard, Admin API, or Auth signup) — never by SQL inserts
---   into auth.users / auth.identities.
---
--- Strategy:
---   Locate an existing public.profiles row whose linked Auth user
---   email is admin@alltech.com (read-only lookup on auth.users for
---   email resolution). Insert only into public.platform_admins.
---
--- Behavior:
---   - Assumes auth user + public.profiles already exist
---   - Writes exclusively to public.platform_admins
---   - Idempotent via ON CONFLICT DO NOTHING
---   - Safe on supabase db reset / db push when no matching profile
---     exists (inserts zero rows; does not fail)
+--   Bootstraps Platform Admin by inserting into public.platform_admins
+--   for an existing Auth profile (email admin@alltech.com). Auth
+--   identities must already exist via Supabase Auth — never SQL
+--   inserts into auth.users. Idempotent (ON CONFLICT DO NOTHING).
 --
 -- Scope:
---   - Does not INSERT into auth.users or auth.identities
---   - Does not use crypt() / gen_salt() / password hashes
---   - Does not INSERT/UPDATE public.profiles
---   - Does not alter RLS policies, school_members, frontend,
---     repositories, or services
+--   insert into public.platform_admins only
 --
 -- Depends on:
---   - Migration 0001 (profiles)
---   - Migration 0007 (platform_admins)
+--   Migrations 0007, 0010 (profiles sync)
 -- ============================================================
 
 -- Promote matching profile to Platform Admin (idempotent).

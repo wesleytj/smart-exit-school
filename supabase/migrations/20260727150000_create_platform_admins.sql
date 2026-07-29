@@ -4,17 +4,13 @@
 -- File: 20260727150000_create_platform_admins.sql
 -- Description:
 --   Introduces Platform Admin infrastructure defined by ADR-028.
---   Creates public.platform_admins and the helper function
---   public.is_platform_admin() used to identify platform operators.
+--   Creates public.platform_admins and public.is_platform_admin().
 --
 -- Scope:
---   - Table public.platform_admins
---   - Helper public.is_platform_admin()
---   - Does not create or alter RLS policies
---   - Does not alter Auth, frontend, repositories, or services
+--   public.platform_admins, public.is_platform_admin()
 --
 -- Depends on:
---   - public.profiles (Migration 0001)
+--   Migration 0001 (profiles)
 -- ============================================================
 
 -- Required for gen_random_uuid() (kept for consistency with prior migrations)

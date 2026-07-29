@@ -1,19 +1,17 @@
 import { storageClient } from './core/storageClient';
 import { STORAGE_KEYS } from './core/keys';
-import { schoolService } from './schoolService';
 
+/**
+ * Sessão operacional da instituição (legado localStorage).
+ *
+ * NÃO autentica Platform Admin (isso é Supabase Auth + platformAdminService).
+ * NÃO faz login por email/senha em public.schools (ADR-005: schools não tem
+ * email/password).
+ *
+ * TODO(ADR-029): Replace legacy tenant session with Supabase Auth +
+ * school_members authentication and remove @SmartExit:loggedSchool.
+ */
 export const authService = {
-  async login(email, password) {
-    const schools = await schoolService.getAllSchools();
-    const schoolFound = schools.find(s => s.email === email && s.password === password);
-    
-    if (schoolFound) {
-      await storageClient.set(STORAGE_KEYS.LOGGED_SCHOOL, schoolFound);
-      return schoolFound;
-    }
-    return null;
-  },
-
   async logout() {
     await storageClient.remove(STORAGE_KEYS.LOGGED_SCHOOL);
   },

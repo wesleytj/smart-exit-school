@@ -17,23 +17,8 @@ import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
 
 // ==================================================================
-// CONFIGURAÇÕES GLOBAIS E DADOS ESTÁTICOS (Fora do Componente)
+// CONFIGURAÇÕES GLOBAIS (Fora do Componente)
 // ==================================================================
-const MOCK_SCHOOLS = [
-  {
-    id: "mock-basic", name: "Teste - Basic", email: "teste@basic.com", password: "123456",
-    plan: "Basic", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal"]
-  },
-  {
-    id: "mock-premium", name: "Teste - Premium", email: "teste@premium.com", password: "123456",
-    plan: "Premium", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal", "Portão Sul"]
-  },
-  {
-    id: "mock-diamond", name: "Teste - Diamond", email: "teste@diamond.com", password: "123456",
-    plan: "Diamond", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal", "Portão VIP"]
-  }
-];
-
 const DEFAULT_PRIMARY_COLOR = '#f97316';   // Laranja AllTech
 const DEFAULT_SECONDARY_COLOR = '#3b82f6'; // Azul AllTech
 
@@ -93,11 +78,10 @@ export default function InstitutionPanel() {
   // Regra do React: Todos os hooks devem ficar antes do primeiro `return`
   // ==================================================================
 
-  // 4.1 Carregamento Inicial (Autenticação e Dados)
+  // 4.1 Carregamento inicial (sessão legado da instituição)
+  // TODO(ADR-029): Replace legacy tenant session with Supabase school_members authentication.
   useEffect(() => {
     async function loadInitialData() {
-      await schoolService.seedInitialMock(MOCK_SCHOOLS);
-
       const loggedSchool = await authService.getCurrentSession();
       if (!loggedSchool) {
         navigate("/login");
@@ -163,13 +147,13 @@ export default function InstitutionPanel() {
   }, [school?.id]);
 
   // ==================================================================
-  // SEÇÃO 5: BARREIRA DE PROTEÇÃO (Early Return)
+  // SEÇÃO 5: BARREIRA DE PROTEÇÃO (retorno antecipado)
   // ATENÇÃO: NENHUM hook (useState, useEffect, useRef) pode existir abaixo desta linha!
   // ==================================================================
   if (!school) return null;
 
   // ==================================================================
-  // SEÇÃO 6: FUNÇÕES E REGRAS DE NEGÓCIO (Handlers)
+  // SEÇÃO 6: FUNÇÕES E REGRAS DE NEGÓCIO (manipuladores)
   // ==================================================================
 
   // --- Funções Globais e do Sistema ---
@@ -502,7 +486,7 @@ export default function InstitutionPanel() {
     <div style={customStyles} className="min-h-screen flex bg-[#f4f7fb] dark:bg-darkbg transition-colors">
       
       {/* ========================================== */}
-      {/* MENU LATERAL (SIDEBAR) */}
+      {/* MENU LATERAL */}
       {/* ========================================== */}
       <aside className="w-64 bg-white dark:bg-[#1a1a1a] border-r border-slate-200 dark:border-[#2a2a2a] flex flex-col shadow-sm z-10 transition-colors">
         {/* LOGO E NOME */}
@@ -551,7 +535,7 @@ export default function InstitutionPanel() {
           ))}
         </nav>
 
-        {/* LOGOUT */}
+        {/* SAIR */}
         <div className="p-4 border-t border-slate-100 dark:border-[#2a2a2a]">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl font-medium transition">
             <LogOut size={20} /> Sair do Sistema
@@ -1076,8 +1060,8 @@ export default function InstitutionPanel() {
                     <input type="text" disabled value={school.name} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">E-mail de Contato</label>
-                    <input type="text" disabled value={school.email} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Identificador (slug)</label>
+                    <input type="text" disabled value={school.slug || school.id || "—"} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
                   </div>
                 </div>
                 <p className="text-xs text-slate-400 mt-3">* Para alterar dados sensíveis, contate o suporte.</p>
@@ -1242,7 +1226,7 @@ export default function InstitutionPanel() {
                 </div>
               </div>
 
-              {/* 5. DANGER ZONE: RESET DE FÁBRICA */}
+              {/* 5. ZONA DE PERIGO: RESET DE FÁBRICA */}
               <div className="p-6 border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-2xl col-span-2 mt-4">
                 <h3 className="text-lg font-bold text-red-800 dark:text-red-400 flex items-center gap-2 mb-2">
                   <ShieldAlert size={20} />

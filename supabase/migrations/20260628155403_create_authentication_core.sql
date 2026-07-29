@@ -1,16 +1,16 @@
 -- ============================================================
 -- Smart Exit School
--- Initial Schema
 -- Migration 0001
+-- File: 20260628155403_create_authentication_core.sql
 -- Description:
 --   Creates the core database structure for authentication
---   and tenant management.
+--   and tenant management (schools, roles, profiles, school_members).
 --
--- Tables:
---   - schools
---   - roles
---   - profiles
---   - school_members
+-- Scope:
+--   public.schools, public.roles, public.profiles, public.school_members
+--
+-- Depends on:
+--   pgcrypto extension
 -- ============================================================
 
 -- Required for gen_random_uuid()

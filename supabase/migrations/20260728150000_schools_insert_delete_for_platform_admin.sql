@@ -3,20 +3,15 @@
 -- Migration 0012
 -- File: 20260728150000_schools_insert_delete_for_platform_admin.sql
 -- Description:
---   Completes Platform Admin CRUD on public.schools (Issue #16 /
---   ADR-028) by adding INSERT and DELETE policies restricted to
---   public.is_platform_admin(), plus matching GRANTs.
+--   Completes Platform Admin CRUD on public.schools (ADR-028) by
+--   adding INSERT and DELETE policies for is_platform_admin(),
+--   plus matching GRANTs.
 --
 -- Scope:
---   - INSERT policy for Platform Admin
---   - DELETE policy for Platform Admin
---   - GRANT INSERT, DELETE to authenticated
---   - Does not alter existing SELECT or UPDATE policies
---   - Does not alter other tables, Auth, frontend, or repositories
+--   public.schools insert/delete policies + grants
 --
 -- Depends on:
---   - Migration 0007 (is_platform_admin)
---   - Migration 0008 (schools SELECT/UPDATE for platform admin)
+--   Migrations 0007, 0008
 -- ============================================================
 
 -- ============================================================

@@ -3,25 +3,14 @@
 -- Migration 0010
 -- File: 20260727180000_sync_auth_users_with_profiles.sql
 -- Description:
---   Synchronizes Supabase Auth signups with public.profiles using
---   the official recommended pattern:
---
---     auth.users
---           ↓
---     AFTER INSERT trigger
---           ↓
---     public.handle_new_user()
---           ↓
---     public.profiles
+--   Synchronizes Supabase Auth signups with public.profiles via
+--   trigger on auth.users → public.handle_new_user().
 --
 -- Scope:
---   - Function public.handle_new_user()
---   - Trigger on_auth_user_created on auth.users
---   - Does not alter prior migrations, RLS, Platform Admin,
---     frontend, repositories, or services
+--   public.handle_new_user, on_auth_user_created
 --
 -- Depends on:
---   - Migration 0001 (public.profiles)
+--   Migration 0001 (public.profiles)
 -- ============================================================
 
 -- ============================================================

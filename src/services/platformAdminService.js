@@ -1,7 +1,14 @@
-import { supabase } from '../lib/supabase';
 import { platformAdminRepository } from '../repositories/platformAdminRepository';
 
+/**
+ * Regras de autorização do domínio Platform (ADR-028).
+ * Autenticação Auth fica no cliente Supabase / Login; este service só interpreta a RPC.
+ */
 export const platformAdminService = {
+  /**
+   * Retorna true se o profile autenticado for Platform Admin.
+   * @param {string|null|undefined} profileId - auth.uid() / profiles.id
+   */
   async isPlatformAdmin(profileId) {
     if (!profileId) {
       return false;
@@ -15,20 +22,5 @@ export const platformAdminService = {
     }
 
     return data === true;
-  },
-
-  async getIsPlatformAdminForCurrentSession() {
-    const {
-      data: { session },
-      error
-    } = await supabase.auth.getSession();
-
-    if (error) {
-      console.error(error);
-      return false;
-    }
-
-    const profileId = session?.user?.id ?? null;
-    return await this.isPlatformAdmin(profileId);
   }
 };

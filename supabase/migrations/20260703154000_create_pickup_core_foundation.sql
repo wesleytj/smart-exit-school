@@ -1,14 +1,16 @@
 -- ============================================================
 -- Smart Exit School
--- Initial Schema
 -- Migration 0004
+-- File: 20260703154000_create_pickup_core_foundation.sql
 -- Description:
 --   Creates the Pickup Core foundation for the operational
---   student dismissal flow.
+--   student dismissal flow (gates, pickup_events).
 --
--- Tables:
---   - gates
---   - pickup_events
+-- Scope:
+--   public.gates, public.pickup_events
+--
+-- Depends on:
+--   Migrations 0001–0003
 -- ============================================================
 
 -- Required for gen_random_uuid()

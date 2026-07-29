@@ -3,25 +3,15 @@
 -- Migration 0011
 -- File: 20260728140000_enable_rls_platform_admins.sql
 -- Description:
---   Locks down public.platform_admins (ADR-028) with Row Level
---   Security. Client Platform Admin checks must use
---   public.is_platform_admin() (SECURITY DEFINER), not broad
---   table scans.
---
--- Security model:
---   - RLS enabled
---   - SELECT only for the caller's own row (profile_id = auth.uid())
---   - No INSERT / UPDATE / DELETE policies for clients
---   - EXECUTE granted on is_platform_admin() for authenticated
---   - anon has no table privileges
+--   Enables RLS on public.platform_admins and EXECUTE on
+--   public.is_platform_admin() (ADR-028). Clients must use the
+--   RPC, not broad table scans.
 --
 -- Scope:
---   - public.platform_admins RLS + privileges
---   - EXECUTE on public.is_platform_admin()
---   - Does not alter prior migrations or other tables
+--   RLS + grants for platform_admins / is_platform_admin()
 --
 -- Depends on:
---   - Migration 0007 (platform_admins, is_platform_admin)
+--   Migration 0007
 -- ============================================================
 
 -- ============================================================

@@ -1,36 +1,19 @@
 -- ============================================================
 -- Smart Exit School
 -- Migration 0005
--- File: 20260706180031_enable_rls_foundation.sql
+-- File: 20260706180031_enable-rls-foundation.sql
 -- Description:
 --   Enables Row Level Security (RLS) foundation for the current
 --   Smart Exit School schema, establishing tenant isolation by
 --   school membership and self-access rules for profiles.
 --
--- Covered domains:
---   - Authentication / Tenant Core
---   - Academic Core
---   - Pickup Core
+-- Scope:
+--   RLS + helpers on foundation tables (schools, profiles, roles,
+--   school_members, academic_*, students, enrollments, assignments,
+--   gates, pickup_events)
 --
--- Main rules:
---   - A user can access tenant data only if they are an active
---     member of the target school through public.school_members.
---   - profiles are self-access only (auth.uid()).
---   - global catalogs remain readable by authenticated users.
---
--- Tables covered:
---   - schools
---   - profiles
---   - roles
---   - school_members
---   - academic_levels
---   - academic_shifts
---   - academic_groups
---   - students
---   - student_enrollments
---   - student_group_assignments
---   - gates
---   - pickup_events
+-- Depends on:
+--   Migrations 0001–0004
 -- ============================================================
 
 -- ============================================================

@@ -1,5 +1,11 @@
 import { schoolRepository } from '../repositories/schoolRepository';
 
+/**
+ * Camada de serviço do catálogo de instituições (public.schools).
+ * Adapta planos/status UI↔DB, gera slug e normaliza payloads.
+ * Sem lógica de autenticação (ADR-004 / ADR-005 / ADR-028).
+ */
+
 function adaptPlanForDatabase(plan) {
   const normalized = String(plan).toLowerCase();
 
@@ -179,10 +185,5 @@ export const schoolService = {
     if (error) {
       console.error(error);
     }
-  },
-
-  async seedInitialMock() {
-    // School catalog is Supabase-only; localStorage seeding was removed.
-    return await this.getAllSchools();
   }
 };

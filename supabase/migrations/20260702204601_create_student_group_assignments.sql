@@ -1,13 +1,16 @@
 -- ============================================================
 -- Smart Exit School
--- Initial Schema
 -- Migration 0003
+-- File: 20260702204601_create_student_group_assignments.sql
 -- Description:
---   Create student_group_assignments table to formally link a
---   student enrollment to its current academic group.
+--   Creates student_group_assignments linking a student enrollment
+--   to its current academic group.
 --
--- Tables:
---   - public.student_group_assignments
+-- Scope:
+--   public.student_group_assignments
+--
+-- Depends on:
+--   Migration 0002
 -- ============================================================
 
 -- Required for gen_random_uuid()
