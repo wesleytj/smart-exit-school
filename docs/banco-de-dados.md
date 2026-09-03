@@ -477,6 +477,61 @@ Representa eventos operacionais de saída: chamada ativa, conclusão da saída o
 
 **Observação:** o seed atual **não inclui** eventos de pickup de exemplo; apenas os portões. Eventos devem ser criados manualmente ou via integração futura dos services.
 
+### Relação atual: `gates`, `pickup_events` e `student_enrollments`
+
+Esta seção descreve o **modelo relacional PostgreSQL vigente** (Academic Core + Pickup Core). Ela não descreve o runtime do frontend. O painel operacional ainda persiste portões e chamadas em `localStorage`; ver a distinção explícita abaixo.
+
+#### Papel de cada entidade
+
+| Entidade | Domínio | Papel |
+|----------|---------|--------|
+| `student_enrollments` | Academic Core (Migration 0002) | Matrícula do aluno em um ano letivo. Não é a identidade permanente do aluno (`students`) nem a turma (`student_group_assignments`). |
+| `gates` | Pickup Core (Migration 0004) | Portão de saída da escola no schema PostgreSQL (`public.gates`). |
+| `pickup_events` | Pickup Core (Migration 0004) | Evento operacional de chamada/saída (`public.pickup_events`). |
+
+A chamada **não** aponta para `students`. Aponta para a **matrícula** (`student_enrollment_id`), em linha com a ADR-025: a operação de saída pertence ao vínculo letivo, não à identidade permanente.
+
+#### Como as três se relacionam
+
+```text
+students
+   └── student_enrollments          (matrícula do ano letivo)
+              └── pickup_events     (chamada / conclusão / cancelamento)
+schools
+   ├── gates                        (portão onde a chamada ocorre)
+   │      └── pickup_events
+   └── pickup_events                (também referencia a escola)
+```
+
+Regras objetivas do schema atual:
+
+1. Cada registro em `pickup_events` **exige** uma matrícula (`student_enrollment_id` NOT NULL, FK com `ON DELETE CASCADE`) e um portão (`gate_id` NOT NULL, FK com `ON DELETE RESTRICT`).
+2. Um portão pertence a uma escola (`gates.school_id`). O evento também registra `pickup_events.school_id`.
+3. Uma matrícula pode ter histórico de eventos (`completed` / `cancelled`), mas **no máximo uma chamada ativa** (`status = 'called'`) — índice único parcial `pickup_events_active_enrollment_unique`.
+4. Excluir a matrícula remove os eventos associados. Excluir um portão **é bloqueado** enquanto existirem `pickup_events` apontando para ele.
+5. O seed de desenvolvimento cria portões de exemplo em `public.gates` e **não** cria `pickup_events`.
+
+O diagrama ER no início deste documento já mostra essas FKs. Esta seção apenas torna a relação operacional explícita.
+
+#### PostgreSQL atual vs runtime legado (`localStorage`)
+
+Os nomes se parecem; os modelos **não são o mesmo sistema** e **não estão sincronizados**.
+
+| Conceito | Modelo PostgreSQL atual | Runtime legado (frontend ativo) |
+|----------|-------------------------|----------------------------------|
+| Portão | Tabela `public.gates` | Dois stores distintos e sem sync: `school.exits` (array de nomes; usado pelo monitor) e `gatesList` em `@SmartExit:gates:{schoolId}` (objetos geridos na aba de portões) |
+| Chamada de saída | Tabela `public.pickup_events` | Fila `@SmartExit:called:{schoolId}` via `callService` (objetos da sessão local; sem FK para matrícula nem para `public.gates`) |
+| Aluno na chamada | `pickup_events.student_enrollment_id` → `student_enrollments` | Identidade/turma no array `studentsList[]` e no objeto da chamada local; **não existe** entidade de matrícula no `localStorage` |
+
+Consequências do estado atual:
+
+- `gateService` e `callService` leem/escrevem **somente** `localStorage`. Não há persistência operacional de portões ou chamadas em `public.gates` / `public.pickup_events`.
+- `public.gates` e `public.pickup_events` existem no schema (Migration 0004) e no seed parcial (`gates` sim, `pickup_events` não). Isso **não** significa que o painel, o monitor ou a TV usem essas tabelas.
+- Não tratar `school.exits` nem `gatesList` como equivalentes de `public.gates`.
+- Não tratar a fila `@SmartExit:called:{schoolId}` como equivalente de `public.pickup_events`.
+
+A tabela resumida **Gap schema DB ↔ frontend legado**, mais abaixo neste documento, permanece a visão compacta desse desalinhamento. A fonte desta relação de domínio é o schema das migrations 0002 e 0004.
+
 ---
 
 ## O que ainda NÃO existe no PostgreSQL
