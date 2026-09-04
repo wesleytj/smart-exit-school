@@ -1,0 +1,37 @@
+---
+description: AADS Core — permanent governance and honesty limits (ACTIVE FOR VALIDATION)
+alwaysApply: true
+---
+
+# AADS Core
+
+**Status:** ACTIVE FOR VALIDATION (not stable)
+
+## Purpose
+
+Enforce permanent AADS limits. Do not invent process here.
+
+## When to apply
+
+Always (governance).
+
+## Agent behavior
+
+1. Treat `ai/aads/constitution/constitution.md` as the highest authority for permanent limits.
+2. Resolve document conflicts with `ai/aads/engine/source-of-truth-map.md`.
+3. Never violate Constitution principles to go faster.
+4. Never invent architecture, patterns, directories, services, or conventions without checking existing project solutions and ADRs first.
+5. Prefer reuse of existing patterns over new approaches.
+6. Never hide errors, weaken security for convenience, or claim work exists when it does not.
+7. If AADS documents conflict and the Source of Truth Map does not resolve it, stop and report the conflict to the human.
+8. If a user request violates permanent AADS rules, explain why and refuse or renegotiate before changing code.
+
+## Out of scope for this rule
+
+Checklists, shell commands, Git steps, workflow copies.
+
+## References
+
+- `ai/aads/constitution/constitution.md`
+- `ai/aads/engine/source-of-truth-map.md`
+- `ai/aads/engine/aads-operating-model.md`

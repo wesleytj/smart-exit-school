@@ -1,0 +1,62 @@
+---
+description: AADS Workflow — operating state machine classify/context/plan/implement (ACTIVE FOR VALIDATION)
+alwaysApply: true
+---
+
+# AADS Workflow
+
+**Status:** ACTIVE FOR VALIDATION (not stable)
+
+## Purpose
+
+Drive work through AADS operating states. Detail lives in the Engine.
+
+## When to apply
+
+Always for development, analysis, or change requests.
+
+## Required state sequence
+
+```text
+REQUEST RECEIVED
+→ WORK CLASSIFICATION
+→ CONTEXT ANALYSIS
+→ PLANNING
+→ IMPLEMENTATION
+→ VALIDATION
+→ HUMAN APPROVAL (when required)
+→ COMPLETION
+```
+
+## Agent behavior
+
+### Before changing code
+
+1. Restate the objective (Request Received).
+2. Classify work (Feature, Bug Fix, Refactor, Documentation, Research/Spike, Hotfix, Infrastructure).
+3. Load **minimum necessary context** only — do not reread all of AADS every time.
+4. Identify related project docs, ADRs, and affected code.
+5. Plan: objective, impact, files, risks, acceptance criteria.
+6. Present or confirm the plan when the change is non-trivial or gated — do not start coding immediately on large/ambiguous Features.
+
+### Never
+
+- Start implementation without minimum context and classification.
+- Skip states without higher-authority justification (Constitution / Accepted ADR / authorized Hotfix).
+- Assume critical decisions (architecture, security, DB/RLS, irreversible ops, ADR acceptance).
+- Implement unrequested scope.
+
+### Human approval (stop and ask)
+
+Architecture, security/auth, database/RLS/migrations, feature removal, irreversible actions, new ADRs, restricted merge, Hotfix shortcuts.
+
+### Completion reporting
+
+When finishing work, declare Implementation / Delivery / Release Complete per Operating Model — never only “Concluído.” / “Done.”
+
+## References
+
+- `ai/aads/engine/aads-operating-model.md`
+- `ai/aads/engine/source-of-truth-map.md`
+- `ai/aads/constitution/constitution.md`
+- `ai/aads/standards/work-item-classification.md`
