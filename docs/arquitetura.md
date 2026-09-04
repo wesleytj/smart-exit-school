@@ -40,7 +40,7 @@ graph TB
 | Schema Pickup Core | PostgreSQL | ✅ Migration 0004 |
 | RLS Foundation | PostgreSQL | ✅ Migration 0005 |
 | Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
-| `schoolService.getAllSchools()` | Supabase | ⚠️ Leitura parcial |
+| `schoolService` (catálogo `schools`) | Supabase | ✅ CRUD em `public.schools` |
 | Demais services | localStorage | ✅ Ativo |
 | Supabase Auth | Supabase | ❌ Frontend ainda usa login legado |
 

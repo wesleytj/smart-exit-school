@@ -34,7 +34,7 @@ Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
 | API REST funcional | API Key gerada; sem endpoints | Diamond |
 | Webhooks | Mencionado em Configurações Diamond | Diamond |
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
-| Completar migração Supabase (Fase 2) | `schoolService` híbrido; `gateService`/`callService` ainda em localStorage apesar do schema Pickup Core | Todos |
+| Completar migração Supabase (Fase 2) | Catálogo `schools` já no Supabase; `gateService`/`callService` e dados operacionais ainda em localStorage | Todos |
 | Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) validadas; services ainda usam localStorage | Todos |
 | Supabase Auth no frontend (ADR-004) | Login ainda legado | Todos |
 | RLS e políticas de acesso | Migrations sem RLS | Todos |

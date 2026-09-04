@@ -106,7 +106,7 @@ Camada de abstração de dados. **Páginas não acessam localStorage ou Supabase
 | Service | Persistência atual |
 |---------|-------------------|
 | `authService` | localStorage |
-| `schoolService` | Supabase (read) + localStorage (write) ⚠️ híbrido |
+| `schoolService` | Supabase (`public.schools` CRUD) |
 | `gateService` | localStorage |
 | `callService` | localStorage |
 | `themeService` | localStorage |

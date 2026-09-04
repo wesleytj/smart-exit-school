@@ -45,7 +45,8 @@ Register students → Call on monitor → Display on TV → Confirm exit
 
 - **Runtime:** localStorage via DAL (`storageClient`)
 - **Schema:** PostgreSQL (Supabase) — migrations 0001–0004
-- **Gap:** `schoolService` reads Supabase, writes localStorage
+- **School catalog:** `schoolService` CRUD via Supabase `public.schools`
+- **Gap:** tenant session, gates, calls and students still use localStorage
 
 ## Key Files
 
