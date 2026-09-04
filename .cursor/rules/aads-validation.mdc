@@ -1,0 +1,56 @@
+---
+description: AADS Validation — after code/docs/test changes or STATE 06; Completion Model (ACTIVE FOR VALIDATION)
+globs:
+  - src/**/*.{js,jsx,ts,tsx,css}
+  - docs/**/*.md
+  - supabase/**/*.sql
+  - "**/*.{test,spec}.{js,jsx,ts,tsx}"
+alwaysApply: false
+---
+
+# AADS Validation
+
+**Status:** ACTIVE FOR VALIDATION (not stable)
+
+## Purpose
+
+Post-change validation and honest Completion Model reporting.
+
+## When to apply
+
+- Code under `src/` is being changed.
+- Technical docs under `docs/` or SQL under `supabase/` are being changed.
+- Tests are being run or edited.
+- Work reaches Operating Model **STATE 06 — VALIDATION**.
+
+Do **not** rely on this rule for purely exploratory Q&A with no implementation.
+
+## Agent behavior
+
+1. Validate correctness, consistency, architecture fit, and documentation impact.
+2. Run **existing project** quality commands when applicable (never hardcode stack commands here).
+3. Report failures clearly; do not claim success with known task-related errors.
+4. Consult checklists by reference only:
+   - `ai/aads/checklists/feature-checklist.md`
+   - `ai/aads/checklists/definition-of-done.md`
+
+## Completion Model
+
+Never reply with only `Concluído.` / `Done.`
+
+| State | Means |
+|---|---|
+| Implementation Complete | Change implemented; technical validations done for the scope |
+| Delivery Complete | Applicable Git delivery finished |
+| Release Complete | Available to end users via project release |
+
+Implementation ≠ Delivery ≠ Release.  
+List Delivery pending when Implementation Complete is earned but Git delivery is not.
+
+## References
+
+- `ai/aads/engine/aads-operating-model.md`
+- `ai/aads/engine/source-of-truth-map.md`
+- `ai/aads/constitution/constitution.md`
+- `ai/aads/checklists/definition-of-done.md`
+- `ai/aads/engine/automatic-checks.md`

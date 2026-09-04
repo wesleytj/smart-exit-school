@@ -1,0 +1,59 @@
+---
+description: AADS Git Delivery — commit/push/branch/PR/merge/release; validated ≠ delivered (ACTIVE FOR VALIDATION)
+alwaysApply: false
+---
+
+# AADS Git Delivery
+
+**Status:** ACTIVE FOR VALIDATION (not stable)
+
+## Purpose
+
+Separate validated work from Git delivery. Does not automate Git.
+
+## When to apply
+
+Attach when the user or task involves:
+
+- commit
+- push
+- branch creation
+- pull request
+- merge
+- release
+- claiming Delivery Complete
+
+Do **not** load for pure exploration or implementation-only work with no delivery request.
+
+## Core distinction
+
+**Validated code ≠ delivered code.**
+
+| Path | Completion state |
+|---|---|
+| Technical readiness | may support Implementation Complete |
+| Branch / commit / PR / review / merge / issue linkage | Delivery Complete |
+| User-facing publish | Release Complete (usually team/project) |
+
+## Agent behavior
+
+1. Follow `ai/aads/standards/git-workflow.md` for delivery steps.
+2. Respect permissions; do not force push/merge when unauthorized.
+3. Before push/merge: Quality Gates intent, correct branch, issue linkage, human approval when required.
+4. Use `Closes #N` when closing issues via PR.
+5. If delivery is human-blocked: keep Implementation Complete (if earned) and list Delivery pending.
+
+## Never
+
+- Claim delivery without evidence (PR/merge/status).
+- Perform irreversible Git/release actions without authorization.
+- Treat Merge as the only meaning of “done”.
+- Skip Issue ↔ Branch ↔ PR traceability when Issues are in use.
+
+## References
+
+- `ai/aads/engine/aads-operating-model.md`
+- `ai/aads/engine/source-of-truth-map.md`
+- `ai/aads/constitution/constitution.md`
+- `ai/aads/standards/git-workflow.md`
+- `ai/aads/checklists/git-checklist.md`
