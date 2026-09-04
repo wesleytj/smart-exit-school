@@ -58,6 +58,8 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 
 `schoolService.getAllSchools()` / `saveSchool()` / `deleteSchool()` usam `public.schools`. A chave `@SmartExit:schools` **foi removida**.
 
+`saveSchool` normaliza `name` com `trim`. Create sem nome utilizável, ou update que envia nome vazio/só espaços, retorna `null` e **não** grava no Supabase.
+
 ### PUT `@SmartExit:loggedSchool`
 
 **Body:** Objeto de sessão da escola  
