@@ -34,7 +34,9 @@ Plano legado `"Pro"` é automaticamente convertido para `"Basic"`.
 - Obrigatório no cadastro e na edição quando o campo `name` é enviado
 - Espaços laterais são removidos (`trim`) antes de persistir
 - Nome vazio ou composto só por espaços **não é salvo** — `schoolService.saveSchool` retorna `null` e o modal Super Admin bloqueia o submit
-- `public.schools.name` é `NOT NULL`, mas ainda aceita `''`; a rejeição de vazio é regra de aplicação, não CHECK no banco
+- `public.schools.name` é `NOT NULL` e **UNIQUE** (`schools_name_unique`)
+- Se já existir outra instituição com o **mesmo nome** (igualdade exata após `trim`, case-sensitive), o cadastro/edição é impedido: o serviço consulta o Supabase, a constraint UNIQUE rejeita corrida, e o modal informa que o nome já está em uso
+- Editar a mesma escola sem alterar o nome permanece válido
 
 ---
 

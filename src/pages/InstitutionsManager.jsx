@@ -111,13 +111,23 @@ export default function InstitutionsManager() {
       return
     }
 
+    if (await schoolService.isSchoolNameTaken(name, editingId)) {
+      setFormError("Já existe uma instituição com este nome.")
+      return
+    }
+
     const payload = editingId
       ? { ...institutions.find(school => school.id === editingId), ...formData, name }
       : { ...formData, name, status: "active" }
 
     const savedSchool = await schoolService.saveSchool(payload)
     if (!savedSchool) {
-      setFormError("Não foi possível salvar a instituição. Verifique o nome e tente novamente.")
+      const nameTaken = await schoolService.isSchoolNameTaken(name, editingId)
+      setFormError(
+        nameTaken
+          ? "Já existe uma instituição com este nome."
+          : "Não foi possível salvar a instituição. Verifique o nome e tente novamente."
+      )
       return
     }
 

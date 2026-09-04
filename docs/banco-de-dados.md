@@ -29,6 +29,9 @@ Migrations em `supabase/migrations/`:
 | 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment |
 | 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core |
 | 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation |
+| 0013 | `20260904180000_add_schools_name_unique.sql` | UNIQUE `public.schools.name` |
+
+Migrations 0006–0012 cobrem Platform Admin, policies extras de `schools` e bootstrap de auth; não alteram a unicidade de `name`.
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -73,7 +76,7 @@ erDiagram
     schools {
         uuid id PK
         text slug UK
-        text name
+        text name UK
         text status
         text plan
         text timezone
@@ -257,7 +260,7 @@ O script legado `npm run validate:rls` continua disponível como smoke parcial d
 |--------|------|-------------|
 | `id` | uuid | PK, default `gen_random_uuid()` |
 | `slug` | text | NOT NULL, UNIQUE |
-| `name` | text | NOT NULL |
+| `name` | text | NOT NULL, UNIQUE (`schools_name_unique`) |
 | `status` | text | NOT NULL, default `trial`, CHECK: `trial` / `active` / `inactive` / `suspended` |
 | `plan` | text | NOT NULL, default `basic`, CHECK: `basic` / `pro` / `enterprise` |
 | `timezone` | text | NOT NULL, default `America/Sao_Paulo` |
@@ -270,7 +273,7 @@ O script legado `npm run validate:rls` continua disponível como smoke parcial d
 | `created_at` | timestamptz | NOT NULL, default `now()` |
 | `updated_at` | timestamptz | NOT NULL, default `now()` |
 
-**Índices:** `idx_schools_external_id`, `idx_schools_status`, `idx_schools_plan`
+**Índices:** `idx_schools_external_id`, `idx_schools_status`, `idx_schools_plan`; UNIQUE `schools_name_unique` em `name` (além do UNIQUE de `slug`)
 
 **ADR-005:** a tabela `schools` não armazena e-mail/senha. Credenciais pertencem ao Supabase Auth.
 
@@ -634,7 +637,7 @@ Ainda no localStorage: sessão `@SmartExit:loggedSchool`, portões, chamadas e t
 
 O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
 
-`name` é `NOT NULL` (aceita `''`). O cadastro rejeita nome vazio ou só espaços na aplicação (`schoolService` + modal); não há CHECK no PostgreSQL.
+`name` é `NOT NULL` e **UNIQUE** (`schools_name_unique`; igualdade exata após o valor persistido). O cadastro rejeita nome vazio ou só espaços na aplicação (`schoolService` + modal); não há CHECK de não-vazio no PostgreSQL. Nome duplicado é rejeitado na aplicação e pela constraint no Supabase.
 
 ### Gap schema DB ↔ frontend legado
 

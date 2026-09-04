@@ -60,6 +60,8 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 
 `saveSchool` normaliza `name` com `trim`. Create sem nome utilizável, ou update que envia nome vazio/só espaços, retorna `null` e **não** grava no Supabase.
 
+O nome é **único** em `public.schools` (`schools_name_unique`). `saveSchool` consulta o catálogo antes de persistir; se outra escola já usa o nome, retorna `null`. A constraint UNIQUE no Postgres impede duplicata em corrida. Unicidade de `slug` é independente.
+
 ### PUT `@SmartExit:loggedSchool`
 
 **Body:** Objeto de sessão da escola  
