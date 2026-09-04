@@ -15,6 +15,14 @@ export const schoolRepository = {
       .maybeSingle();
   },
 
+  async getByName(name) {
+    return await supabase
+      .from('schools')
+      .select('*')
+      .eq('name', name)
+      .maybeSingle();
+  },
+
   async create(data) {
     return await supabase
       .from('schools')

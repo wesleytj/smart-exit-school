@@ -42,6 +42,32 @@ function hasUsableSchoolName(name) {
   return normalizeSchoolName(name).length > 0;
 }
 
+function isSchoolNameUniqueViolation(error) {
+  if (!error) {
+    return false;
+  }
+
+  const code = String(error.code || '');
+  const message = String(error.message || '');
+  const details = String(error.details || '');
+
+  return code === '23505' && (
+    message.includes('schools_name_unique')
+    || details.includes('schools_name_unique')
+  );
+}
+
+async function findSchoolByName(name) {
+  const { data, error } = await schoolRepository.getByName(name);
+
+  if (error) {
+    console.error(error);
+    return { data: null, error };
+  }
+
+  return { data: data ?? null, error: null };
+}
+
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -161,6 +187,15 @@ export const schoolService = {
       }
     }
 
+    if (hasUsableSchoolName(nextSchool.name)) {
+      const { data: schoolWithSameName, error: nameLookupError } = await findSchoolByName(nextSchool.name);
+
+      if (!nameLookupError && schoolWithSameName && schoolWithSameName.id !== nextSchool.id) {
+        console.error('[schoolService] School name already exists.');
+        return null;
+      }
+    }
+
     if (isUuid(nextSchool.id)) {
       const { data: existing, error: existingError } = await schoolRepository.getById(nextSchool.id);
 
@@ -178,7 +213,11 @@ export const schoolService = {
         const { data, error } = await schoolRepository.update(nextSchool.id, payload);
 
         if (error) {
-          console.error(error);
+          if (isSchoolNameUniqueViolation(error)) {
+            console.error('[schoolService] School name already exists.');
+          } else {
+            console.error(error);
+          }
           return null;
         }
 
@@ -195,11 +234,35 @@ export const schoolService = {
     const { data, error } = await schoolRepository.create(payload);
 
     if (error) {
-      console.error(error);
+      if (isSchoolNameUniqueViolation(error)) {
+        console.error('[schoolService] School name already exists.');
+      } else {
+        console.error(error);
+      }
       return null;
     }
 
     return data;
+  },
+
+  async isSchoolNameTaken(name, excludeId) {
+    const normalized = normalizeSchoolName(name);
+
+    if (!hasUsableSchoolName(normalized)) {
+      return false;
+    }
+
+    const { data, error } = await findSchoolByName(normalized);
+
+    if (error || !data) {
+      return false;
+    }
+
+    if (excludeId && data.id === excludeId) {
+      return false;
+    }
+
+    return true;
   },
 
   async deleteSchool(id) {
