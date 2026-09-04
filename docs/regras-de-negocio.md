@@ -29,6 +29,13 @@ Plano legado `"Pro"` é automaticamente convertido para `"Basic"`.
 - Super Admin pode suspender/reativar via toggle
 - **Regra não implementada:** login não verifica `status === "Inativo"` — escola inativa ainda consegue autenticar se credenciais forem válidas
 
+### 1.4 Nome da instituição
+
+- Obrigatório no cadastro e na edição quando o campo `name` é enviado
+- Espaços laterais são removidos (`trim`) antes de persistir
+- Nome vazio ou composto só por espaços **não é salvo** — `schoolService.saveSchool` retorna `null` e o modal Super Admin bloqueia o submit
+- `public.schools.name` é `NOT NULL`, mas ainda aceita `''`; a rejeição de vazio é regra de aplicação, não CHECK no banco
+
 ---
 
 ## 2. Autenticação e sessão

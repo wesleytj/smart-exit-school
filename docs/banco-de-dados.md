@@ -634,6 +634,8 @@ Ainda no localStorage: sessão `@SmartExit:loggedSchool`, portões, chamadas e t
 
 O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
 
+`name` é `NOT NULL` (aceita `''`). O cadastro rejeita nome vazio ou só espaços na aplicação (`schoolService` + modal); não há CHECK no PostgreSQL.
+
 ### Gap schema DB ↔ frontend legado
 
 | Conceito | PostgreSQL | Frontend (localStorage) |

@@ -34,6 +34,14 @@ function slugifyName(name) {
   return slug || `school-${Date.now()}`;
 }
 
+function normalizeSchoolName(name) {
+  return String(name ?? '').trim();
+}
+
+function hasUsableSchoolName(name) {
+  return normalizeSchoolName(name).length > 0;
+}
+
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -137,21 +145,37 @@ export const schoolService = {
   },
 
   async saveSchool(schoolData) {
-    if (isUuid(schoolData?.id)) {
-      const { data: existing, error: existingError } = await schoolRepository.getById(schoolData.id);
+    if (!schoolData || typeof schoolData !== 'object') {
+      console.error('[schoolService] School payload is required.');
+      return null;
+    }
+
+    const nextSchool = { ...schoolData };
+
+    if (nextSchool.name !== undefined) {
+      nextSchool.name = normalizeSchoolName(nextSchool.name);
+
+      if (!hasUsableSchoolName(nextSchool.name)) {
+        console.error('[schoolService] School name is required.');
+        return null;
+      }
+    }
+
+    if (isUuid(nextSchool.id)) {
+      const { data: existing, error: existingError } = await schoolRepository.getById(nextSchool.id);
 
       if (existingError) {
         console.error(existingError);
       }
 
       if (existing) {
-        const payload = buildSchoolUpdatePayload(schoolData);
+        const payload = buildSchoolUpdatePayload(nextSchool);
 
         if (Object.keys(payload).length === 0) {
           return existing;
         }
 
-        const { data, error } = await schoolRepository.update(schoolData.id, payload);
+        const { data, error } = await schoolRepository.update(nextSchool.id, payload);
 
         if (error) {
           console.error(error);
@@ -162,7 +186,12 @@ export const schoolService = {
       }
     }
 
-    const payload = buildSchoolCreatePayload(schoolData);
+    if (!hasUsableSchoolName(nextSchool.name)) {
+      console.error('[schoolService] School name is required.');
+      return null;
+    }
+
+    const payload = buildSchoolCreatePayload(nextSchool);
     const { data, error } = await schoolRepository.create(payload);
 
     if (error) {

@@ -26,6 +26,7 @@ export default function InstitutionsManager() {
     name: "",
     plan: "Basic"
   })
+  const [formError, setFormError] = useState("")
 
   useEffect(() => {
     if (!isPlatformAdminLoading && !isPlatformAdmin) {
@@ -85,6 +86,7 @@ export default function InstitutionsManager() {
   function openCreateModal() {
     setEditingId(null)
     setFormData({ name: "", plan: "Basic" })
+    setFormError("")
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
@@ -95,6 +97,7 @@ export default function InstitutionsManager() {
       name: school.name,
       plan: toUiPlan(school.plan)
     })
+    setFormError("")
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
@@ -102,16 +105,24 @@ export default function InstitutionsManager() {
   async function handleSaveSchool(e) {
     e.preventDefault()
 
+    const name = (formData.name || "").trim()
+    if (!name) {
+      setFormError("Informe o nome da instituição.")
+      return
+    }
+
     const payload = editingId
-      ? { ...institutions.find(school => school.id === editingId), ...formData }
-      : { ...formData, status: "active" }
+      ? { ...institutions.find(school => school.id === editingId), ...formData, name }
+      : { ...formData, name, status: "active" }
 
     const savedSchool = await schoolService.saveSchool(payload)
     if (!savedSchool) {
+      setFormError("Não foi possível salvar a instituição. Verifique o nome e tente novamente.")
       return
     }
 
     await loadInstitutions()
+    setFormError("")
     setIsModalOpen(false)
   }
 
@@ -352,10 +363,19 @@ export default function InstitutionsManager() {
                   required
                   type="text" 
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, name: e.target.value})
+                    if (formError) {
+                      setFormError("")
+                    }
+                  }}
                   placeholder="Ex: Colégio Adventista" 
+                  aria-invalid={formError ? "true" : "false"}
                   className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 outline-none focus:border-orange-500 focus:bg-white transition"
                 />
+                {formError && (
+                  <p className="text-sm text-red-600 font-medium">{formError}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
