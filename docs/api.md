@@ -5,7 +5,7 @@
 **Não há API REST própria.** A aplicação expõe rotas SPA e acessa dados via:
 
 1. **localStorage** — via services (maioria das operações)
-2. **Supabase PostgREST** — leitura parcial em `schoolService.getAllSchools()`
+2. **Supabase PostgREST** — CRUD do catálogo `schools` via `schoolService`
 
 Não há GraphQL, WebSocket server-side ou endpoints HTTP customizados.
 
@@ -54,31 +54,14 @@ A UI menciona "APIs, webhooks e idiomas secundários" para Diamond, mas **nenhum
 
 Estes contratos descrevem a interface de persistência usada pelos componentes.
 
-### GET `@SmartExit:schools`
+### Catálogo `schools` (Supabase)
 
-**Retorno:** `School[] | null`
-
-```json
-[
-  {
-    "id": "mock-basic",
-    "name": "Teste - Basic",
-    "email": "teste@basic.com",
-    "password": "123456",
-    "plan": "Basic",
-    "status": "Ativo",
-    "students": 0,
-    "exits": ["Portão Principal"],
-    "classes": [],
-    "studentsList": []
-  }
-]
-```
+`schoolService.getAllSchools()` / `saveSchool()` / `deleteSchool()` usam `public.schools`. A chave `@SmartExit:schools` **foi removida**.
 
 ### PUT `@SmartExit:loggedSchool`
 
-**Body:** Objeto `School` completo  
-**Efeito colateral:** Atualiza item correspondente em `@SmartExit:schools`
+**Body:** Objeto de sessão da escola  
+**Efeito colateral:** nenhum no catálogo PostgreSQL — sessão local apenas
 
 ### GET/PUT `@SmartExit:called:{schoolId}`
 
@@ -137,7 +120,7 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 | Operação | Requisito |
 |----------|-----------|
 | Login Super Admin | E-mail/senha hardcoded |
-| Login Escola | Match em `@SmartExit:schools` |
+| Login Escola | `authService.login()` via `schoolService.getAllSchools()` (ainda espera `email`/`password` que o schema não armazena) |
 | Painel CRUD | `@SmartExit:loggedSchool` presente |
 | Telão | `@SmartExit:loggedSchool` (para obter `schoolId`) |
 | Admin panel | **Nenhum** |
@@ -149,9 +132,8 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 ### Autenticar como escola (via console)
 
 ```javascript
-const schools = JSON.parse(localStorage.getItem('@SmartExit:schools'))
-const school = schools.find(s => s.email === 'teste@premium.com')
-localStorage.setItem('@SmartExit:loggedSchool', JSON.stringify(school))
+// O catálogo não está mais em localStorage. Use o Studio/Supabase ou a sessão já gravada.
+const school = JSON.parse(localStorage.getItem('@SmartExit:loggedSchool'))
 window.location.href = '/painel'
 ```
 

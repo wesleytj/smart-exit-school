@@ -6,8 +6,8 @@ O projeto opera em **dois modelos de persistência simultâneos**:
 
 | Camada | Tecnologia | Status | Uso no runtime |
 |--------|------------|--------|----------------|
-| **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Leitura parcial via `schoolService.getAllSchools()` |
-| **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão, CRUD operacional, chamadas, portões, tema |
+| **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Catálogo `schools` via `schoolService` (CRUD) |
+| **localStorage** | `storageClient` + services | Ativo em produção frontend | Sessão (`loggedSchool`), chamadas, portões, tema |
 
 A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). A maior parte do frontend ainda persiste via localStorage.
 
@@ -621,22 +621,18 @@ Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `st
 
 | Chave | Conteúdo |
 |-------|----------|
-| `@SmartExit:schools` | Array JSON de escolas (modelo legado com email/password) |
 | `@SmartExit:loggedSchool` | Sessão da escola logada |
 | `@SmartExit:darkMode` | Preferência de tema |
 | `@SmartExit:gates:{schoolId}` | Portões avançados |
 | `@SmartExit:called:{schoolId}` | Fila de chamadas |
 
-### Inconsistência crítica: `schoolService`
+### Catálogo `schools` (Issue #16)
 
-Atualmente existe um estado híbrido no frontend:
+`schoolService` (`getAllSchools`, `saveSchool`, `deleteSchool`) persiste exclusivamente em `public.schools` via `schoolRepository`. A chave `@SmartExit:schools` **não existe mais** no frontend.
 
-```javascript
-// getAllSchools() → Supabase .from('schools')
-// saveSchool() / deleteSchool() → localStorage
-```
+Ainda no localStorage: sessão `@SmartExit:loggedSchool`, portões, chamadas e tema. `InstitutionPanel` continua gravando dados operacionais (turmas/alunos) na sessão local — fora do escopo do catálogo School.
 
-Ou seja, leitura e escrita ainda usam backends diferentes até a conclusão da migração da camada de serviços.
+O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
 
 ### Gap schema DB ↔ frontend legado
 

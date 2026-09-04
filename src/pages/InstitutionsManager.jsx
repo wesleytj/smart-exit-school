@@ -24,8 +24,6 @@ export default function InstitutionsManager() {
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    password: "",
     plan: "Basic"
   })
 
@@ -40,26 +38,13 @@ export default function InstitutionsManager() {
       return
     }
 
-    async function loadInstitutions() {
-      const savedSchools = await schoolService.getAllSchools()
-      const sanitizedSchools = savedSchools.map(school => ({
-        ...school,
-        plan: school.plan === "Pro" ? "Basic" : (school.plan || "Basic")
-      }))
-
-      const hasLegacyPlans = sanitizedSchools.some(
-        (school, index) => savedSchools[index]?.plan === "Pro"
-      )
-
-      if (hasLegacyPlans) {
-        await Promise.all(sanitizedSchools.map(school => schoolService.saveSchool(school)))
-      }
-
-      setInstitutions(sanitizedSchools)
-    }
-
     void loadInstitutions()
   }, [isPlatformAdmin])
+
+  async function loadInstitutions() {
+    const savedSchools = await schoolService.getAllSchools()
+    setInstitutions(savedSchools)
+  }
 
   // Métricas do Dashboard
   const totalInstitutions = institutions.length
@@ -99,17 +84,15 @@ export default function InstitutionsManager() {
 
   function openCreateModal() {
     setEditingId(null)
-    setFormData({ name: "", email: "", password: "", plan: "Basic" }) // Alterado para "Basic"
+    setFormData({ name: "", plan: "Basic" })
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
 
   function openEditModal(school) {
     setEditingId(school.id)
-    setFormData({ 
-      name: school.name, 
-      email: school.email || "", 
-      password: school.password || "",
+    setFormData({
+      name: school.name,
       plan: toUiPlan(school.plan)
     })
     setIsModalOpen(true)
@@ -119,30 +102,25 @@ export default function InstitutionsManager() {
   async function handleSaveSchool(e) {
     e.preventDefault()
 
-    if (editingId) {
-      const updatedSchool = institutions.find(school => school.id === editingId)
-      const savedSchool = await schoolService.saveSchool({ ...updatedSchool, ...formData })
-      setInstitutions(institutions.map(school =>
-        school.id === editingId ? savedSchool : school
-      ))
-    } else {
-      const newSchool = {
-        ...formData,
-        status: "active",
-        students: 0,
-        exits: []
-      }
-      const savedSchool = await schoolService.saveSchool(newSchool)
-      setInstitutions([...institutions, savedSchool])
+    const payload = editingId
+      ? { ...institutions.find(school => school.id === editingId), ...formData }
+      : { ...formData, status: "active" }
+
+    const savedSchool = await schoolService.saveSchool(payload)
+    if (!savedSchool) {
+      return
     }
 
+    await loadInstitutions()
     setIsModalOpen(false)
   }
 
   async function handleDelete(id) {
     if (window.confirm("Tem certeza que deseja excluir esta instituição? Todos os dados serão perdidos.")) {
-      await schoolService.deleteSchool(id)
-      setInstitutions(institutions.filter(school => school.id !== id))
+      const deleted = await schoolService.deleteSchool(id)
+      if (deleted) {
+        await loadInstitutions()
+      }
     }
     setDropdownOpenId(null)
   }
@@ -160,9 +138,9 @@ export default function InstitutionsManager() {
       status: nextStatus
     })
 
-    setInstitutions(institutions.map(school =>
-      school.id === id ? savedSchool : school
-    ))
+    if (savedSchool) {
+      await loadInstitutions()
+    }
     setDropdownOpenId(null)
   }
 
@@ -246,7 +224,7 @@ export default function InstitutionsManager() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text" 
-              placeholder="Buscar por nome ou e-mail..." 
+              placeholder="Buscar por nome ou slug..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-blue-500 transition"
@@ -381,30 +359,6 @@ export default function InstitutionsManager() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">E-mail do Responsável</label>
-                <input 
-                  required
-                  type="email" 
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  placeholder="ti@escola.com.br" 
-                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 outline-none focus:border-orange-500 focus:bg-white transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Senha de Acesso</label>
-                <input 
-                  required
-                  type="text" 
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  placeholder="Ex: mudar123" 
-                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 outline-none focus:border-orange-500 focus:bg-white transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-slate-700">Plano</label>
                 <select 
                   value={formData.plan}
@@ -423,7 +377,7 @@ export default function InstitutionsManager() {
                   type="submit"
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20"
                 >
-                  {editingId ? "Salvar Alterações" : "Gerar Acesso"}
+                  {editingId ? "Salvar Alterações" : "Cadastrar Instituição"}
                 </button>
               </div>
             </form>

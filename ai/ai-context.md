@@ -69,7 +69,7 @@ src/
 
 ### Autenticação
 - Admin: hardcoded em `Login.jsx`
-- Escola: match email+password em `@SmartExit:schools`
+- Escola: `authService.login()` lê o catálogo via `schoolService.getAllSchools()` e ainda tenta match `email`/`password` — colunas que **não existem** em `public.schools` (ADR-005)
 - Sessão: `@SmartExit:loggedSchool`
 - `/painel` redireciona se sem sessão; `/admin` **não tem guard**
 
@@ -86,7 +86,6 @@ src/
 ### Persistência — chaves localStorage
 | Chave | Conteúdo |
 |-------|----------|
-| `@SmartExit:schools` | Todas instituições |
 | `@SmartExit:loggedSchool` | Sessão |
 | `@SmartExit:called:{id}` | Fila chamadas |
 | `@SmartExit:gates:{id}` | Portões avançados |

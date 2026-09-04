@@ -120,7 +120,7 @@ O desenvolvimento do Smart Exit School é contínuo. Nossos próximos grandes ma
 |------|--------|
 | Frontend SPA + DAL | ✅ Funcional |
 | Schema PostgreSQL (Auth + Academic + Pickup) | ✅ Migrations 0001–0004 |
-| Integração Supabase no frontend | ⚠️ Parcial (`schoolService` leitura) |
+| Integração Supabase no frontend | ⚠️ Parcial (`schoolService` CRUD do catálogo; demais entities ainda localStorage) |
 | Supabase Auth (ADR-004) | ❌ Pendente no frontend |
 | RLS | ❌ Pendente |
 | Produção 1.0 | 🚧 Em consolidação |

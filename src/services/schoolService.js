@@ -155,7 +155,7 @@ export const schoolService = {
 
         if (error) {
           console.error(error);
-          return schoolData;
+          return null;
         }
 
         return data;
@@ -167,7 +167,7 @@ export const schoolService = {
 
     if (error) {
       console.error(error);
-      return schoolData;
+      return null;
     }
 
     return data;
@@ -178,7 +178,10 @@ export const schoolService = {
 
     if (error) {
       console.error(error);
+      return false;
     }
+
+    return true;
   },
 
   async seedInitialMock() {
