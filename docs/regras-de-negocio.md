@@ -37,6 +37,7 @@ Plano legado `"Pro"` é automaticamente convertido para `"Basic"`.
 - `public.schools.name` é `NOT NULL` e **UNIQUE** (`schools_name_unique`)
 - Se já existir outra instituição com o **mesmo nome** (igualdade exata após `trim`, case-sensitive), o cadastro/edição é impedido: o serviço consulta o Supabase, a constraint UNIQUE rejeita corrida, e o modal informa que o nome já está em uso
 - Editar a mesma escola sem alterar o nome permanece válido
+- Alterar somente o plano, mantendo o mesmo nome, persiste o novo plano no Supabase e atualiza a listagem Super Admin após salvar
 
 ---
 

@@ -62,6 +62,8 @@ Estes contratos descrevem a interface de persistência usada pelos componentes.
 
 O nome é **único** em `public.schools` (`schools_name_unique`). `saveSchool` consulta o catálogo antes de persistir; se outra escola já usa o nome, retorna `null`. A constraint UNIQUE no Postgres impede duplicata em corrida. Unicidade de `slug` é independente.
 
+No update, `saveSchool` persiste `plan` mesmo quando `name` não muda: só reescreve campos que de fato mudaram (após o adapter UI ↔ DB). O modal Super Admin envia `id`, `name` e `plan` na edição.
+
 ### PUT `@SmartExit:loggedSchool`
 
 **Body:** Objeto de sessão da escola  
