@@ -90,3 +90,4 @@ Implementation Complete ≠ Delivery Complete ≠ Release Complete
 - `engine/source-of-truth-map.md`
 - `adr/adr-003.md`
 - `reports/AADS-0.4.0-RUNTIME-REPORT.md`
+- `reports/AADS-0.4.0-VALIDATION-REPORT.md`
