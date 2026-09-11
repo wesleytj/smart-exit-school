@@ -73,43 +73,77 @@ function isUuid(value) {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-function buildSchoolUpdatePayload(schoolData) {
+function isSameSchoolId(left, right) {
+  if (left == null || right == null) {
+    return false;
+  }
+
+  const leftId = String(left).trim().toLowerCase();
+  const rightId = String(right).trim().toLowerCase();
+
+  return leftId.length > 0 && leftId === rightId;
+}
+
+function shouldWriteField(nextValue, existingValue, hasExisting) {
+  return !hasExisting || nextValue !== existingValue;
+}
+
+function buildSchoolUpdatePayload(schoolData, existing) {
   const payload = {};
+  const hasExisting = Boolean(existing);
 
   if (schoolData.name !== undefined) {
-    payload.name = schoolData.name;
+    if (shouldWriteField(schoolData.name, existing?.name, hasExisting)) {
+      payload.name = schoolData.name;
+    }
   }
 
   if (schoolData.plan !== undefined) {
-    payload.plan = adaptPlanForDatabase(schoolData.plan);
+    const plan = adaptPlanForDatabase(schoolData.plan);
+    if (shouldWriteField(plan, existing?.plan, hasExisting)) {
+      payload.plan = plan;
+    }
   }
 
   if (schoolData.status !== undefined) {
-    payload.status = adaptStatusForDatabase(schoolData.status);
+    const status = adaptStatusForDatabase(schoolData.status);
+    if (shouldWriteField(status, existing?.status, hasExisting)) {
+      payload.status = status;
+    }
   }
 
   if (schoolData.slug !== undefined) {
-    payload.slug = schoolData.slug;
+    if (shouldWriteField(schoolData.slug, existing?.slug, hasExisting)) {
+      payload.slug = schoolData.slug;
+    }
   }
 
   const primaryColor = schoolData.primary_color ?? schoolData.primaryColor;
   if (primaryColor !== undefined) {
-    payload.primary_color = primaryColor;
+    if (shouldWriteField(primaryColor, existing?.primary_color, hasExisting)) {
+      payload.primary_color = primaryColor;
+    }
   }
 
   const secondaryColor = schoolData.secondary_color ?? schoolData.secondaryColor;
   if (secondaryColor !== undefined) {
-    payload.secondary_color = secondaryColor;
+    if (shouldWriteField(secondaryColor, existing?.secondary_color, hasExisting)) {
+      payload.secondary_color = secondaryColor;
+    }
   }
 
   const logoUrl = schoolData.logo_url ?? schoolData.customLogo;
   if (logoUrl !== undefined) {
-    payload.logo_url = logoUrl;
+    if (shouldWriteField(logoUrl, existing?.logo_url, hasExisting)) {
+      payload.logo_url = logoUrl;
+    }
   }
 
   const locale = schoolData.locale ?? schoolData.language;
   if (locale !== undefined) {
-    payload.locale = locale;
+    if (shouldWriteField(locale, existing?.locale, hasExisting)) {
+      payload.locale = locale;
+    }
   }
 
   return payload;
@@ -190,7 +224,7 @@ export const schoolService = {
     if (hasUsableSchoolName(nextSchool.name)) {
       const { data: schoolWithSameName, error: nameLookupError } = await findSchoolByName(nextSchool.name);
 
-      if (!nameLookupError && schoolWithSameName && schoolWithSameName.id !== nextSchool.id) {
+      if (!nameLookupError && schoolWithSameName && !isSameSchoolId(schoolWithSameName.id, nextSchool.id)) {
         console.error('[schoolService] School name already exists.');
         return null;
       }
@@ -204,7 +238,7 @@ export const schoolService = {
       }
 
       if (existing) {
-        const payload = buildSchoolUpdatePayload(nextSchool);
+        const payload = buildSchoolUpdatePayload(nextSchool, existing);
 
         if (Object.keys(payload).length === 0) {
           return existing;
@@ -258,7 +292,7 @@ export const schoolService = {
       return false;
     }
 
-    if (excludeId && data.id === excludeId) {
+    if (isSameSchoolId(data.id, excludeId)) {
       return false;
     }
 

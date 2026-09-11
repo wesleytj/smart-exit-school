@@ -117,8 +117,8 @@ export default function InstitutionsManager() {
     }
 
     const payload = editingId
-      ? { ...institutions.find(school => school.id === editingId), ...formData, name }
-      : { ...formData, name, status: "active" }
+      ? { id: editingId, name, plan: formData.plan }
+      : { name, plan: formData.plan, status: "active" }
 
     const savedSchool = await schoolService.saveSchool(payload)
     if (!savedSchool) {
