@@ -16,8 +16,8 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Dashboard de métricas | Total escolas, ativas, alunos gerenciados | `InstitutionsManager.jsx` |
 | Listagem de instituições | Tabela com nome, e-mail, plano, alunos, status | `InstitutionsManager.jsx` |
 | Busca | Por nome ou e-mail | `InstitutionsManager.jsx` |
-| Criar instituição | Modal com nome e plano; nome obrigatório e único no Supabase | `InstitutionsManager.jsx` |
-| Editar instituição | Modal pré-preenchido; nome vazio, só espaços ou duplicado é rejeitado; alteração só do plano é persistida | `InstitutionsManager.jsx` |
+| Criar instituição | Modal com nome e plano; nome obrigatório e único no Supabase; salvamento usa o mesmo estado `Salvando...` do formulário | `InstitutionsManager.jsx` |
+| Editar instituição | Modal pré-preenchido; nome vazio, só espaços ou duplicado é rejeitado; alteração só do plano é persistida; durante o salvamento o botão fica desabilitado com feedback `Salvando...` e novos envios são ignorados | `InstitutionsManager.jsx` |
 | Excluir instituição | Com confirmação | `InstitutionsManager.jsx` |
 | Suspender/Reativar | Toggle status Ativo/Inativo | `InstitutionsManager.jsx` |
 | Logout | Navega para `/login` | `InstitutionsManager.jsx` |

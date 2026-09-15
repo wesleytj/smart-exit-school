@@ -27,6 +27,7 @@ export default function InstitutionsManager() {
     plan: "Basic"
   })
   const [formError, setFormError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (!isPlatformAdminLoading && !isPlatformAdmin) {
@@ -87,6 +88,7 @@ export default function InstitutionsManager() {
     setEditingId(null)
     setFormData({ name: "", plan: "Basic" })
     setFormError("")
+    setIsSubmitting(false)
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
@@ -98,6 +100,7 @@ export default function InstitutionsManager() {
       plan: toUiPlan(school.plan)
     })
     setFormError("")
+    setIsSubmitting(false)
     setIsModalOpen(true)
     setDropdownOpenId(null)
   }
@@ -105,35 +108,45 @@ export default function InstitutionsManager() {
   async function handleSaveSchool(e) {
     e.preventDefault()
 
+    if (isSubmitting) {
+      return
+    }
+
     const name = (formData.name || "").trim()
     if (!name) {
       setFormError("Informe o nome da instituição.")
       return
     }
 
-    if (await schoolService.isSchoolNameTaken(name, editingId)) {
-      setFormError("Já existe uma instituição com este nome.")
-      return
+    setIsSubmitting(true)
+
+    try {
+      if (await schoolService.isSchoolNameTaken(name, editingId)) {
+        setFormError("Já existe uma instituição com este nome.")
+        return
+      }
+
+      const payload = editingId
+        ? { id: editingId, name, plan: formData.plan }
+        : { name, plan: formData.plan, status: "active" }
+
+      const savedSchool = await schoolService.saveSchool(payload)
+      if (!savedSchool) {
+        const nameTaken = await schoolService.isSchoolNameTaken(name, editingId)
+        setFormError(
+          nameTaken
+            ? "Já existe uma instituição com este nome."
+            : "Não foi possível salvar a instituição. Verifique o nome e tente novamente."
+        )
+        return
+      }
+
+      await loadInstitutions()
+      setFormError("")
+      setIsModalOpen(false)
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const payload = editingId
-      ? { id: editingId, name, plan: formData.plan }
-      : { name, plan: formData.plan, status: "active" }
-
-    const savedSchool = await schoolService.saveSchool(payload)
-    if (!savedSchool) {
-      const nameTaken = await schoolService.isSchoolNameTaken(name, editingId)
-      setFormError(
-        nameTaken
-          ? "Já existe uma instituição com este nome."
-          : "Não foi possível salvar a instituição. Verifique o nome e tente novamente."
-      )
-      return
-    }
-
-    await loadInstitutions()
-    setFormError("")
-    setIsModalOpen(false)
   }
 
   async function handleDelete(id) {
@@ -361,7 +374,12 @@ export default function InstitutionsManager() {
               <h3 className="text-xl font-bold text-slate-900">
                 {editingId ? "Editar Instituição" : "Nova Instituição"}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition bg-white rounded-full p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                disabled={isSubmitting}
+                className="text-slate-400 hover:text-slate-700 transition bg-white rounded-full p-1 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -405,9 +423,15 @@ export default function InstitutionsManager() {
               <div className="pt-4">
                 <button 
                   type="submit"
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20"
+                  disabled={isSubmitting}
+                  aria-busy={isSubmitting}
+                  className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20"
                 >
-                  {editingId ? "Salvar Alterações" : "Cadastrar Instituição"}
+                  {isSubmitting
+                    ? "Salvando..."
+                    : editingId
+                      ? "Salvar Alterações"
+                      : "Cadastrar Instituição"}
                 </button>
               </div>
             </form>
