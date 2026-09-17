@@ -14,6 +14,8 @@ smart-exit-school/
 │
 ├── ai/                       # Contexto para ferramentas de IA
 ├── docs/                     # Documentação técnica
+│   ├── qa-data-governance.md # Política de dados de QA (reutilizar antes de criar)
+│   ├── qa-inventory.md       # Snapshot read-only; não autoriza limpeza
 │   └── arquitetura/          # ADRs, modelagem, padrões
 │
 ├── public/
