@@ -17,29 +17,29 @@ Não se aplica ao seed versionado `smart-exit-dev-school` como dado descartável
 Antes de criar uma instituição:
 
 1. Ler este documento e o inventário vigente.
-2. Localizar o registro designado como candidato/canônico (ID + slug).
-3. Reutilizá-lo se o estado atual for compatível com o teste, ou se o teste puder partir do estado observado sem escrita adicional desnecessária.
+2. Localizar a instituição QA canônica permanente (ID + slug na tabela abaixo).
+3. Reutilizá-la se o estado atual for compatível com o teste, ou se o teste puder partir do estado observado sem escrita adicional desnecessária.
 4. Não criar dado novo só por conveniência.
+
+A existência da canônica **não** dispensa avaliar o estado exigido por cada cenário.
 
 ### Designação canônica
 
-A designação **não é irreversível**. Alterá-la exige decisão humana registrada (Issue/PR que atualize a tabela abaixo e o inventário).
+Decisão humana de governança (Issue #45, sucessora da #43 / PR #44). **Não altera o registro no banco:** não autoriza mudar nome, slug, plano, timestamps, relações, grupos acadêmicos, alunos ou qualquer outro atributo.
 
-| Papel | Status nesta versão | ID | Slug |
+Reclassificar a canônica no futuro exige nova decisão humana documentada (Issue/PR que atualize esta tabela e o inventário).
+
+| Papel | Status | ID | Slug |
 |---|---|---|---|
-| Instituição QA canônica | **Candidato condicionado** (não confirmado de forma permanente) | `76f29d9f-c6fd-4561-89f8-403fef0ccb40` | `qa-cursor-escola-teste` |
-
-Critério de promoção a **candidato confirmado** (decisão humana): registro estável para reuso no Platform Admin, sem dados operacionais acoplados que o teste destrua, e com estado inicial documentado no inventário.
-
-Critério de **inadequado**: o registro passou a ser dado de produto, seed ou dependência de outro fluxo, ou sua mutação habitual quebra testes.
+| Instituição QA canônica permanente | **Confirmada** | `76f29d9f-c6fd-4561-89f8-403fef0ccb40` | `qa-cursor-escola-teste` |
 
 ## Criação temporária (exceção)
 
 Só é permitido criar instituição temporária quando **pelo menos uma** condição for verdadeira e estiver justificada no Completion Report:
 
-- isolamento necessário (o canônico não pode ser tocado pelo cenário);
+- isolamento necessário (a canônica não pode ser tocada pelo cenário);
 - o cenário **é** o de criação;
-- o estado inicial do canônico é incompatível e não pode ser assumido sem distorcer o teste;
+- o estado inicial da canônica é incompatível e não pode ser assumido sem distorcer o teste;
 - existe justificativa técnica concreta (não “ficou mais fácil”).
 
 Todo dado temporário deve ser registrado no Completion Report:
@@ -77,6 +77,6 @@ Se a remoção não for segura, possível ou autorizada:
 
 Todo Completion Report de ciclo que toque instituições deve declarar:
 
-- se reutilizou o canônico/candidato (ID);
+- se reutilizou a canônica (ID);
 - se criou temporário (tabela acima);
 - se removeu algo (IDs) ou o que foi preservado e por quê.

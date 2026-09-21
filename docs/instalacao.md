@@ -148,7 +148,7 @@ Inseridas automaticamente no primeiro acesso ao `/painel` (se localStorage vazio
 
 ### Criar instituição customizada
 
-Para testes de Platform Admin, seguir [qa-data-governance.md](./qa-data-governance.md): reutilizar a instituição QA candidata antes de criar outra.
+Para testes de Platform Admin, seguir [qa-data-governance.md](./qa-data-governance.md): reutilizar a instituição QA canônica antes de criar outra.
 
 1. Login Super Admin
 2. "Nova Instituição"
