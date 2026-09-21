@@ -29,6 +29,7 @@ Comandos concretos vêm do projeto.
 5. Feature: cobrir critérios de aceite; automatizar quando o projeto tiver padrão.
 6. Falha de teste relacionado à tarefa bloqueia Implementation Complete.
 7. Resultados entram no PR / Completion report.
+8. Se o projeto documentar política de dados de QA, segui-la. No SES: `docs/qa-data-governance.md` (reutilizar antes de criar; não excluir por presunção).
 
 ## Related Documents
 
@@ -36,3 +37,4 @@ Comandos concretos vêm do projeto.
 - `standards/quality-gates.md`
 - `checklists/definition-of-done.md`
 - `engine/aads-operating-model.md`
+- SES: `docs/qa-data-governance.md` (quando o work item toca instituições / dados de teste de domínio)
