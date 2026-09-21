@@ -13,10 +13,12 @@ Política normativa: [qa-data-governance.md](./qa-data-governance.md).
 
 | Classe | Significado |
 |---|---|
-| Candidato a QA canônico | Reuso preferencial para Platform Admin; promoção permanente exige humano |
-| Temporário conhecido a preservar | Criado em ciclo de teste; **não** apagar nesta atividade |
+| QA canônica permanente | Referência oficial de reuso para Platform Admin (governança; o banco não foi alterado por esta classificação) |
+| Temporário conhecido a preservar | Criado em ciclo de teste; **não** apagar sem autorização humana específica |
 | Registro que exige decisão humana | Evidência incompleta, conflito com seed, ou cleanup só com autorização |
 | Não classificado / evidência insuficiente | Leitura não disponível ou atributos inconclusivos |
+
+Atributos tabulares abaixo permanecem o snapshot de 2026-09-17. Esta atividade **não** relê o banco.
 
 ## Registros observados (3)
 
@@ -30,10 +32,10 @@ Política normativa: [qa-data-governance.md](./qa-data-governance.md).
 | Status / plan | `active` / `pro` |
 | Grupos acadêmicos / alunos | 2 / 1 |
 | created_at = updated_at | 2026-09-04 05:15:49+00 |
-| **Classe** | Registro que exige decisão humana (não usar como QA descartável) |
-| **Justificativa** | Corresponde ao slug do seed (`supabase/seed.sql`). Possui dados acadêmicos. `plan` live (`pro`) **diverge** do seed versionado (`basic`) — descoberta, não bug confirmado nem correção. Mutá-lo ou apagá-lo quebra invariantes do Auditor. |
+| **Classe** | Preservar sem alteração (não usar como QA descartável) |
+| **Justificativa** | Seed (`supabase/seed.sql`) com dados acadêmicos. Decisão humana: preservar. Divergência `plan` live (`pro`) vs seed (`basic`) e timestamps iguais permanecem **fora de escopo** — possível investigação futura, não autorizada aqui. |
 
-### 2. Candidato QA (`qa-cursor-escola-teste`)
+### 2. Instituição QA canônica permanente (`qa-cursor-escola-teste`)
 
 | Campo | Valor |
 |---|---|
@@ -43,8 +45,8 @@ Política normativa: [qa-data-governance.md](./qa-data-governance.md).
 | Status / plan | `active` / `pro` |
 | Grupos acadêmicos / alunos | 0 / 0 |
 | created_at = updated_at | 2026-09-14 16:54:26+00 |
-| **Classe** | **Candidato a QA canônico — condicionado** |
-| **Justificativa** | ID/slug batem com o registro protegido e com o ciclo de QA de edição (2026-09-14). Sem dados acadêmicos acoplados, adequado a reuso de CRUD Platform Admin. **Não** está em estado inicial “nome original + Basic”: o nome contém “Teste 2” e `plan` é `pro`. `created_at` = `updated_at` apesar de mutações históricas relatadas — evidência insuficiente para afirmar bug de `updated_at`. **Não promovido a canônico permanente.** |
+| **Classe** | **QA canônica permanente** |
+| **Justificativa** | Decisão humana de governança (Issue #45, sucessora da #43 / PR #44). Reuso oficial para testes que precisem de instituição existente, se o estado for compatível. A promoção **não** altera o registro no banco e **não** autoriza mudar nome, slug, plano ou demais atributos. Snapshot 2026-09-17: nome “Teste 2”, `plan` `pro`, sem grupos/alunos. |
 
 ### 3. Temporário conhecido (`qa-temp-save-pending`)
 
@@ -56,18 +58,17 @@ Política normativa: [qa-data-governance.md](./qa-data-governance.md).
 | Status / plan | `active` / `pro` |
 | Grupos acadêmicos / alunos | 0 / 0 |
 | created_at = updated_at | 2026-09-15 16:29:56+00 |
-| **Classe** | Temporário conhecido a preservar **e** registro que exige decisão humana para cleanup futuro |
-| **Justificativa** | Identificado na autorização humana como protegido. Aparência de dado temporário **não** autoriza exclusão. Cleanup só com Issue e IDs autorizados. |
+| **Classe** | Temporário conhecido a preservar |
+| **Justificativa** | Decisão humana: **preservar**. Não excluir, alterar ou reclassificar nesta atividade. Cleanup **não** autorizado. |
 
-## Candidato `qa-cursor-escola-teste` — decisão desta atividade
+## `qa-cursor-escola-teste` — decisão desta atividade
 
-**Candidato condicionado.** Reutilizar este ID/slug por padrão. Não alterar. Não promover de forma irreversível até decisão humana que atualize a tabela em `qa-data-governance.md`.
+**QA canônica permanente.** ID `76f29d9f-c6fd-4561-89f8-403fef0ccb40`, slug `qa-cursor-escola-teste`. Decisão humana de governança. Banco não alterado.
 
-## Follow-ups humanos (fora de escopo)
+## Decisões humanas registradas (esta atividade)
 
-1. Confirmar ou recusar a promoção do candidato `76f29d9f-…` a canônico permanente.
-2. Decidir destino de `70947c40-…` (`qa-temp-save-pending`) — preservar ou cleanup autorizado.
-3. Decidir se `smart-exit-dev-school` com `plan = pro` (vs seed `basic`) deve ser investigado; não tratar como bug confirmado aqui.
-4. `created_at` = `updated_at` nos três registros: possível inconsistência de trigger; pesquisa prévia existe; **não** confirmar bug nesta Issue.
+1. Promoção canônica permanente de `76f29d9f-…` / `qa-cursor-escola-teste` — **feita na documentação**; registro no banco intacto.
+2. `70947c40-…` / `qa-temp-save-pending` — **preservar**; cleanup não autorizado.
+3. `5fbc9b5c-…` / `smart-exit-dev-school` — **preservar**; divergência de plano/timestamps fora de escopo.
 
-Nenhum destes itens foi executado.
+Investigação de `plan`/`pro`, `updated_at` ou slug **não** foi reaberta.
