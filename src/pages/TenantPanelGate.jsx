@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { usePlatformAdmin } from '../hooks/usePlatformAdmin';
 import { useTenantSession } from '../hooks/useTenantSession';
 import { authService } from '../services/authService';
+import { resolveTenantPanelAccess } from '../services/tenantAccess';
 import InstitutionPanel from './InstitutionPanel';
-
-const NO_MEMBERSHIP_MESSAGE = 'Esta conta não possui vínculo ativo com uma escola.';
-const MEMBERSHIP_ERROR_MESSAGE = 'Não foi possível confirmar o vínculo com a escola.';
 
 export default function TenantPanelGate() {
   const navigate = useNavigate();
@@ -18,46 +16,53 @@ export default function TenantPanelGate() {
     selectSchool
   } = useTenantSession();
   const signedOutRef = useRef(false);
+  const platformAuthorityPending = isPlatformAdminLoading || isTenantLoading || status === 'loading';
+  const access = platformAuthorityPending
+    ? null
+    : resolveTenantPanelAccess({ isPlatformAdmin, tenantStatus: status });
 
   useEffect(() => {
-    if (isTenantLoading || isPlatformAdminLoading || status === 'loading') {
+    if (platformAuthorityPending) {
       return;
     }
 
-    if (status === 'anonymous') {
-      navigate('/login', { replace: true });
+    const decision = resolveTenantPanelAccess({ isPlatformAdmin, tenantStatus: status });
+
+    if (decision.view === 'panel' || decision.view === 'selection') {
       return;
     }
 
-    if (status === 'ready' || status === 'selection') {
+    if (decision.view === 'platform') {
+      navigate(decision.destination, { replace: true });
       return;
     }
 
-    if (isPlatformAdmin) {
-      navigate('/admin/institutions', { replace: true });
-      return;
-    }
-
-    if (status === 'none') {
+    if (decision.signOut) {
       if (signedOutRef.current) {
         return;
       }
 
       signedOutRef.current = true;
       void authService.logout().then(() => {
-        navigate('/login', { replace: true, state: { authMessage: NO_MEMBERSHIP_MESSAGE } });
+        navigate(decision.destination, {
+          replace: true,
+          state: decision.message ? { authMessage: decision.message } : undefined
+        });
       });
       return;
     }
 
-    navigate('/login', { replace: true, state: { authMessage: MEMBERSHIP_ERROR_MESSAGE } });
-  }, [isPlatformAdmin, isPlatformAdminLoading, isTenantLoading, navigate, status]);
+    navigate(decision.destination, {
+      replace: true,
+      state: decision.message ? { authMessage: decision.message } : undefined
+    });
+  }, [isPlatformAdmin, navigate, platformAuthorityPending, status]);
 
-  if (isTenantLoading || isPlatformAdminLoading || status === 'loading' || status === 'anonymous') {
+  if (!access || access.view === 'platform' || access.view === 'login') {
     return null;
   }
 
-  if (status === 'selection') {
+  if (access.view === 'selection') {
     return (
       <div className="min-h-screen bg-[#f4f7fb] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
@@ -83,7 +88,7 @@ export default function TenantPanelGate() {
     );
   }
 
-  if (status !== 'ready') {
+  if (access.view !== 'panel') {
     return null;
   }
 

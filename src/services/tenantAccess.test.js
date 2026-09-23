@@ -4,6 +4,7 @@ import {
   decidePostLogin,
   pickOperationalState,
   resolveTenantAccess,
+  resolveTenantPanelAccess,
   toPanelSchool
 } from './tenantAccess.js'
 
@@ -96,6 +97,14 @@ describe('decidePostLogin', () => {
     assert.equal(decision.signOut, false)
   })
 
+  it('does not send a platform admin to the tenant panel when memberships exist', () => {
+    for (const tenantStatus of ['ready', 'selection']) {
+      const decision = decidePostLogin({ isPlatformAdmin: true, tenantStatus })
+      assert.equal(decision.destination, '/admin/institutions')
+      assert.equal(decision.signOut, false)
+    }
+  })
+
   it('signs out an authenticated user with no active membership', () => {
     const decision = decidePostLogin({ isPlatformAdmin: false, tenantStatus: 'none' })
 
@@ -110,6 +119,44 @@ describe('decidePostLogin', () => {
       assert.equal(decision.destination, '/painel')
       assert.equal(decision.signOut, false)
     }
+  })
+})
+
+describe('resolveTenantPanelAccess', () => {
+  it('keeps platform admin out of the tenant panel even when membership is ready', () => {
+    for (const tenantStatus of ['ready', 'selection', 'none', 'error']) {
+      const decision = resolveTenantPanelAccess({ isPlatformAdmin: true, tenantStatus })
+
+      assert.equal(decision.view, 'platform')
+      assert.equal(decision.destination, '/admin/institutions')
+      assert.equal(decision.signOut, false)
+    }
+  })
+
+  it('does not grant platform authority from tenant status', () => {
+    const readyTenant = resolveTenantPanelAccess({ isPlatformAdmin: false, tenantStatus: 'ready' })
+    const selectedTenant = resolveTenantPanelAccess({ isPlatformAdmin: false, tenantStatus: 'selection' })
+    const noMembership = resolveTenantPanelAccess({ isPlatformAdmin: false, tenantStatus: 'none' })
+
+    assert.equal(readyTenant.view, 'panel')
+    assert.equal(selectedTenant.view, 'selection')
+    assert.equal(noMembership.view, 'login')
+    assert.notEqual(readyTenant.view, 'platform')
+    assert.notEqual(selectedTenant.view, 'platform')
+    assert.notEqual(noMembership.view, 'platform')
+  })
+
+  it('does not treat a client school id as platform or tenant authority', () => {
+    const decision = resolveTenantPanelAccess({
+      isPlatformAdmin: false,
+      tenantStatus: 'none',
+      localSchoolId: 'school-a'
+    })
+
+    assert.equal(decision.view, 'login')
+    assert.equal(decision.signOut, true)
+    assert.notEqual(decision.view, 'platform')
+    assert.notEqual(decision.view, 'panel')
   })
 })
 

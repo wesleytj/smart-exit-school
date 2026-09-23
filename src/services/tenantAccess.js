@@ -69,6 +69,45 @@ export function resolveTenantAccess({ memberships, schools, selectedSchoolId }) 
   return { status: 'ready', school: chosen, schools: orderedSchools }
 }
 
+export function resolveTenantPanelAccess({ isPlatformAdmin, tenantStatus }) {
+  if (isPlatformAdmin) {
+    return {
+      view: 'platform',
+      destination: '/admin/institutions',
+      signOut: false,
+      message: ''
+    }
+  }
+
+  if (tenantStatus === 'anonymous') {
+    return { view: 'login', destination: '/login', signOut: false, message: '' }
+  }
+
+  if (tenantStatus === 'none') {
+    return {
+      view: 'login',
+      destination: '/login',
+      signOut: true,
+      message: 'Esta conta não possui vínculo ativo com uma escola.'
+    }
+  }
+
+  if (tenantStatus === 'selection') {
+    return { view: 'selection', destination: '', signOut: false, message: '' }
+  }
+
+  if (tenantStatus === 'ready') {
+    return { view: 'panel', destination: '', signOut: false, message: '' }
+  }
+
+  return {
+    view: 'login',
+    destination: '/login',
+    signOut: false,
+    message: 'Não foi possível confirmar o vínculo com a escola.'
+  }
+}
+
 export function decidePostLogin({ isPlatformAdmin, tenantStatus }) {
   if (isPlatformAdmin) {
     return { destination: '/admin/institutions', signOut: false, message: '' }
