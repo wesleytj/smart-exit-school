@@ -15,6 +15,13 @@ export const schoolRepository = {
       .maybeSingle();
   },
 
+  async getByIds(ids, columns = 'id, name, slug, status, plan, primary_color, secondary_color, logo_url, locale') {
+    return await supabase
+      .from('schools')
+      .select(columns)
+      .in('id', ids);
+  },
+
   async getByName(name) {
     return await supabase
       .from('schools')

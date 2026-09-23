@@ -2,207 +2,48 @@
 
 ## Visão geral
 
-O sistema utiliza autenticação **em transição**:
+A identidade vem do Supabase Auth (ADR-004). A aplicação não grava senha em `schools` (ADR-005).
 
-| Camada | Estado |
-|--------|--------|
-| **Alvo (ADR-004)** | Supabase Auth — sem senhas no banco |
-| **Implementado hoje** | Email/senha em localStorage + Super Admin hardcoded |
+| Domínio | Autoridade | Destino |
+|---|---|---|
+| Platform Admin | Sessão Auth + RPC `is_platform_admin()` (ADR-028) | `/admin/institutions` |
+| Usuário de escola | Sessão Auth + `school_members` ativo + `schools` (ADR-007, ADR-011) | `/painel` |
+| Sem sessão | Nenhuma | `/login` |
+| Sessão sem membership ativa | Nenhuma autoridade de tenant | Não entra no painel; a sessão de operador é encerrada |
 
-A "sessão" operacional consiste em objetos JSON em `@SmartExit:loggedSchool` via `authService`.
+`@SmartExit:loggedSchool` não é mais sessão nem autorização. O painel não aceita e-mail ou senha de escola.
 
-```mermaid
-flowchart LR
-    subgraph Auth["Mecanismos de autenticação"]
-        HA[Hardcoded Admin]
-        LS[localStorage Schools]
-    end
+O contexto de tenant não lê `public.profiles`. O `auth.uid()` da sessão é o `profile_id` consultado em `school_members`.
 
-    HA --> AdminRoute["/admin/institutions"]
-    LS --> Session["@SmartExit:loggedSchool"]
-    Session --> PainelRoute["/painel"]
-```
+## Login
 
----
+Arquivo: `src/pages/Login.jsx`. Rota: `/login`.
 
-## Sistema de login
+1. `supabase.auth.signInWithPassword`.
+2. Credencial inválida: mensagem "E-mail ou senha incorretos." Não há segundo fator em `schools`.
+3. Se `is_platform_admin()` é verdadeiro, a navegação vai para `/admin/institutions`. Membership não promove ninguém a Platform Admin, e Platform Admin não recebe o painel por esse RPC.
+4. Caso contrário, a aplicação lê memberships ativas do usuário da sessão e as escolas que a RLS devolver.
+5. Um vínculo ativo: contexto dessa escola e entrada no painel.
+6. Vários vínculos ativos: a tela pede a escolha da escola antes do painel. Um `school_id` fora da lista autorizada não vira contexto.
+7. Nenhum vínculo ativo: `signOut` e a mensagem "Esta conta não possui vínculo ativo com uma escola."
 
-**Arquivo:** `src/pages/Login.jsx`  
-**Rota:** `/login`
+A escolha entre várias escolas fica na memória da sessão de interface e é revalidada com uma nova leitura de membership. Ela não é coluna em `profiles` e não é chave de autorização em `localStorage`.
 
-### Formulário
+## Contexto no painel e no telão
 
-| Campo | Tipo HTML | Validação |
-|-------|-----------|-----------|
-| E-mail | `email`, required | HTML5 required |
-| Senha | `password`, required | HTML5 required |
+`TenantSessionProvider` acompanha a sessão Auth e republica o contexto. `/painel` só monta o painel com status `ready`. Sem sessão, a rota volta ao login. Platform Admin sem membership que abre `/painel` volta à área de plataforma, sem ser tratado como operador de escola.
 
-### Fluxo de decisão
+`/tv` usa o mesmo contexto. Sem escola autorizada, o telão não lê `@SmartExit:loggedSchool`.
 
-1. **Super Admin** — comparação literal:
-   - E-mail: `admin@alltech.com`
-   - Senha: `admin123`
-   - Sucesso → `navigate("/admin/institutions")`
+## O que continua em localStorage
 
-2. **Escola cliente** — busca em `@SmartExit:schools`:
-   - Match: `school.email === email && school.password === password`
-   - Sucesso → salva `@SmartExit:loggedSchool` → `navigate("/painel")`
+Dados operacionais do painel (alunos, turmas, portões e chamadas) continuam no browser, fora do Postgres. O cache `@SmartExit:schoolOps:{schoolId}` guarda só o estado operacional da escola já autorizada. Ele não escolhe o tenant e não contém senha.
 
-3. **Falha** — exibe: `"E-mail ou senha incorretos."`
+Portões e chamadas seguem em `@SmartExit:gates:{schoolId}` e `@SmartExit:called:{schoolId}`. Isso não é `public.gates` nem `public.pickup_events`.
 
-### Credenciais de teste (MOCK_SCHOOLS)
+## Limites desta Feature
 
-| E-mail | Senha | Plano |
-|--------|-------|-------|
-| teste@basic.com | 123456 | Basic |
-| teste@premium.com | 123456 | Premium |
-| teste@diamond.com | 123456 | Diamond |
-
----
-
-## Sistema de sessão
-
-### Escola logada
-
-| Aspecto | Detalhe |
-|---------|---------|
-| Chave | `@SmartExit:loggedSchool` |
-| Formato | JSON serializado (objeto School completo) |
-| Criação | No login bem-sucedido |
-| Atualização | A cada `saveSchoolData()` no painel |
-| Destruição | `localStorage.removeItem("@SmartExit:loggedSchool")` no logout |
-| Expiração | **Não implementada** |
-| Renovação | **Não implementada** |
-
-### Super Admin
-
-| Aspecto | Detalhe |
-|---------|---------|
-| Persistência | **Nenhuma** — não salva flag de admin logado |
-| Logout | Apenas `navigate("/login")` |
-| Proteção de rota | **Ausente** — `/admin/institutions` acessível sem login |
-
----
-
-## Fluxo de autenticação completo
-
-```mermaid
-sequenceDiagram
-    participant U as Usuário
-    participant L as Login.jsx
-    participant LS as localStorage
-    participant P as Painel / Admin
-
-    U->>L: Submit e-mail + senha
-    L->>L: admin@alltech.com?
-    alt Super Admin
-        L->>P: navigate /admin/institutions
-    else Escola
-        L->>LS: get @SmartExit:schools
-        LS-->>L: schools[]
-        L->>L: find by email+password
-        alt Encontrou
-            L->>LS: set @SmartExit:loggedSchool
-            L->>P: navigate /painel
-        else Não encontrou
-            L->>U: Erro
-        end
-    end
-
-    Note over P: InstitutionPanel useEffect
-    P->>LS: get @SmartExit:loggedSchool
-    alt Ausente
-        P->>L: navigate /login
-    end
-```
-
----
-
-## Controle de acesso por rota
-
-| Rota | Guard | Mecanismo |
-|------|-------|-----------|
-| `/login` | Pública | — |
-| `/admin/institutions` | ❌ Nenhum | URL aberta |
-| `/painel` | ✅ Parcial | `useEffect` verifica `@SmartExit:loggedSchool` |
-| `/tv` | ❌ Nenhum | Funciona se houver sessão; caso contrário não carrega dados |
-
-### Implementação do guard do painel
-
-```javascript
-// InstitutionPanel.jsx — useEffect
-const loggedSchool = JSON.parse(localStorage.getItem("@SmartExit:loggedSchool"))
-if (!loggedSchool) {
-  navigate("/login")
-}
-```
-
-**Limitação:** Guard executado apenas no client-side; não impede acesso direto à URL antes do React montar.
-
----
-
-## Recuperação de acesso
-
-**Não identificado.**
-
-Não há:
-
-- "Esqueci minha senha"
-- Reset por e-mail
-- Fluxo de recuperação de conta
-- Contato com suporte integrado
-
-Alteração de senha: apenas Super Admin edita no modal de instituição.
-
----
-
-## Segurança da autenticação
-
-| Aspecto | Estado atual | Risco |
-|---------|--------------|-------|
-| Armazenamento de senha | Texto plano em localStorage | Alto |
-| Credenciais admin | Hardcoded no source | Alto |
-| HTTPS | Depende do hosting | Médio |
-| Brute force | Sem rate limit | Médio |
-| Session hijacking | localStorage acessível via XSS | Alto |
-| CSRF | N/A (sem server) | Baixo |
-| Status Inativo | Não bloqueia login | Médio |
-
----
-
-## Logout
-
-### Escola (`InstitutionPanel`)
-
-```javascript
-localStorage.removeItem("@SmartExit:loggedSchool")
-navigate("/login")
-```
-
-### Super Admin (`InstitutionsManager`)
-
-```javascript
-navigate("/login")
-// Não limpa localStorage
-```
-
-**Implicação:** Sessão de escola pode permanecer ativa após Super Admin "logout".
-
----
-
-## Chaves relacionadas (legado)
-
-| Chave | Uso na autenticação |
-|-------|---------------------|
-| `currentUser` | Escrita em `handleSaveColors()` — **não usada no login** |
-| `institutions` | Duplicata parcial — **não usada no login** |
-
----
-
-## Pontos que precisam de validação
-
-- Implementar guard real para `/admin/institutions`
-- Bloquear login de instituições com `status: "Inativo"`
-- Estratégia de autenticação para produção (JWT, session cookie, OAuth)
-- Política de expiração de sessão
-- Fluxo de recuperação de senha
+- Não cria usuário, profile nem `school_members`. Sem um vínculo ativo já existente, o caminho de uma escola não pode ser exercido no ambiente.
+- Não altera RLS, grants, funções nem schema.
+- Não implementa impersonation.
+- Não certifica isolamento entre dois JWTs.

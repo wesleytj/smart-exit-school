@@ -1,16 +1,18 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Mail, Lock, LogIn } from "lucide-react"
-import { authService } from "../services/authService"
 import { platformAdminService } from "../services/platformAdminService"
+import { tenantSessionService } from "../services/tenantSessionService"
+import { decidePostLogin, resolveTenantAccess } from "../services/tenantAccess"
 import { supabase } from "../lib/supabase"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const [error, setError] = useState(location.state?.authMessage || "")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -23,25 +25,40 @@ export default function Login() {
         password
       })
 
-      if (!authError && data?.user) {
-        const isAdmin = await platformAdminService.isPlatformAdmin(data.user.id)
-
-        if (isAdmin) {
-          navigate("/admin/institutions")
-          return
-        }
-
-        await supabase.auth.signOut()
-        setError("Esta conta não possui permissão de administrador da plataforma.")
+      if (authError || !data?.user) {
+        setError("E-mail ou senha incorretos.")
         return
       }
 
-      const schoolFound = await authService.login(email, password)
+      const isAdmin = await platformAdminService.isPlatformAdmin(data.user.id)
+      let tenantStatus = "none"
 
-      if (schoolFound) {
-        navigate("/painel")
-      } else {
-        setError("E-mail ou senha incorretos.")
+      if (!isAdmin) {
+        const loaded = await tenantSessionService.loadActiveSchools()
+
+        if (loaded.error) {
+          tenantStatus = "error"
+        } else {
+          tenantStatus = resolveTenantAccess({
+            memberships: loaded.memberships,
+            schools: loaded.schools,
+            selectedSchoolId: null
+          }).status
+        }
+      }
+
+      const next = decidePostLogin({ isPlatformAdmin: isAdmin, tenantStatus })
+
+      if (next.signOut) {
+        await supabase.auth.signOut()
+      }
+
+      if (next.message) {
+        setError(next.message)
+      }
+
+      if (next.destination !== "/login") {
+        navigate(next.destination)
       }
     } catch (err) {
       console.error(err)

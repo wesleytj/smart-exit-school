@@ -15,25 +15,13 @@ import { gateService } from "../services/gateService"
 import { callService } from "../services/callService"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
+import { schoolOpsStore } from "../services/schoolOpsStore"
+import { pickOperationalState, toPanelSchool } from "../services/tenantAccess"
+import { useTenantSession } from "../hooks/useTenantSession"
 
 // ==================================================================
 // CONFIGURAÇÕES GLOBAIS E DADOS ESTÁTICOS (Fora do Componente)
 // ==================================================================
-const MOCK_SCHOOLS = [
-  {
-    id: "mock-basic", name: "Teste - Basic", email: "teste@basic.com", password: "123456",
-    plan: "Basic", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal"]
-  },
-  {
-    id: "mock-premium", name: "Teste - Premium", email: "teste@premium.com", password: "123456",
-    plan: "Premium", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal", "Portão Sul"]
-  },
-  {
-    id: "mock-diamond", name: "Teste - Diamond", email: "teste@diamond.com", password: "123456",
-    plan: "Diamond", status: "Ativo", classes: [], studentsList: [], exits: ["Portão Principal", "Portão VIP"]
-  }
-];
-
 const DEFAULT_PRIMARY_COLOR = '#f97316';   // Laranja AllTech
 const DEFAULT_SECONDARY_COLOR = '#3b82f6'; // Azul AllTech
 
@@ -42,6 +30,8 @@ export default function InstitutionPanel() {
   // SEÇÃO 1: REFS E NAVEGAÇÃO (Hooks de referência)
   // ==================================================================
   const navigate = useNavigate();
+  const { status: tenantStatus, school: authorizedSchool, accountEmail } = useTenantSession();
+  const loadedSchoolIdRef = useRef(null);
   const logoInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -95,38 +85,47 @@ export default function InstitutionPanel() {
 
   // 4.1 Carregamento Inicial (Autenticação e Dados)
   useEffect(() => {
+    if (tenantStatus !== "ready" || !authorizedSchool?.id) {
+      loadedSchoolIdRef.current = null;
+      return;
+    }
+
+    if (loadedSchoolIdRef.current === authorizedSchool.id) {
+      return;
+    }
+
+    let cancelled = false;
+
     async function loadInitialData() {
-      await schoolService.seedInitialMock(MOCK_SCHOOLS);
+      const storedOps = await schoolOpsStore.get(authorizedSchool.id);
+      const nextSchool = toPanelSchool(authorizedSchool, storedOps, accountEmail);
+      let loadedClasses = nextSchool.classes || [];
 
-      const loggedSchool = await authService.getCurrentSession();
-      if (!loggedSchool) {
-        navigate("/login");
-        return;
-      }
-
-      let loadedClasses = loggedSchool.classes || [];
-      if (loadedClasses.length > 0 && typeof loadedClasses[0] === 'string') {
-        loadedClasses = loadedClasses.map((c, i) => ({
-          id: Date.now() + i,
-          name: c,
-          defaultExit: loggedSchool.exits?.[0] || ""
+      if (loadedClasses.length > 0 && typeof loadedClasses[0] === "string") {
+        loadedClasses = loadedClasses.map((className, index) => ({
+          id: Date.now() + index,
+          name: className,
+          defaultExit: nextSchool.exits?.[0] || ""
         }));
       }
 
-      const nextSchool = {
-        ...loggedSchool,
-        studentsList: loggedSchool.studentsList || [],
-        exits: loggedSchool.exits || [],
-        classes: loadedClasses
-      };
+      if (cancelled) {
+        return;
+      }
 
-      setSchool(nextSchool);
-      setTempPrimaryColor(nextSchool.primaryColor || DEFAULT_PRIMARY_COLOR);
-      setTempSecondaryColor(nextSchool.secondaryColor || DEFAULT_SECONDARY_COLOR);
+      const schoolView = { ...nextSchool, classes: loadedClasses };
+      loadedSchoolIdRef.current = authorizedSchool.id;
+      setSchool(schoolView);
+      setTempPrimaryColor(schoolView.primaryColor || DEFAULT_PRIMARY_COLOR);
+      setTempSecondaryColor(schoolView.secondaryColor || DEFAULT_SECONDARY_COLOR);
     }
 
     void loadInitialData();
-  }, [navigate]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountEmail, authorizedSchool, tenantStatus]);
 
   useEffect(() => {
     void themeService.getThemePreference().then(setIsDarkMode);
@@ -174,6 +173,10 @@ export default function InstitutionPanel() {
 
   // --- Funções Globais e do Sistema ---
   async function saveSchoolData(updatedSchool) {
+    if (!authorizedSchool?.id || updatedSchool?.id !== authorizedSchool.id) {
+      return;
+    }
+
     setSchool(updatedSchool);
 
     if (
@@ -184,8 +187,14 @@ export default function InstitutionPanel() {
       setTempSecondaryColor(updatedSchool.secondaryColor || DEFAULT_SECONDARY_COLOR);
     }
 
-    await authService.updateCurrentSession(updatedSchool);
-    await schoolService.saveSchool(updatedSchool);
+    await schoolOpsStore.save(authorizedSchool.id, pickOperationalState(updatedSchool));
+    await schoolService.saveSchool({
+      ...updatedSchool,
+      id: authorizedSchool.id,
+      name: authorizedSchool.name,
+      email: undefined,
+      password: undefined
+    });
   }
 
   async function handleLogout() {
@@ -1076,8 +1085,8 @@ export default function InstitutionPanel() {
                     <input type="text" disabled value={school.name} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">E-mail de Contato</label>
-                    <input type="text" disabled value={school.email} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">E-mail da conta</label>
+                    <input type="text" disabled value={school.accountEmail || ""} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-500 dark:text-slate-400" />
                   </div>
                 </div>
                 <p className="text-xs text-slate-400 mt-3">* Para alterar dados sensíveis, contate o suporte.</p>
