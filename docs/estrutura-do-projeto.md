@@ -16,6 +16,7 @@ smart-exit-school/
 ├── docs/                     # Documentação técnica
 │   ├── qa-data-governance.md # Política de dados de QA (reutilizar antes de criar)
 │   ├── qa-inventory.md       # Snapshot read-only; não autoriza limpeza
+│   ├── auditoria-isolamento-multi-tenant.md # Spike #47 — auditoria read-only RLS/tenant
 │   └── arquitetura/          # ADRs, modelagem, padrões
 │
 ├── public/
