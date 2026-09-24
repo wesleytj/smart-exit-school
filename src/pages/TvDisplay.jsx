@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react"
 import { Clock, GraduationCap, MapPin, User, Volume2 } from "lucide-react"
-import { authService } from "../services/authService"
 import { callService } from "../services/callService"
 import { themeService } from "../services/themeService"
+import { schoolOpsStore } from "../services/schoolOpsStore"
+import { toPanelSchool } from "../services/tenantAccess"
+import { useTenantSession } from "../hooks/useTenantSession"
 import { STORAGE_KEYS } from "../services/core/keys"
 
 export default function TvDisplay() {
+  const { status, school } = useTenantSession()
   const [calledStudents, setCalledStudents] = useState([])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [schoolInfo, setSchoolInfo] = useState(null)
@@ -22,23 +25,27 @@ export default function TvDisplay() {
 
   useEffect(() => {
     let unsubscribeCalls = () => {}
+    let cancelled = false
 
     async function init() {
-      const loggedSchool = await authService.getCurrentSession()
-      if (!loggedSchool) return
+      if (status !== "ready" || !school?.id) {
+        setSchoolInfo(null)
+        setCalledStudents([])
+        return
+      }
 
-      setSchoolInfo(loggedSchool)
-      setCalledStudents(await callService.getCallsBySchool(loggedSchool.id))
-      unsubscribeCalls = callService.subscribeToCalls(loggedSchool.id, setCalledStudents)
+      const storedOps = await schoolOpsStore.get(school.id)
+      if (cancelled) return
+
+      setSchoolInfo(toPanelSchool(school, storedOps, ""))
+      const calls = await callService.getCallsBySchool(school.id)
+      if (cancelled) return
+
+      setCalledStudents(calls)
+      unsubscribeCalls = callService.subscribeToCalls(school.id, setCalledStudents)
     }
 
     const handleStorageChange = (e) => {
-      if (e.key === STORAGE_KEYS.LOGGED_SCHOOL) {
-        void authService.getCurrentSession().then((updatedSchool) => {
-          if (updatedSchool) setSchoolInfo(updatedSchool)
-        })
-      }
-
       if (e.key === STORAGE_KEYS.DARK_MODE) {
         void themeService.getThemePreference().then(setIsDarkMode)
       }
@@ -48,10 +55,11 @@ export default function TvDisplay() {
     void init()
 
     return () => {
+      cancelled = true
       unsubscribeCalls()
       window.removeEventListener("storage", handleStorageChange)
     }
-  }, [])
+  }, [school, status])
 
   function toggleFullScreen() {
     if (!document.fullscreenElement) {
@@ -86,7 +94,7 @@ export default function TvDisplay() {
               ) : "AES"}
             </div>
             <div className="leading-tight">
-              <h1 className="text-slate-900 dark:text-white font-bold text-xl tracking-tight transition-colors">{schoolInfo?.name || "Carregando..."}</h1>
+              <h1 className="text-slate-900 dark:text-white font-bold text-xl tracking-tight transition-colors">{schoolInfo?.name || "Aguardando contexto da escola"}</h1>
               <p className="text-xs text-secondary font-semibold uppercase">Plano {schoolInfo?.plan || "Basic"}</p>
             </div>
           </div>
