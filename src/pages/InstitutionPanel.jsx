@@ -52,11 +52,11 @@ export default function InstitutionPanel() {
 
   // --- 3.2 Gestão de Portões ---
   const [gatesList, setGatesList] = useState([]);
+  const [gatesLoading, setGatesLoading] = useState(true);
+  const [gatesSaving, setGatesSaving] = useState(false);
+  const [gatesError, setGatesError] = useState("");
   const [editingGateId, setEditingGateId] = useState(null);
   const [gateFormName, setGateFormName] = useState("");
-  const [gateFormTime, setGateFormTime] = useState("");
-  const [gateFormIsDefault, setGateFormIsDefault] = useState(false);
-  const [gateFormSelectedClasses, setGateFormSelectedClasses] = useState([]);
 
   // --- 3.3 Gestão de Turmas ---
   const [classFormName, setClassFormName] = useState("");
@@ -131,21 +131,39 @@ export default function InstitutionPanel() {
     void themeService.getThemePreference().then(setIsDarkMode);
   }, []);
 
-  // 4.3 Carrega Portões do Banco
+  // 4.3 Carrega portões persistidos da escola autorizada
   useEffect(() => {
-    if (school?.id) {
-      void gateService.getGatesBySchool(school.id).then((savedGates) => {
-        if (savedGates.length > 0) setGatesList(savedGates);
-      });
-    }
-  }, [school?.id]);
+    const schoolId = authorizedSchool?.id;
 
-  // 4.4 Salva Portões no Banco sempre que a lista for alterada
-  useEffect(() => {
-    if (school?.id) {
-      void gateService.saveGates(school.id, gatesList);
+    if (!schoolId || tenantStatus !== "ready") {
+      return;
     }
-  }, [gatesList, school?.id]);
+
+    let cancelled = false;
+
+    void (async () => {
+      const { data, error } = await gateService.listForSchool(schoolId);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error(error);
+        setGatesList([]);
+        setGatesError("Não foi possível carregar os portões.");
+      } else {
+        setGatesList(data);
+        setGatesError("");
+      }
+
+      setGatesLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authorizedSchool?.id, tenantStatus]);
 
   // 4.5 Aplica o Dark Mode na raiz do HTML (classe 'dark')
   useEffect(() => {
@@ -166,6 +184,32 @@ export default function InstitutionPanel() {
   // ATENÇÃO: NENHUM hook (useState, useEffect, useRef) pode existir abaixo desta linha!
   // ==================================================================
   if (!school) return null;
+
+  const persistedExitNames = gatesList
+    .filter((gate) => gate.status !== "inactive")
+    .map((gate) => gate.name);
+  const firstPersistedExit = persistedExitNames[0] || "";
+
+  async function reloadGates() {
+    const schoolId = authorizedSchool?.id;
+
+    if (!schoolId) {
+      setGatesError("Escola autorizada ausente.");
+      return [];
+    }
+
+    const { data, error } = await gateService.listForSchool(schoolId);
+
+    if (error) {
+      console.error(error);
+      setGatesError("Não foi possível atualizar os portões.");
+      return null;
+    }
+
+    setGatesList(data);
+    setGatesError("");
+    return data;
+  }
 
   // ==================================================================
   // SEÇÃO 6: FUNÇÕES E REGRAS DE NEGÓCIO (Handlers)
@@ -253,50 +297,76 @@ export default function InstitutionPanel() {
   };
 
   // --- Gestão de Portões ---
-  const handleSubmitGate = (e) => {
+  const handleSubmitGate = async (e) => {
     e.preventDefault();
-    const gateData = {
-      id: editingGateId || Date.now().toString(),
-      name: gateFormName,
-      time: gateFormTime,
-      defaultClasses: gateFormIsDefault ? gateFormSelectedClasses : []
-    };
+    const schoolId = authorizedSchool?.id;
+    const name = gateFormName.trim();
 
-    if (editingGateId) setGatesList(gatesList.map(g => g.id === editingGateId ? gateData : g));
-    else setGatesList([...gatesList, gateData]);
+    if (!schoolId || !name) {
+      setGatesError("Informe o nome do portão.");
+      return;
+    }
 
-    const updatedClasses = school.classes.map(c => {
-      if (gateFormIsDefault && gateFormSelectedClasses.includes(c.name)) return { ...c, defaultExit: gateFormName };
-      if (editingGateId && c.defaultExit === gateFormName && (!gateFormIsDefault || !gateFormSelectedClasses.includes(c.name))) return { ...c, defaultExit: "" };
-      return c;
-    });
+    setGatesSaving(true);
+    setGatesError("");
 
-    const updatedStudents = school.studentsList.map(student => {
-      if (gateFormIsDefault && gateFormSelectedClasses.includes(student.grade)) return { ...student, defaultExit: gateFormName };
-      return student;
-    });
+    const result = editingGateId
+      ? await gateService.updateGate(schoolId, editingGateId, { name })
+      : await gateService.createGate(schoolId, { name, existingGates: gatesList });
 
-    saveSchoolData({ ...school, classes: updatedClasses, studentsList: updatedStudents });
+    if (result.error || !result.data) {
+      console.error(result.error);
+      setGatesError(result.error?.message || "Não foi possível salvar o portão.");
+      setGatesSaving(false);
+      return;
+    }
+
+    const reloaded = await reloadGates();
+    setGatesSaving(false);
+
+    if (!reloaded) {
+      return;
+    }
 
     setEditingGateId(null);
     setGateFormName("");
-    setGateFormTime("");
-    setGateFormIsDefault(false);
-    setGateFormSelectedClasses([]);
   };
 
   const handleEditGateClick = (gate) => {
     setEditingGateId(gate.id);
     setGateFormName(gate.name);
-    setGateFormTime(gate.time);
-    setGateFormIsDefault(gate.defaultClasses.length > 0);
-    setGateFormSelectedClasses(gate.defaultClasses || []);
+    setGatesError("");
   };
 
-  const handleDeleteGate = (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este portão?")) {
-      setGatesList(gatesList.filter(g => g.id !== id));
+  const handleDeleteGate = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir este portão?")) {
+      return;
     }
+
+    const schoolId = authorizedSchool?.id;
+
+    if (!schoolId) {
+      setGatesError("Escola autorizada ausente.");
+      return;
+    }
+
+    setGatesSaving(true);
+    setGatesError("");
+    const { error } = await gateService.deleteGate(schoolId, id);
+    setGatesSaving(false);
+
+    if (error) {
+      console.error(error);
+      setGatesError("Não foi possível excluir o portão.");
+      return;
+    }
+
+    if (editingGateId === id) {
+      setEditingGateId(null);
+      setGateFormName("");
+    }
+
+    await reloadGates();
   };
 
   // --- Gestão de Turmas ---
@@ -355,9 +425,9 @@ export default function InstitutionPanel() {
     let updatedStudentsList;
 
     if (editingStudentId) {
-      updatedStudentsList = school.studentsList.map(s => s.id === editingStudentId ? { ...s, name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || school.exits[0] } : s);
+      updatedStudentsList = school.studentsList.map(s => s.id === editingStudentId ? { ...s, name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit } : s);
     } else {
-      updatedStudentsList = [...school.studentsList, { id: Date.now(), name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || school.exits[0] || "Portão Principal" }];
+      updatedStudentsList = [...school.studentsList, { id: Date.now(), name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit }];
     }
 
     saveSchoolData({ ...school, studentsList: updatedStudentsList, students: updatedStudentsList.length });
@@ -478,7 +548,7 @@ export default function InstitutionPanel() {
   // --- Monitor de Saída ---
   function handleCallStudent(student) {
     if (!calledStudents.find(s => s.id === student.id)) {
-      const exitToUse = callExits[student.id] || student.defaultExit || school.exits[0] || "Portão Principal";
+      const exitToUse = callExits[student.id] || student.defaultExit || firstPersistedExit;
       const newCall = {
         ...student,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -595,7 +665,7 @@ export default function InstitutionPanel() {
               </div>
               <select value={selectedExitFilter} onChange={(e) => setSelectedExitFilter(e.target.value)} className="bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-[#2a2a2a] rounded-xl px-4 py-3 outline-none font-medium text-slate-700 dark:text-slate-200 transition">
                 <option value="Todos">Filtrar por Portão: Todos</option>
-                {school.exits.map(exit => <option key={exit} value={exit}>{exit}</option>)}
+                {persistedExitNames.map(exit => <option key={exit} value={exit}>{exit}</option>)}
               </select>
             </div>
 
@@ -620,11 +690,11 @@ export default function InstitutionPanel() {
                           <div className="flex flex-col items-end">
                             <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Sair por:</span>
                             <select
-                              value={callExits[student.id] || student.defaultExit || (school.exits[0] || "")}
+                              value={callExits[student.id] || student.defaultExit || firstPersistedExit}
                               onChange={(e) => setCallExits(prev => ({ ...prev, [student.id]: e.target.value }))}
                               className="text-xs bg-slate-100 dark:bg-[#2a2a2a] border border-slate-200 dark:border-[#333333] text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1.5 outline-none cursor-pointer w-32"
                             >
-                              {school.exits.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                              {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                             </select>
                           </div>
                           <button onClick={() => handleCallStudent(student)} className="bg-primary text-white hover:opacity-90 h-10 px-4 rounded-lg font-bold transition flex items-center gap-2 mt-3 shadow-sm">
@@ -698,7 +768,7 @@ export default function InstitutionPanel() {
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Saída Padrão da Turma</label>
                   <select value={classFormExit} onChange={e => setClassFormExit(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
                     <option value="" disabled>Selecione...</option>
-                    {school.exits.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                    {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                   </select>
                 </div>
 
@@ -763,7 +833,7 @@ export default function InstitutionPanel() {
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Saída Padrão</label>
                   <select value={studentFormExit} onChange={e => setStudentFormExit(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
                     <option value="" disabled>Selecione...</option>
-                    {school.exits.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                    {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                   </select>
                 </div>
                 <button type="submit" className={`font-bold py-3 px-6 rounded-xl transition shadow-lg text-white hover:opacity-90 ${editingStudentId ? 'bg-secondary' : 'bg-primary'}`}>
@@ -791,7 +861,7 @@ export default function InstitutionPanel() {
                     </select>
                     <select value={bulkStudentExitOption} onChange={e => setBulkStudentExitOption(e.target.value)} className="text-sm border border-slate-200 dark:border-[#333333] bg-white dark:bg-[#1a1a1a] text-slate-700 dark:text-white rounded-lg px-3 py-2 outline-none">
                       <option value="">Nova Saída (Opcional)...</option>
-                      {school.exits.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                      {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                     </select>
                     <button onClick={handleApplyBulkStudentChanges} disabled={!bulkStudentExitOption && !bulkStudentGradeOption} className={`px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm text-white ${(!bulkStudentExitOption && !bulkStudentGradeOption) ? 'bg-slate-400 dark:bg-slate-600' : 'bg-primary hover:opacity-90'}`}>
                       Aplicar
@@ -828,7 +898,7 @@ export default function InstitutionPanel() {
           <div className="p-8 flex-1 overflow-y-auto">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestão de Portões</h1>
-              <p className="text-slate-500">Cadastre os locais de saída e defina os horários de liberação.</p>
+              <p className="text-slate-500">Cadastre os locais de saída desta escola.</p>
             </div>
 
             <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition-colors ${editingGateId ? 'border-secondary bg-slate-50 dark:bg-slate-900/50' : 'bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]'}`}>
@@ -842,9 +912,7 @@ export default function InstitutionPanel() {
                     onClick={() => {
                       setEditingGateId(null);
                       setGateFormName("");
-                      setGateFormTime("");
-                      setGateFormIsDefault(false);
-                      setGateFormSelectedClasses([]);
+                      setGatesError("");
                     }}
                     className="text-slate-500 hover:text-red-500 text-sm font-bold bg-white dark:bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#333333] transition"
                   >
@@ -853,68 +921,28 @@ export default function InstitutionPanel() {
                 )}
               </div>
 
-              <form onSubmit={handleSubmitGate} className="flex flex-col gap-4">
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome do Portão / Local</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Portão Principal"
-                      required
-                      value={gateFormName}
-                      onChange={e => setGateFormName(e.target.value)}
-                      className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white transition-colors"
-                    />
-                  </div>
-                  <div className="w-48">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Horário Padrão</label>
-                    <input
-                      type="time"
-                      required
-                      value={gateFormTime}
-                      onChange={e => setGateFormTime(e.target.value)}
-                      className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white transition-colors"
-                    />
-                  </div>
-                  <button type="submit" className={`h-[50px] font-bold px-8 rounded-xl transition shadow-lg text-white hover:opacity-90 ${editingGateId ? 'bg-secondary' : 'bg-primary'}`}>
-                    {editingGateId ? "Salvar" : "Adicionar"}
-                  </button>
+              {gatesError && (
+                <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-xl text-sm font-semibold border border-red-100">
+                  {gatesError}
                 </div>
+              )}
 
-                <div className="mt-2 pt-4 border-t border-slate-200/60 dark:border-[#2a2a2a]">
-                  <label className="flex items-center gap-3 cursor-pointer w-max">
-                    <input
-                      type="checkbox"
-                      checked={gateFormIsDefault}
-                      onChange={(e) => setGateFormIsDefault(e.target.checked)}
-                      className="w-4 h-4 cursor-pointer accent-primary"
-                    />
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Tornar este portão a saída padrão de turmas específicas</span>
-                  </label>
-
-                  {gateFormIsDefault && (
-                    <div className="mt-4 p-4 border rounded-xl border-primary bg-slate-50 dark:bg-slate-900/50">
-                      <p className="text-xs font-semibold mb-2 uppercase tracking-wide text-primary">Selecione as turmas vinculadas:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {school.classes.map(c => (
-                          <label key={c.id} className="flex items-center gap-2 bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-[#2a2a2a] px-3 py-2 rounded-lg cursor-pointer hover:border-primary transition shadow-sm">
-                            <input
-                              type="checkbox"
-                              value={c.name}
-                              checked={gateFormSelectedClasses.includes(c.name)}
-                              onChange={(e) => {
-                                if (e.target.checked) setGateFormSelectedClasses([...gateFormSelectedClasses, c.name]);
-                                else setGateFormSelectedClasses(gateFormSelectedClasses.filter(name => name !== c.name));
-                              }}
-                              className="w-3.5 h-3.5 accent-primary"
-                            />
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              <form onSubmit={handleSubmitGate} className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome do Portão / Local</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Portão Principal"
+                    required
+                    disabled={gatesSaving}
+                    value={gateFormName}
+                    onChange={e => setGateFormName(e.target.value)}
+                    className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white transition-colors"
+                  />
                 </div>
+                <button type="submit" disabled={gatesSaving} className={`h-[50px] font-bold px-8 rounded-xl transition shadow-lg text-white hover:opacity-90 disabled:opacity-60 ${editingGateId ? 'bg-secondary' : 'bg-primary'}`}>
+                  {gatesSaving ? "Salvando..." : editingGateId ? "Salvar" : "Adicionar"}
+                </button>
               </form>
             </div>
 
@@ -928,7 +956,11 @@ export default function InstitutionPanel() {
               </div>
 
               <div className="divide-y divide-slate-100 dark:divide-[#2a2a2a]">
-                {gatesList.length === 0 ? (
+                {gatesLoading ? (
+                  <div className="p-8 text-center text-slate-500 font-medium">
+                    Carregando portões...
+                  </div>
+                ) : gatesList.length === 0 ? (
                   <div className="p-8 text-center text-slate-500 font-medium">
                     Nenhum portão cadastrado. Adicione o primeiro portão acima.
                   </div>
@@ -942,7 +974,7 @@ export default function InstitutionPanel() {
                         <div>
                           <p className="font-bold text-slate-800 dark:text-white">{gate.name}</p>
                           <p className="text-sm text-slate-500">
-                            Horário: <span className="font-semibold text-slate-600 dark:text-slate-400">{gate.time}</span> • Padrão para: <span className="text-slate-600 dark:text-slate-400">{gate.defaultClasses.length > 0 ? gate.defaultClasses.join(', ') : 'Nenhuma turma'}</span>
+                            {gate.status === "inactive" ? "Inativo" : "Ativo"}
                           </p>
                         </div>
                       </div>
