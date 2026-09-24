@@ -36,10 +36,10 @@ Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
 | Completar migração Supabase (Fase 2) | Catálogo `schools` já no Supabase; `gateService`/`callService` e dados operacionais ainda em localStorage | Todos |
 | Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) validadas; services ainda usam localStorage | Todos |
-| Supabase Auth no frontend (ADR-004) | Login ainda legado | Todos |
-| RLS e políticas de acesso | Migrations sem RLS | Todos |
+| Supabase Auth no frontend (ADR-004) | Implementado na Feature #49; release ainda não realizado; `school_members = 0` neste ambiente | Todos |
+| RLS e políticas de acesso | Fundação aplicada (Migration 0005); a Feature #49 não alterou policies | Todos |
 | Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Todos |
-| Autenticação segura | Senhas plaintext, admin hardcoded | Todos |
+| Autenticação segura | Identidade no Supabase Auth; tenant via `school_members`; sem bypass por `localStorage` | Todos |
 | Testes automatizados | Ausentes | Todos |
 | CI/CD pipeline | Ausente | Todos |
 

@@ -7,7 +7,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Super Admin (AllTech Solutions)
 
 **Rota:** `/admin/institutions`  
-**Autenticação:** `admin@alltech.com` / `admin123`
+**Autenticação:** Supabase Auth + `is_platform_admin()`. Platform Admin não é tenant de escola.
 
 ### Implementadas
 
@@ -38,7 +38,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Operador da escola (Painel institucional)
 
 **Rota:** `/painel`  
-**Autenticação:** credenciais cadastradas em `@SmartExit:schools`
+**Autenticação:** Supabase Auth e membership ativa em `school_members`. `localStorage` não autoriza. Com `school_members = 0`, este fluxo ainda não foi exercido neste ambiente.
 
 ### Aba: Monitor de Saída ✅
 
@@ -134,7 +134,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Logout | ✅ |
+| Logout | Encerra a sessão Auth |
 | Seed MOCK_SCHOOLS (primeiro acesso) | ✅ |
 | Migração classes string → object | ✅ |
 

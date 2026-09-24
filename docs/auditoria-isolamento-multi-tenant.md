@@ -8,7 +8,9 @@
 **Template:** `ai/aads/templates/research-template.md`  
 **ADR nesta atividade:** não  
 
-Este relatório é o artefato do Spike. Não altera schema, RLS, Auth, produto ou dados de domínio.
+Este relatório é o artefato do Spike de 2026-09-22. Não altera schema, RLS, Auth, produto ou dados de domínio.
+
+**Estado posterior:** a Feature #49 (PR #50, commit `bfbfdaf50d81ddbc06786b8f3bb10fbc7d8cfc1d` em `main`) passou a resolver o contexto de escola por Supabase Auth e membership ativa. O contrato vigente está em [autenticacao.md](autenticacao.md). As conclusões abaixo descrevem o código e os dados **na data do Spike**, quando a aplicação ainda não consultava `school_members`. Release dessa Feature ainda não foi realizado. `school_members = 0` continua sendo a limitação conhecida de certificação runtime.
 
 ## 1. Escopo e limites
 

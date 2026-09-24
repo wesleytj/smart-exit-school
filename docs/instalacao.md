@@ -122,38 +122,19 @@ npm run preview
 ### Fluxo recomendado para teste
 
 1. Acesse `http://localhost:5173` → redirect para `/login`
-2. Na primeira execução, `@SmartExit:schools` estará vazio
-3. Faça login com uma escola mock **ou** Super Admin
+2. A identidade é a sessão do Supabase Auth
+3. O painel de escola só abre com membership ativa em `school_members`
+4. Platform Admin (`is_platform_admin()`) vai para `/admin/institutions` e não é tenant
 
-### Credenciais Super Admin
+Neste ambiente, `school_members = 0`. Sem membership ativa já existente, o caminho de uma escola não pode ser exercido. A aplicação não cria membership automaticamente. `@SmartExit:loggedSchool` não autoriza acesso.
 
-| Campo | Valor |
-|-------|-------|
-| E-mail | `admin@alltech.com` |
-| Senha | `admin123` |
+Contrato: [autenticacao.md](autenticacao.md).
 
-Destino: Painel Super Admin em `/admin/institutions`
-
-### Credenciais escolas mock
-
-Inseridas automaticamente no primeiro acesso ao `/painel` (se localStorage vazio):
-
-| E-mail | Senha | Plano |
-|--------|-------|-------|
-| teste@basic.com | 123456 | Basic |
-| teste@premium.com | 123456 | Premium |
-| teste@diamond.com | 123456 | Diamond |
-
-**Nota:** MOCK_SCHOOLS são seedados ao acessar `/painel`, não no login. Para login direto, acesse `/painel` uma vez ou crie escola via Super Admin.
-
-### Criar instituição customizada
+### Criar instituição
 
 Para testes de Platform Admin, seguir [qa-data-governance.md](./qa-data-governance.md): reutilizar a instituição QA canônica antes de criar outra.
 
-1. Login Super Admin
-2. "Nova Instituição"
-3. Preencher nome, e-mail, senha, plano
-4. Logout → Login com credenciais criadas
+O cadastro de instituição não cria usuário nem membership. Sem `school_members` ativo, a instituição nova não abre o painel de escola.
 
 ---
 
@@ -215,7 +196,7 @@ Consulte [troubleshooting.md](troubleshooting.md) para lista detalhada.
 
 | Problema | Solução rápida |
 |----------|----------------|
-| Login escola falha | Verificar se escola existe em `@SmartExit:schools` |
+| Login escola falha | Sessão Auth sem membership ativa, ou `school_members = 0` neste ambiente |
 | Telão vazio | Fazer login da escola antes; mesma origem localhost |
 | Dados inconsistentes | `localStorage.clear()` + reload |
 | Porta 5173 ocupada | Vite usa próxima porta automaticamente |

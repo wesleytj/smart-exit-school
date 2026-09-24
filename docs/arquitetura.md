@@ -16,7 +16,7 @@ graph TB
     subgraph Persistence["Persistência"]
         LS[("localStorage<br/>Runtime atual")]
         PG[("PostgreSQL<br/>Supabase")]
-        Auth["Supabase Auth<br/>(previsto ADR-004)"]
+        Auth["Supabase Auth<br/>identidade do usuário"]
     end
 
     Pages --> Services
@@ -42,7 +42,7 @@ graph TB
 | Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
 | `schoolService` (catálogo `schools`) | Supabase | ✅ CRUD em `public.schools` |
 | Demais services | localStorage | ✅ Ativo |
-| Supabase Auth | Supabase | ❌ Frontend ainda usa login legado |
+| Supabase Auth + `school_members` | Supabase | ✅ Identidade e contexto de tenant (Feature #49). Release ainda não realizado |
 
 ## Camadas
 
@@ -64,9 +64,9 @@ graph TB
 |------|------------|----------|
 | `/` | Redirect → `/login` | — |
 | `/login` | `Login.jsx` | Pública |
-| `/admin/institutions` | `InstitutionsManager.jsx` | **Sem guard** |
-| `/painel` | `InstitutionPanel.jsx` | Sessão via `authService` |
-| `/tv` | `TvDisplay.jsx` | Depende de sessão no storage |
+| `/admin/institutions` | `InstitutionsManager.jsx` | Platform Admin via `is_platform_admin()` |
+| `/painel` | `InstitutionPanel.jsx` | Membership ativa em `school_members` |
+| `/tv` | `TvDisplay.jsx` | Cache operacional local; não autoriza o tenant |
 
 ### Comunicação Telão ↔ Painel
 
@@ -91,21 +91,16 @@ Via `callService.subscribeToCalls()`:
 | [arquitetura/checklist-modelagem.md](arquitetura/checklist-modelagem.md) | Fluxo de modelagem |
 | [arquitetura/arquitetura-futura.md](arquitetura/arquitetura-futura.md) | Funcionalidades planejadas |
 
-## Fluxo de autenticação (estado atual vs alvo)
+## Fluxo de autenticação
 
-```mermaid
-flowchart TD
-    subgraph Atual["Implementado hoje"]
-        L1[Login email/senha] --> LS1[localStorage session]
-        L1 --> AdminHardcoded[Super Admin hardcoded]
-    end
+O fluxo vigente está em [autenticacao.md](autenticacao.md). Resumo:
 
-    subgraph Alvo["ADR-004 — Supabase Auth"]
-        L2[Supabase Auth] --> JWT[JWT Session]
-        JWT --> Profiles[profiles]
-        Profiles --> Members[school_members]
-    end
+```text
+Supabase Auth → auth.uid() → school_members (ativa) → school_id → tenant
+Platform Admin → is_platform_admin() → /admin/institutions
 ```
+
+`localStorage` e `@SmartExit:loggedSchool` não autorizam acesso. Platform Admin não é tenant de escola.
 
 ## Pontos que precisam de validação
 

@@ -4,9 +4,9 @@
 
 | Perfil | Identificação | Autenticação |
 |--------|---------------|--------------|
-| **Super Admin** | E-mail `admin@alltech.com` | Hardcoded |
-| **Operador da escola** | Qualquer registro em `@SmartExit:schools` | E-mail + senha |
-| **Telão (anônimo)** | Sem login | Acesso público à rota `/tv` |
+| **Platform Admin** | RPC `is_platform_admin()` | Supabase Auth; fluxo `/admin/institutions`; não é tenant |
+| **Usuário de escola** | Membership ativa em `school_members` | Supabase Auth (`auth.uid()`) |
+| **Telão (anônimo)** | Sem login | Acesso público à rota `/tv`; não autoriza tenant |
 | **Responsável / Aluno** | — | **Não identificado** |
 
 Não há sistema de RBAC (Role-Based Access Control) granular. Permissões derivam do **plano da instituição** (`plan`) e do **perfil de acesso** (admin vs escola).
@@ -142,7 +142,7 @@ const isPremium = plan === "premium" || plan === "diamond"  // case insensitive
 
 | Regra | Descrição |
 |-------|-----------|
-| Isolamento de dados | Por `school.id` nas chaves localStorage |
+| Isolamento de dados no banco | RLS sobre membership ativa; `localStorage` não autoriza |
 | Chamada única | Aluno não pode estar duplicado na fila |
 | Dados cadastrais | Nome/e-mail escola readonly no painel — "contate suporte" |
 | Instituição inativa | Status alterável pelo admin; **login não bloqueado** |

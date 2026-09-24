@@ -43,24 +43,29 @@ Plano legado `"Pro"` é automaticamente convertido para `"Basic"`.
 
 ## 2. Autenticação e sessão
 
-### 2.1 Super Admin
+Contrato vigente: [autenticacao.md](autenticacao.md).
 
-- Credenciais fixas no código: `admin@alltech.com` / `admin123`
-- Redireciona para `/admin/institutions`
-- **Não persiste sessão** — logout apenas navega para `/login`
-- Rota admin **não possui guard** — URL acessível diretamente
+### 2.1 Platform Admin
 
-### 2.2 Escola cliente
+- Autoridade: RPC `is_platform_admin()`, separada de `school_members`
+- Destino: `/admin/institutions`
+- Não é tenant de escola e não abre `/painel` por esse papel
+- Logout encerra a sessão do Supabase Auth
 
-- Autenticação contra array `@SmartExit:schools`
-- Match exato de e-mail e senha (case-sensitive não verificado explicitamente)
-- Sessão salva em `@SmartExit:loggedSchool`
-- Logout remove `@SmartExit:loggedSchool`
+### 2.2 Usuário de escola
+
+- Identidade: Supabase Auth (`auth.uid()`)
+- Autorização do tenant: membership ativa em `school_members`
+- Zero memberships: sem contexto de escola
+- Uma membership: contexto resolvido automaticamente
+- Várias memberships: seleção explícita entre as autorizadas
+- `@SmartExit:loggedSchool` e o `localStorage` não autorizam acesso
+- Logout encerra a sessão do Supabase Auth
 
 ### 2.3 Painel institucional
 
-- Se `@SmartExit:loggedSchool` ausente → redirect `/login`
-- Componente retorna `null` enquanto `school` não carrega
+- Sem sessão Auth, `/painel` volta para `/login`
+- Sem membership ativa, o painel não abre
 
 ---
 
@@ -250,14 +255,16 @@ Funções `handleToggleClass`, `handleApplyBulkClassChanges` existem mas **não 
 
 | Regra | Implementada? |
 |-------|---------------|
-| Senhas hasheadas | **Não** — texto plano |
-| HTTPS enforcement | N/A (client-side) |
-| Route guards | Parcial (`/painel` apenas) |
+| Identidade | Supabase Auth. `public.schools` não guarda credencial |
+| Autorização de tenant | Membership ativa em `school_members`. RLS é a autoridade no banco |
+| `localStorage` | Não autoriza e não escolhe o tenant |
+| Route guards | `/painel` exige sessão e membership; Platform Admin vai para `/admin/institutions` |
+| Logout | Encerra a sessão Auth (`signOut`) |
+| HTTPS enforcement | N/A no cliente |
 | Validação status Inativo no login | **Não** |
 | Rate limiting | **Não** |
 | CSRF protection | N/A |
 | Sanitização XSS em inputs | **Não identificada** |
-| Controle de sessão expirável | **Não** |
 
 ---
 

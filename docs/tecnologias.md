@@ -14,7 +14,7 @@ Todas as versões abaixo foram extraídas de `package.json` e `package-lock.json
 | Ícones | Lucide React |
 | Persistência runtime | localStorage via `storageClient` |
 | Banco de dados | PostgreSQL via Supabase (schema parcial) |
-| Auth (alvo) | Supabase Auth (ADR-004) |
+| Auth | Supabase Auth + `school_members` (ADR-004, Feature #49) |
 | Lint | ESLint 10 |
 
 ## Frameworks
@@ -135,8 +135,8 @@ Flat config (`eslint.config.js`):
 |------------|--------|
 | TypeScript | Não utilizado (apenas @types como devDep) |
 | API REST própria | Não implementada |
-| Supabase Auth no frontend | Schema pronto; login ainda legado |
-| RLS (Row Level Security) | Não implementado nas migrations |
+| Supabase Auth no frontend | Implementado (Feature #49). Release ainda não realizado |
+| RLS (Row Level Security) | Fundação nas migrations; autoridade no banco. A Feature #49 não alterou policies |
 | Testes automatizados | Não identificado |
 | CI/CD | Não identificado |
 

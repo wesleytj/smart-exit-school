@@ -39,7 +39,7 @@ O projeto adota uma stack moderna e consolidada no ecossistema de desenvolviment
 - **Tailwind CSS 4** (Utility-first framework via `@tailwindcss/vite`)
 - **React Router DOM 7** (Roteamento de interface)
 - **Lucide React** (Biblioteca de ícones SVG consistentes)
-- **Supabase** (PostgreSQL + Auth — schema em migração; client `@supabase/supabase-js`)
+- **Supabase** (PostgreSQL + Auth; contexto de escola via `school_members`, ver `docs/autenticacao.md`)
 
 ## Arquitetura geral
 

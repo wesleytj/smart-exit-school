@@ -64,10 +64,9 @@ O nome é **único** em `public.schools` (`schools_name_unique`). `saveSchool` c
 
 No update, `saveSchool` persiste `plan` mesmo quando `name` não muda: só reescreve campos que de fato mudaram (após o adapter UI ↔ DB). O modal Super Admin envia `id`, `name` e `plan` na edição.
 
-### PUT `@SmartExit:loggedSchool`
+### `@SmartExit:loggedSchool`
 
-**Body:** Objeto de sessão da escola  
-**Efeito colateral:** nenhum no catálogo PostgreSQL — sessão local apenas
+Chave legada. Não é sessão, não autoriza acesso e não escolhe o tenant. A autoridade é Supabase Auth + membership ativa; ver [autenticacao.md](autenticacao.md).
 
 ### GET/PUT `@SmartExit:called:{schoolId}`
 
@@ -125,28 +124,26 @@ No update, `saveSchool` persiste `plan` mesmo quando `name` não muda: só reesc
 
 | Operação | Requisito |
 |----------|-----------|
-| Login Super Admin | E-mail/senha hardcoded |
-| Login Escola | `authService.login()` via `schoolService.getAllSchools()` (ainda espera `email`/`password` que o schema não armazena) |
-| Painel CRUD | `@SmartExit:loggedSchool` presente |
-| Telão | `@SmartExit:loggedSchool` (para obter `schoolId`) |
-| Admin panel | **Nenhum** |
+| Login Platform Admin | Supabase Auth + `is_platform_admin()` → `/admin/institutions` |
+| Login escola | Supabase Auth + membership ativa em `school_members` |
+| Painel | Contexto de tenant resolvido pela membership; `localStorage` não autoriza |
+| Telão | Cache operacional local; não autoriza o tenant |
+| Zero memberships | Sem contexto de escola |
 
 ---
 
 ## Exemplos de uso (desenvolvimento local)
 
-### Autenticar como escola (via console)
+### Autenticar como escola
 
-```javascript
-// O catálogo não está mais em localStorage. Use o Studio/Supabase ou a sessão já gravada.
-const school = JSON.parse(localStorage.getItem('@SmartExit:loggedSchool'))
-window.location.href = '/painel'
-```
+O acesso ao painel exige sessão Supabase Auth e membership ativa. Gravar `@SmartExit:loggedSchool` no console não autoriza `/painel`.
 
 ### Simular chamada de aluno
 
+Este trecho só escreve cache operacional de chamada. Não autentica e não escolhe o tenant.
+
 ```javascript
-const school = JSON.parse(localStorage.getItem('@SmartExit:loggedSchool'))
+const schoolId = 'school-id-ja-autorizado'
 const calls = [{
   id: 1,
   name: 'João Teste',
@@ -155,7 +152,7 @@ const calls = [{
   time: '15:00',
   exitGate: 'Portão Principal'
 }]
-localStorage.setItem(`@SmartExit:called:${school.id}`, JSON.stringify(calls))
+localStorage.setItem(`@SmartExit:called:${schoolId}`, JSON.stringify(calls))
 ```
 
 ### Inspecionar todos os dados

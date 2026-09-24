@@ -6,47 +6,42 @@ Lista de problemas conhecidos, causas prováveis e soluções baseadas no compor
 
 ## Autenticação e sessão
 
-### E-mail ou senha incorretos (escola)
+Contrato vigente: [autenticacao.md](autenticacao.md). `@SmartExit:loggedSchool` não autoriza acesso.
 
-**Sintoma:** Mensagem vermelha no login.
+### E-mail ou senha incorretos
+
+**Sintoma:** Mensagem de falha no login.
 
 **Causas:**
 
-1. Escola não existe em `@SmartExit:schools`
-2. Senha digitada diferente da cadastrada (comparação exata)
-3. MOCK_SCHOOLS ainda não seedados (primeiro acesso)
+1. Credencial rejeitada pelo Supabase Auth
+2. Sessão válida com zero memberships ativas: não há contexto de escola
 
-**Soluções:**
+**Solução:**
 
-```javascript
-// Verificar escolas cadastradas
-JSON.parse(localStorage.getItem('@SmartExit:schools'))
-```
-
-- Login Super Admin e criar instituição
-- Ou acessar `/painel` uma vez para seed automático (se vazio)
-- Ou usar credenciais mock documentadas
+- Confirmar o usuário no Supabase Auth
+- Confirmar membership ativa em `school_members` para o `auth.uid()`
+- Neste ambiente, `school_members = 0`: o fluxo de tenant com JWT ainda não tem membership para exercer
 
 ---
 
 ### Painel redireciona para login imediatamente
 
-**Sintoma:** `/painel` flasha e volta para `/login`.
+**Sintoma:** `/painel` volta para `/login`.
 
-**Causa:** `@SmartExit:loggedSchool` ausente ou inválido.
+**Causa:** Sem sessão Auth, ou sessão sem membership ativa (a sessão de operador é encerrada).
 
 **Solução:**
 
-1. Fazer login pela tela `/login`
-2. Ou restaurar sessão manualmente via DevTools
+1. Entrar por `/login` com Supabase Auth
+2. Ter ao menos uma membership ativa, ou escolher entre as autorizadas
+3. Não restaurar `@SmartExit:loggedSchool` manualmente — isso não autoriza o painel
 
 ---
 
-### Super Admin não consegue acessar painel escola
+### Platform Admin não abre o painel da escola
 
-**Comportamento esperado:** Super Admin vai para `/admin/institutions`, não `/painel`.
-
-**Solução:** Logout admin → login com credenciais da escola.
+**Comportamento esperado:** `is_platform_admin()` envia para `/admin/institutions`. Platform Admin não é tenant de escola.
 
 ---
 
@@ -54,7 +49,7 @@ JSON.parse(localStorage.getItem('@SmartExit:schools'))
 
 ### Telão mostra "Carregando..." indefinidamente
 
-**Causa:** `@SmartExit:loggedSchool` ausente — `TvDisplay` não encontra escola.
+**Causa:** o telão depende de cache operacional local da escola já aberta no painel. Esse cache não autoriza o tenant.
 
 **Solução:**
 
@@ -102,7 +97,7 @@ localStorage.getItem(`@SmartExit:called:${school.id}`)
 2. Navegação privada / limpeza de dados
 3. Browser diferente ou perfil diferente
 
-**Solução:** Recadastrar ou usar Super Admin. Dados mock reinseridos se `@SmartExit:schools` vazio no `/painel`.
+**Solução:** Recadastrar os dados operacionais no painel da escola já autorizada. O catálogo de instituições está em `public.schools`, não em `@SmartExit:schools`.
 
 ---
 
@@ -110,7 +105,7 @@ localStorage.getItem(`@SmartExit:called:${school.id}`)
 
 **Comportamento esperado:** `localStorage.clear()` em `handleResetSystem()`.
 
-**Solução:** Recriar instituições via Super Admin ou usar MOCK_SCHOOLS.
+**Solução:** Recriar instituições pelo fluxo de Platform Admin. O reset local não apaga `public.schools`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## One-liner
 
-SaaS frontend para gestão de saída escolar. DAL em services; runtime localStorage; PostgreSQL Supabase em migração (schema Auth + Academic + Pickup).
+SaaS frontend para gestão de saída escolar. Identidade no Supabase Auth; tenant via membership ativa em `school_members`. Cache operacional ainda pode usar localStorage. Release da Feature #49 ainda não realizado.
 
 ## Owner
 
@@ -21,15 +21,15 @@ React 19 | Vite 8 | Tailwind 4 | React Router 7 | Lucide | localStorage (runtime
 | Path | Page |
 |------|------|
 | `/login` | Login |
-| `/admin/institutions` | Super Admin |
+| `/admin/institutions` | Platform Admin (`is_platform_admin()`) |
 | `/painel` | School Panel |
 | `/tv` | TV Display |
 
 ## User Roles
 
-1. **Super Admin** — manages schools/plans
-2. **School Operator** — daily exit operations
-3. **TV Display** — read-only call queue
+1. **Platform Admin** — `is_platform_admin()`; não é tenant de escola
+2. **Usuário de escola** — membership ativa em `school_members`
+3. **TV Display** — fila local; não autoriza o tenant
 
 No parent/student app exists.
 
@@ -43,10 +43,11 @@ Register students → Call on monitor → Display on TV → Confirm exit
 
 ## Data Store
 
-- **Runtime:** localStorage via DAL (`storageClient`)
-- **Schema:** PostgreSQL (Supabase) — migrations 0001–0004
-- **School catalog:** `schoolService` CRUD via Supabase `public.schools`
-- **Gap:** tenant session, gates, calls and students still use localStorage
+- **Identidade:** Supabase Auth. Logout encerra a sessão.
+- **Tenant:** `school_members` ativo. Zero memberships não abre contexto de escola.
+- **Banco:** RLS é a autoridade. A Feature #49 não alterou policies.
+- **Cache:** localStorage e `@SmartExit:loggedSchool` não autorizam.
+- **Gap conhecido:** `school_members = 0`. Isolamento runtime com dois JWTs ainda não certificado. Portões, chamadas e alunos do painel ainda podem ficar no browser.
 
 ## Key Files
 

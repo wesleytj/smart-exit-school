@@ -25,12 +25,12 @@ O projeto utiliza variáveis Vite para Supabase. Arquivo `.env.local` é ignorad
 
 **Recomendação:** criar `.env.example` versionado com placeholders (não contém secrets).
 
-Credenciais Super Admin permanecem **hardcoded** em `Login.jsx` (legado).
+A identidade é Supabase Auth. Platform Admin usa `is_platform_admin()`. O tenant usa membership ativa. Não há credencial de admin hardcoded como autoridade, e `localStorage` não autoriza acesso.
 
 | Variável | Status |
 |----------|--------|
 | `VITE_API_URL` | Não existe |
-| `VITE_ADMIN_EMAIL` | Não existe (hardcoded) |
+| `VITE_ADMIN_EMAIL` | Não existe |
 
 ---
 
@@ -152,5 +152,5 @@ flowchart LR
 - Provedor de hosting escolhido
 - Domínio de produção
 - Estratégia de backend antes de deploy multi-usuário real
-- Remoção/substituição de credenciais hardcoded antes de produção
+- Release da Feature #49 ainda não realizado; não tratar o ambiente local como publicação
 - Configuração de analytics/monitoramento
