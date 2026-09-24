@@ -2,7 +2,7 @@
 
 ## One-liner
 
-SaaS frontend para gestão de saída escolar. Identidade no Supabase Auth; tenant via membership ativa em `school_members`. Cache operacional ainda pode usar localStorage. Release da Feature #49 ainda não realizado.
+SaaS frontend para gestão de saída escolar. Identidade no Supabase Auth; tenant via membership ativa em `school_members`. Cache operacional ainda pode usar localStorage. Frontend publicado na Vercel; migrations aplicadas no Supabase de produção. Um tenant escolar de homologação foi validado.
 
 ## Owner
 
@@ -47,7 +47,8 @@ Register students → Call on monitor → Display on TV → Confirm exit
 - **Tenant:** `school_members` ativo. Zero memberships não abre contexto de escola.
 - **Banco:** RLS é a autoridade. A Feature #49 não alterou policies.
 - **Cache:** localStorage e `@SmartExit:loggedSchool` não autorizam.
-- **Gap conhecido:** `school_members = 0`. Isolamento runtime com dois JWTs ainda não certificado. Portões, chamadas e alunos do painel ainda podem ficar no browser.
+- **Produção:** Platform Admin validado em `/admin/institutions`. Primeira instituição de homologação: Colégio Adventista de Esteio. Conta escolar de teste (não definitiva), role `owner`, abriu `/painel`. Roles inseridas sem o `seed.sql` completo. Membership é SQL privilegiado; não há UI de provisionamento.
+- **Gap conhecido:** isolamento com duas escolas e dois usuários ainda não foi executado. RLS continua sendo a autoridade. Portões, chamadas e alunos do painel ainda podem ficar no browser.
 
 ## Key Files
 

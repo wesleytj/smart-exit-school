@@ -21,7 +21,7 @@ Contrato vigente: [autenticacao.md](autenticacao.md). `@SmartExit:loggedSchool` 
 
 - Confirmar o usuário no Supabase Auth
 - Confirmar membership ativa em `school_members` para o `auth.uid()`
-- Neste ambiente, `school_members = 0`: o fluxo de tenant com JWT ainda não tem membership para exercer
+- O seed local não cria `school_members`. Em produção, o primeiro vínculo escolar de homologação foi SQL privilegiado; a aplicação não cria membership. Ver [autenticacao.md](autenticacao.md).
 
 ---
 
@@ -187,9 +187,11 @@ npm run dev
 
 ### Rotas retornam 404 em produção
 
-**Causa:** Servidor estático sem SPA fallback.
+**Causa provável:** servidor estático sem SPA fallback. O repositório não tem `vercel.json`.
 
-**Solução:** Configurar rewrite para `index.html` (ver [deploy.md](deploy.md)).
+**Observação de homologação:** o Vercel respondeu `404 NOT_FOUND` para o usuário escolar em `/admin/institutions`, para o Platform Admin em `/painel`, e também para um acesso a `/painel` em que a sessão pode já ter sido perdida. Um 404 do Vercel não distingue rota inexistente, fallback de SPA ou bloqueio da aplicação. Não é evidência de RLS nem de autorização. O login, com sessão válida, direcionou o usuário escolar para `/painel` e o Platform Admin para `/admin/institutions`.
+
+**Solução:** Configurar rewrite para `index.html` (ver [deploy.md](deploy.md)). Esta observação não autoriza corrigir o hosting nesta atualização documental.
 
 ---
 

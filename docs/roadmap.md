@@ -4,6 +4,21 @@ Evoluções identificadas com base em placeholders de UI, código parcialmente i
 
 ---
 
+## Bootstrap de produção
+
+Fatos já observados. Não certificam isolamento multi-tenant nem substituem um fluxo de onboarding.
+
+- [x] Produção Supabase criada e migrations aplicadas
+- [x] Frontend publicado na Vercel (`https://smart-exit-school.vercel.app`)
+- [x] Platform Admin real validado (`/admin/institutions`)
+- [x] Primeira instituição criada (Colégio Adventista de Esteio, plano `basic`, status `active`)
+- [x] Primeiro tenant escolar validado em produção (conta de teste, membership `owner` ativa, `/painel`)
+- [ ] Provisionamento ou convite de usuários escolares via UI
+- [ ] Teste de isolamento com duas escolas e duas identidades
+- [ ] Processo de onboarding comercial
+
+O `seed.sql` completo não foi aplicado em produção. Só o catálogo de roles foi inserido. A membership continua sendo SQL privilegiado.
+
 ## Curto prazo
 
 Itens com base existente no código que precisam de conclusão ou correção.
@@ -36,7 +51,7 @@ Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
 | Completar migração Supabase (Fase 2) | Catálogo `schools` já no Supabase; `gateService`/`callService` e dados operacionais ainda em localStorage | Todos |
 | Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) validadas; services ainda usam localStorage | Todos |
-| Supabase Auth no frontend (ADR-004) | Implementado na Feature #49; release ainda não realizado; `school_members = 0` neste ambiente | Todos |
+| Supabase Auth no frontend (ADR-004) | Implementado na Feature #49 e exercido em produção com um tenant de homologação. UI de membership ainda ausente | Todos |
 | RLS e políticas de acesso | Fundação aplicada (Migration 0005); a Feature #49 não alterou policies | Todos |
 | Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Todos |
 | Autenticação segura | Identidade no Supabase Auth; tenant via `school_members`; sem bypass por `localStorage` | Todos |

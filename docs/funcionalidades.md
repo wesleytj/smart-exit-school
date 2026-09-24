@@ -38,7 +38,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Operador da escola (Painel institucional)
 
 **Rota:** `/painel`  
-**Autenticação:** Supabase Auth e membership ativa em `school_members`. `localStorage` não autoriza. Com `school_members = 0`, este fluxo ainda não foi exercido neste ambiente.
+**Autenticação:** Supabase Auth e membership ativa em `school_members`. `localStorage` não autoriza. Em produção, uma conta escolar de teste já abriu `/painel` para o Colégio Adventista de Esteio. A aplicação não cria a membership. Ver [autenticacao.md](autenticacao.md).
 
 ### Aba: Monitor de Saída ✅
 

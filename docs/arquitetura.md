@@ -42,7 +42,7 @@ graph TB
 | Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
 | `schoolService` (catálogo `schools`) | Supabase | ✅ CRUD em `public.schools` |
 | Demais services | localStorage | ✅ Ativo |
-| Supabase Auth + `school_members` | Supabase | ✅ Identidade e contexto de tenant (Feature #49). Release ainda não realizado |
+| Supabase Auth + `school_members` | Supabase | ✅ Identidade e contexto de tenant (Feature #49). Produção publicada; um tenant escolar de homologação validado. Isolamento com duas escolas ainda não certificado |
 
 ## Camadas
 
@@ -101,6 +101,8 @@ Platform Admin → is_platform_admin() → /admin/institutions
 ```
 
 `localStorage` e `@SmartExit:loggedSchool` não autorizam acesso. Platform Admin não é tenant de escola.
+
+Em produção, o frontend está na Vercel e as migrations estão aplicadas no Supabase. O primeiro login escolar de homologação resolveu o Colégio Adventista de Esteio e abriu `/painel`. O Platform Admin foi para `/admin/institutions`. A membership foi provisionada por SQL privilegiado: não há UI para usuários escolares. O `seed.sql` completo não rodou em produção; só o catálogo de roles foi inserido. Detalhe e limites do teste: [autenticacao.md](autenticacao.md).
 
 ## Pontos que precisam de validação
 

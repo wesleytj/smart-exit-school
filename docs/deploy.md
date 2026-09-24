@@ -2,15 +2,16 @@
 
 ## Ambiente de produção
 
-**Não identificado.** O repositório não contém:
+O frontend está publicado na Vercel em `https://smart-exit-school.vercel.app`. O banco é o projeto Supabase `yantfnekslrzhussewdh`. As migrations de `main` já foram aplicadas. O `supabase/seed.sql` completo não foi executado nesse banco.
 
-- Configuração de hosting (Vercel, Netlify, AWS, Azure, etc.)
+O repositório continua sem:
+
+- `vercel.json` (rewrite de SPA ausente no Git)
 - Pipeline CI/CD
 - Dockerfile ou orquestração
-- Domínio ou URL de produção documentados
-- Variáveis de ambiente de produção
+- Variáveis de ambiente de produção versionadas
 
-O projeto está configurado como **aplicação estática** gerada pelo Vite.
+O projeto é uma **aplicação estática** gerada pelo Vite. A publicação na Vercel não adiciona esses arquivos ao repositório.
 
 ---
 
@@ -89,7 +90,7 @@ Por ser SPA com React Router (`BrowserRouter`):
 
 | Provedor | Compatibilidade | Config necessária |
 |----------|-----------------|-------------------|
-| Vercel | ✅ | `vercel.json` rewrite (ausente) |
+| Vercel | ✅ em uso | `vercel.json` rewrite ainda ausente no repositório |
 | Netlify | ✅ | `_redirects` ou `netlify.toml` (ausente) |
 | GitHub Pages | ⚠️ | Requer `base` no Vite se subpath |
 | AWS S3 + CloudFront | ✅ | Error document → index.html |
@@ -149,8 +150,7 @@ flowchart LR
 
 ## Pontos que precisam de validação
 
-- Provedor de hosting escolhido
-- Domínio de produção
-- Estratégia de backend antes de deploy multi-usuário real
-- Release da Feature #49 ainda não realizado; não tratar o ambiente local como publicação
+- Fallback de SPA na Vercel: na homologação, `/painel` e `/admin/institutions` chegaram a responder `404 NOT_FOUND` do Vercel. Esse 404 não prova autorização nem RLS. Ver [troubleshooting.md](troubleshooting.md) e [autenticacao.md](autenticacao.md).
+- `vercel.json` ainda não está no repositório
 - Configuração de analytics/monitoramento
+- Fluxo de convite de usuários escolares antes da comercialização em escala

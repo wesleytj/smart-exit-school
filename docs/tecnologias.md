@@ -135,7 +135,7 @@ Flat config (`eslint.config.js`):
 |------------|--------|
 | TypeScript | Não utilizado (apenas @types como devDep) |
 | API REST própria | Não implementada |
-| Supabase Auth no frontend | Implementado (Feature #49). Release ainda não realizado |
+| Supabase Auth no frontend | Implementado (Feature #49) e publicado. Membership escolar ainda sem UI |
 | RLS (Row Level Security) | Fundação nas migrations; autoridade no banco. A Feature #49 não alterou policies |
 | Testes automatizados | Não identificado |
 | CI/CD | Não identificado |

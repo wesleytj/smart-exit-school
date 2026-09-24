@@ -556,20 +556,20 @@ A **fundação de RLS** já existe na Migration 0005: RLS habilitado nas tabelas
 | RLS Foundation (Migration 0005) | ✅ Implementada (enable + policies + helpers) |
 | Database Auditor v1 | ✅ Valida a fundação até 0005 (tabelas esperadas, RLS foundation, policies/helpers e seed baseline) |
 | Matriz completa de `GRANT`s | ⚠️ Não é foco do Auditor v1; há assimetria conhecida entre policies de escrita e grants `SELECT` |
-| Isolamento multi-tenant em runtime | ⚠️ Smoke parcial em `validate:rls`; seed sem usuários/memberships |
+| Isolamento multi-tenant em runtime | ⚠️ Um tenant escolar real foi resolvido em produção. Ainda não houve teste com duas escolas e dois usuários distintos. O seed local continua sem usuários e sem memberships |
 | Triggers automáticos de `updated_at` | Ainda não implementados |
-| Políticas por papel (`roles`) além de membership ativa | Pendente |
-| Integração completa com Supabase Auth no frontend | Pendente |
+| Políticas por papel (`roles`) além de membership ativa | ⚠️ `UPDATE` de `schools` distingue `owner` e `administrator`. O login não consulta a role |
+| Integração com Supabase Auth no frontend | ✅ Feature #49 publicada. Profile via trigger. Membership não é criada pela aplicação |
 | Audit Core (`audit_logs`) | Pendente (domínio futuro) |
 
 ### Observação importante
 
-Antes de produção, ainda será necessário evoluir:
+Produção já tem frontend na Vercel e migrations aplicadas. Ainda falta evoluir:
 
-- fixtures de membership para testes RLS completos;
+- teste de isolamento com duas escolas e duas identidades;
 - alinhamento de grants com as policies;
-- políticas por papel de usuário, quando o produto exigir;
-- revisão do fluxo de autenticação institucional no frontend.
+- políticas por papel de usuário, quando o produto exigir além da policy atual de `UPDATE` em `schools`;
+- UI de convite ou provisionamento de `school_members` (hoje o vínculo é SQL privilegiado).
 
 ---
 
@@ -607,7 +607,7 @@ Atualmente, o seed inclui:
 
 O Database Auditor v1 reporta essas ausências como `WARN`.
 
-Essa massa **não representa seed de produção**. Ela existe para facilitar:
+Essa massa **não representa seed de produção**. Em produção o `supabase/seed.sql` completo **não** foi executado. Foram inseridas apenas as quatro roles, o catálogo exigido por `school_members.role_id`, para não criar a escola, os alunos e os portões de desenvolvimento. Ela existe no repositório para facilitar:
 
 - Validação das migrations
 - Execução do Database Auditor v1 após reset local

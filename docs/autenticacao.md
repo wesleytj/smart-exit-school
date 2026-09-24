@@ -72,13 +72,31 @@ Alunos, turmas, portões e chamadas do painel ainda podem permanecer no browser 
 - Não existe provisioning automático de membership.
 - Não existe uso de `service_role` para resolver o tenant.
 
-## Estado de validação
+## Homologação de produção
 
-Neste ambiente, `school_members = 0`.
+O frontend está publicado em `https://smart-exit-school.vercel.app` (Vercel). O banco de produção é o projeto Supabase `yantfnekslrzhussewdh`. As migrations de `main` já foram aplicadas nesse projeto. O arquivo `supabase/seed.sql` completo **não** foi executado em produção.
 
-O isolamento runtime com dois usuários/JWTs de escolas diferentes ainda não foi certificado dinamicamente neste ambiente porque não existem memberships de escola disponíveis para execução desse cenário.
+- Um Platform Admin real autenticou e a aplicação o direcionou para `/admin/institutions`.
+- A primeira instituição de homologação é o Colégio Adventista de Esteio, plano `basic`, status `active`.
+- As quatro roles (`owner`, `administrator`, `secretary`, `gatekeeper`) foram inseridas isoladamente, porque `school_members.role_id` exige o catálogo. A massa de desenvolvimento do seed (escola, alunos, turmas, portões) não foi para produção.
+- Existe um usuário escolar de homologação. É conta de teste, não conta institucional definitiva. O `profile` nasceu do trigger `on_auth_user_created`. A membership ativa, com role `owner`, foi inserida por SQL privilegiado.
+- Não existe interface administrativa para criar usuário escolar nem para gravar `school_members`. Esse provisionamento continua sendo operação manual e privilegiada.
+- O login dessa conta de teste resolveu o tenant Colégio Adventista de Esteio e abriu `/painel`. O logout encerrou a sessão.
+- A resolução de tenant foi validada para uma identidade escolar. O roteamento do Platform Admin também foi validado. Isso não certifica isolamento multi-tenant: ainda não houve teste com duas escolas reais e dois usuários escolares distintos. RLS continua sendo a autoridade final.
+- Antes da comercialização em escala, o produto ainda precisa de um fluxo formal de convite ou provisionamento de usuários escolares.
 
-Isso não equivale a certificação do runtime multi-tenant.
+### Rotas observadas na homologação
+
+Um `404 NOT_FOUND` servido pelo Vercel não distingue rota inexistente, fallback de SPA ausente ou bloqueio da aplicação. Não é evidência de RLS nem de autorização.
+
+| Acesso | Resultado observado |
+|---|---|
+| Usuário escolar em `/admin/institutions` | Vercel `404 NOT_FOUND` |
+| Usuário escolar em `/painel` após o fluxo de login, com sessão possivelmente perdida | Vercel `404 NOT_FOUND`; não usar como evidência de autorização |
+| Platform Admin em `/admin/institutions` | Acesso confirmado |
+| Platform Admin em `/painel` | Vercel `404 NOT_FOUND` |
+
+O login em si direcionou o usuário escolar para `/painel` e o Platform Admin para `/admin/institutions`.
 
 ## Feature #49
 
@@ -88,6 +106,6 @@ Isso não equivale a certificação do runtime multi-tenant.
 | PR | #50, merged |
 | `main` | `bfbfdaf50d81ddbc06786b8f3bb10fbc7d8cfc1d` |
 | Implementação | concluída em `main` |
-| Release | não realizado |
+| Publicação | frontend na Vercel; migrations aplicadas no Supabase de produção |
 
-A Feature não cria usuário, profile nem `school_members`.
+A Feature não cria usuário, profile nem `school_members`. O `profile` de um novo usuário Auth nasce do trigger. A membership não nasce da aplicação.

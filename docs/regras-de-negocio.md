@@ -67,6 +67,15 @@ Contrato vigente: [autenticacao.md](autenticacao.md).
 - Sem sessão Auth, `/painel` volta para `/login`
 - Sem membership ativa, o painel não abre
 
+### 2.4 Homologação de produção
+
+- O frontend publicado é `https://smart-exit-school.vercel.app`. As migrations já estão aplicadas no Supabase de produção.
+- A primeira instituição de homologação é o Colégio Adventista de Esteio (`basic`, `active`). A instituição é real para homologação. O usuário escolar atual é conta de teste, não conta institucional definitiva.
+- A aplicação não cria `school_members`. O primeiro vínculo foi SQL privilegiado, com role `owner` e status `active`. Não há UI de convite ou de provisionamento.
+- As roles de produção foram inseridas só como catálogo (`owner`, `administrator`, `secretary`, `gatekeeper`). O `supabase/seed.sql` completo não rodou em produção.
+- O login da conta de teste abriu `/painel` com esse tenant. O Platform Admin abriu `/admin/institutions`.
+- Um único tenant validado não certifica isolamento entre escolas. RLS permanece a autoridade no banco.
+
 ---
 
 ## 3. Fluxo de saída de alunos

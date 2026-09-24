@@ -126,7 +126,7 @@ npm run preview
 3. O painel de escola só abre com membership ativa em `school_members`
 4. Platform Admin (`is_platform_admin()`) vai para `/admin/institutions` e não é tenant
 
-Neste ambiente, `school_members = 0`. Sem membership ativa já existente, o caminho de uma escola não pode ser exercido. A aplicação não cria membership automaticamente. `@SmartExit:loggedSchool` não autoriza acesso.
+No ambiente local, após o seed, não há `school_members`. Sem membership ativa já existente, o caminho de uma escola não pode ser exercido localmente. A aplicação não cria membership automaticamente. Em produção, o primeiro vínculo de homologação foi SQL privilegiado; ver [autenticacao.md](autenticacao.md). `@SmartExit:loggedSchool` não autoriza acesso.
 
 Contrato: [autenticacao.md](autenticacao.md).
 
@@ -196,7 +196,7 @@ Consulte [troubleshooting.md](troubleshooting.md) para lista detalhada.
 
 | Problema | Solução rápida |
 |----------|----------------|
-| Login escola falha | Sessão Auth sem membership ativa, ou `school_members = 0` neste ambiente |
+| Login escola falha | Sessão Auth sem membership ativa. O seed local não cria `school_members`. Produção: ver [autenticacao.md](autenticacao.md) |
 | Telão vazio | Fazer login da escola antes; mesma origem localhost |
 | Dados inconsistentes | `localStorage.clear()` + reload |
 | Porta 5173 ocupada | Vite usa próxima porta automaticamente |

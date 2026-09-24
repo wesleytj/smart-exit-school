@@ -9,7 +9,11 @@
 | **Telão (anônimo)** | Sem login | Acesso público à rota `/tv`; não autoriza tenant |
 | **Responsável / Aluno** | — | **Não identificado** |
 
-Não há sistema de RBAC (Role-Based Access Control) granular. Permissões derivam do **plano da instituição** (`plan`) e do **perfil de acesso** (admin vs escola).
+Não há sistema de RBAC (Role-Based Access Control) granular na interface. Permissões de tela derivam do **plano da instituição** (`plan`) e do **perfil de acesso** (Platform Admin vs usuário de escola).
+
+O catálogo `public.roles` tem `owner`, `administrator`, `secretary` e `gatekeeper`. Em produção essas quatro linhas foram inseridas isoladamente, sem o `seed.sql` completo. A policy de `UPDATE` em `schools` reconhece membro ativo `owner` ou `administrator`. O login não lê a role: uma membership `active` basta para resolver o tenant. O primeiro usuário escolar de homologação do Colégio Adventista de Esteio foi vinculado como `owner` por SQL privilegiado.
+
+Não existe UI para convidar ou vincular usuário escolar. Criar `school_members` continua sendo operação manual e privilegiada. Um fluxo formal de convite ainda é necessário antes da comercialização em escala.
 
 ---
 
