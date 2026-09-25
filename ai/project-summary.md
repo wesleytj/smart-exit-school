@@ -68,7 +68,7 @@ Register students → Call on monitor → Display on TV → Confirm exit
 - No backend/API
 - Plaintext passwords
 - Hardcoded admin creds
-- Two gate models (exits vs gatesList)
+- Turma/aluno ainda guardam `defaultExit` como texto, não `gate_id`
 - Placeholder features: reports, fleet, i18n, webhooks
 
 ## Docs

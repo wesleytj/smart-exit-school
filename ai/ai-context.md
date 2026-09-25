@@ -80,7 +80,7 @@ src/
 
 ### Fluxo de chamada
 - Não duplicar aluno na fila (mesmo `id`)
-- Portão: `callExits[id]` → `student.defaultExit` → `school.exits[0]` → `"Portão Principal"`
+- Portão da chamada: nome persistido em `public.gates`, ou `defaultExit` textual legado do aluno/turma
 - Confirmar saída = remover da fila (sem histórico)
 
 ### Persistência — chaves localStorage
@@ -88,11 +88,10 @@ src/
 |-------|----------|
 | `@SmartExit:loggedSchool` | Sessão |
 | `@SmartExit:called:{id}` | Fila chamadas |
-| `@SmartExit:gates:{id}` | Portões avançados |
 | `@SmartExit:darkMode` | Tema |
 
 ### Armadilhas conhecidas
-1. **`school.exits`** (usado no monitor) ≠ **`gatesList`** (gestão portões) — não sincronizam
+1. **`defaultExit`** ainda é texto no cache de turma/aluno. Não é `gate_id`. Rename/delete de portão não atualiza esse texto. Dívida da vertical Students/Classes
 2. Status `Inativo` não bloqueia login
 3. Senhas em plaintext
 4. `StudentCard`, `students.js`, `App.css` são código morto

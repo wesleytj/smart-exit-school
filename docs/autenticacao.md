@@ -61,7 +61,7 @@ Platform Admin e usuário de escola são domínios separados (ADR-028).
 
 `localStorage` não é autoridade. `@SmartExit:loggedSchool` não autoriza acesso e não escolhe o tenant.
 
-Alunos, turmas, portões e chamadas do painel ainda podem permanecer no browser como cache operacional da escola já autorizada (`@SmartExit:schoolOps:{schoolId}`, `@SmartExit:gates:{schoolId}`, `@SmartExit:called:{schoolId}`). Esse cache não é identidade. Portões e chamadas locais não são `public.gates` nem `public.pickup_events`.
+Alunos, turmas e chamadas do painel ainda podem permanecer no browser (`@SmartExit:schoolOps:{schoolId}`, `@SmartExit:called:{schoolId}`). Portões persistidos estão em `public.gates`. `@SmartExit:gates:{schoolId}` não é fonte de verdade. Esse cache não é identidade. Chamadas locais não são `public.pickup_events`.
 
 ## Segurança
 

@@ -172,26 +172,19 @@ Funções `handleToggleClass`, `handleApplyBulkClassChanges` existem mas **não 
 
 ## 6. Gestão de portões
 
-### 6.1 Dois sistemas coexistem
+**Status:** `CLOSED / PRODUCTION VERIFIED`.
 
-| Sistema | Armazenamento | Uso no monitor |
-|---------|---------------|----------------|
-| `school.exits` | Dentro do objeto School | **Sim** — dropdown e filtros |
-| `gatesList` | `@SmartExit:gates:{id}` | **Não diretamente** — gestão separada |
+`public.gates` é a fonte de verdade. O CRUD passa por `gateRepository` e `gateService`. O `school_id` é o da escola autorizada na sessão. A RLS autoriza no banco. O Monitor lista os portões persistidos. `@SmartExit:gates:{schoolId}` não é mais fonte de verdade.
 
-### 6.2 Portões avançados (gatesList)
+Evidência manual em produção, depois do hotfix `d7d0ca5` (`fix(panel): keep school panel mounted during auth revalidation`): login, criar, reload, renomear, Monitor, voltar a Portões, persistência entre duas janelas, troca de janela sem resetar a seção, alternância do menu sem reset, fechar e reabrir a janela sem novo login. A revalidação de Auth do mesmo usuário não desmonta `InstitutionPanel`.
 
-- Campos: `name`, `time` (obrigatórios), `defaultClasses` (opcional)
-- Checkbox "Tornar padrão de turmas específicas":
-  - Atualiza `defaultExit` das turmas selecionadas
-  - Atualiza `defaultExit` dos alunos cuja `grade` está nas turmas selecionadas
-- Exclusão remove apenas da `gatesList`, não de `school.exits`
+Limitações conhecidas, fora desta vertical:
 
-### 6.3 Portões legados (school.exits)
+1. A seção ativa do painel vive só na memória React.
+2. F5/reload abre de novo em Monitor.
+3. A seção não é persistida em rota nem em storage.
 
-- Adição via `handleAddExit` — **UI não identificada na aba Portões atual**
-- Remoção via `handleRemoveExit` — **UI não identificada**
-- MOCK_SCHOOLS já incluem exits iniciais
+Dívida futura, sem migration nesta etapa: a turma ainda guarda `defaultExit` como texto no cache local. A relação Turma → Portão deverá usar `gate_id`, com regra explícita para renomear e excluir. `public.academic_groups` ainda não tem essa coluna.
 
 ---
 

@@ -41,7 +41,8 @@ graph TB
 | RLS Foundation | PostgreSQL | ✅ Migration 0005 |
 | Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
 | `schoolService` (catálogo `schools`) | Supabase | ✅ CRUD em `public.schools` |
-| Demais services | localStorage | ✅ Ativo |
+| Portões (`gateService`) | Supabase `public.gates` | ✅ `CLOSED / PRODUCTION VERIFIED` (`8cb71ac`). Hotfix de painel `d7d0ca5` |
+| Demais services operacionais | localStorage | ✅ Chamadas, turmas e alunos ainda locais |
 | Supabase Auth + `school_members` | Supabase | ✅ Identidade e contexto de tenant (Feature #49). Produção publicada; um tenant escolar de homologação validado. Isolamento com duas escolas ainda não certificado |
 
 ## Camadas

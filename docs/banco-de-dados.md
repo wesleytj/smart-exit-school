@@ -522,16 +522,15 @@ Os nomes se parecem; os modelos **não são o mesmo sistema** e **não estão si
 
 | Conceito | Modelo PostgreSQL atual | Runtime legado (frontend ativo) |
 |----------|-------------------------|----------------------------------|
-| Portão | Tabela `public.gates` | Dois stores distintos e sem sync: `school.exits` (array de nomes; usado pelo monitor) e `gatesList` em `@SmartExit:gates:{schoolId}` (objetos geridos na aba de portões) |
+| Portão | Tabela `public.gates` | Fonte de verdade do painel e do Monitor (`gateRepository` / `gateService`). `school_id` vem do tenant autorizado. RLS autoriza no banco. `@SmartExit:gates:{schoolId}` não é mais lido nem gravado |
 | Chamada de saída | Tabela `public.pickup_events` | Fila `@SmartExit:called:{schoolId}` via `callService` (objetos da sessão local; sem FK para matrícula nem para `public.gates`) |
 | Aluno na chamada | `pickup_events.student_enrollment_id` → `student_enrollments` | Identidade/turma no array `studentsList[]` e no objeto da chamada local; **não existe** entidade de matrícula no `localStorage` |
 
 Consequências do estado atual:
 
-- `gateService` e `callService` leem/escrevem **somente** `localStorage`. Não há persistência operacional de portões ou chamadas em `public.gates` / `public.pickup_events`.
-- `public.gates` e `public.pickup_events` existem no schema (Migration 0004) e no seed parcial (`gates` sim, `pickup_events` não). Isso **não** significa que o painel, o monitor ou a TV usem essas tabelas.
-- Não tratar `school.exits` nem `gatesList` como equivalentes de `public.gates`.
-- Não tratar a fila `@SmartExit:called:{schoolId}` como equivalente de `public.pickup_events`.
+- `gateService` lê e grava `public.gates`. `callService` continua só no `localStorage`. Chamadas ainda não usam `public.pickup_events`.
+- `public.gates` é a fonte de verdade dos portões do painel e do Monitor. A vertical Gates está `CLOSED / PRODUCTION VERIFIED` (`8cb71ac`, `feat(gates): persist school gates in Supabase`).
+- A fila `@SmartExit:called:{schoolId}` não é `public.pickup_events`.
 
 A tabela resumida **Gap schema DB ↔ frontend legado**, mais abaixo neste documento, permanece a visão compacta desse desalinhamento. A fonte desta relação de domínio é o schema das migrations 0002 e 0004.
 
@@ -626,14 +625,13 @@ Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `st
 |-------|----------|
 | `@SmartExit:loggedSchool` | Chave legada. Não autoriza acesso e não escolhe o tenant |
 | `@SmartExit:darkMode` | Preferência de tema |
-| `@SmartExit:gates:{schoolId}` | Portões avançados |
 | `@SmartExit:called:{schoolId}` | Fila de chamadas |
 
 ### Catálogo `schools` (Issue #16)
 
 `schoolService` (`getAllSchools`, `saveSchool`, `deleteSchool`) persiste exclusivamente em `public.schools` via `schoolRepository`. A chave `@SmartExit:schools` **não existe mais** no frontend.
 
-Ainda no localStorage: portões, chamadas e tema, como cache da escola já autorizada. `@SmartExit:loggedSchool` não é sessão nem autorização. `InstitutionPanel` continua gravando dados operacionais (turmas/alunos) no browser — fora do escopo do catálogo School.
+Ainda no localStorage: chamadas, tema e o cache operacional de turmas/alunos (`@SmartExit:schoolOps:{schoolId}`). Portões não usam mais `@SmartExit:gates:{schoolId}`. `@SmartExit:loggedSchool` não é sessão nem autorização.
 
 O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
 

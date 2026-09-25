@@ -25,8 +25,8 @@ Itens com base existente no código que precisam de conclusão ou correção.
 
 | Item | Evidência | Prioridade sugerida |
 |------|-----------|---------------------|
-| Unificar `school.exits` e `gatesList` | Dois sistemas de portão sem sync | Alta |
-| Expor UI para CRUD de `school.exits` | Handlers `handleAddExit`/`handleRemoveExit` sem UI | Alta |
+| Portões em `public.gates` | Vertical fechada e verificada em produção (`8cb71ac`, hotfix `d7d0ca5`) | — |
+| Referência Turma → Portão por `gate_id` | `defaultExit` ainda é texto no cache local. Sem migration nesta etapa | Futura vertical Students/Classes |
 | UI bulk edit para turmas | Funções existem; interface ausente | Média |
 | Route guard Super Admin | `/admin/institutions` desprotegida | Alta |
 | Bloquear login instituição Inativa | Status existe; não enforced | Alta |

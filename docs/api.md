@@ -85,20 +85,9 @@ Chave legada. Não é sessão, não autoriza acesso e não escolhe o tenant. A a
 ]
 ```
 
-### GET/PUT `@SmartExit:gates:{schoolId}`
+### `@SmartExit:gates:{schoolId}` — aposentada
 
-**Retorno/Body:** `Gate[]`
-
-```json
-[
-  {
-    "id": "1700000000000",
-    "name": "Portão Principal",
-    "time": "17:30",
-    "defaultClasses": ["1º Ano A", "1º Ano B"]
-  }
-]
-```
+A chave não é mais a fonte de verdade. Portões do painel e do Monitor vêm de `public.gates`. Ver [regras-de-negocio.md](regras-de-negocio.md).
 
 ---
 
