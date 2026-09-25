@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   Users, Settings, MonitorPlay, LogOut, BookOpen,
   Search, Plus, Trash2, MapPin, CheckCircle,
-  Bell, Megaphone, Pencil, X, UploadCloud,
+  Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
   Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw
 } from "lucide-react"
@@ -12,6 +12,7 @@ import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
 import { authService } from "../services/authService"
 import { schoolService } from "../services/schoolService"
 import { gateService } from "../services/gateService"
+import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
 import { callService } from "../services/callService"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
@@ -58,12 +59,7 @@ export default function InstitutionPanel() {
   const [editingGateId, setEditingGateId] = useState(null);
   const [gateFormName, setGateFormName] = useState("");
 
-  // --- 3.3 Gestão de Turmas ---
-  const [classFormName, setClassFormName] = useState("");
-  const [classFormExit, setClassFormExit] = useState("");
-  const [editingClassId, setEditingClassId] = useState(null);
-
-  // --- 3.4 Gestão de Alunos ---
+  // --- 3.3 Gestão de Alunos ---
   const [studentFormName, setStudentFormName] = useState("");
   const [studentFormGrade, setStudentFormGrade] = useState("");
   const [studentFormExit, setStudentFormExit] = useState("");
@@ -369,48 +365,6 @@ export default function InstitutionPanel() {
     await reloadGates();
   };
 
-  // --- Gestão de Turmas ---
-  function handleSubmitClass(e) {
-    e.preventDefault();
-    if (!classFormName) return;
-
-    let updatedClasses;
-    let updatedStudentsList = [...school.studentsList];
-
-    if (editingClassId) {
-      const oldClass = school.classes.find(c => c.id === editingClassId);
-      updatedClasses = school.classes.map(c => c.id === editingClassId ? { ...c, name: classFormName, defaultExit: classFormExit } : c);
-      updatedStudentsList = updatedStudentsList.map(student => {
-        if (student.grade === oldClass.name) return { ...student, grade: classFormName, defaultExit: classFormExit };
-        return student;
-      });
-    } else {
-      const newClass = { id: Date.now(), name: classFormName, defaultExit: classFormExit };
-      updatedClasses = [...school.classes, newClass];
-    }
-
-    saveSchoolData({ ...school, classes: updatedClasses, studentsList: updatedStudentsList });
-    handleCancelClassEdit();
-  }
-
-  function handleEditClassClick(cls) {
-    setClassFormName(cls.name);
-    setClassFormExit(cls.defaultExit || "");
-    setEditingClassId(cls.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function handleCancelClassEdit() {
-    setClassFormName("");
-    setClassFormExit("");
-    setEditingClassId(null);
-  }
-
-  function handleRemoveClass(id) {
-    const updatedClasses = school.classes.filter(c => c.id !== id);
-    saveSchoolData({ ...school, classes: updatedClasses });
-  }
-
   // --- Gestão de Alunos ---
   function handleStudentGradeChange(e) {
     const selectedClassName = e.target.value;
@@ -427,6 +381,8 @@ export default function InstitutionPanel() {
     if (editingStudentId) {
       updatedStudentsList = school.studentsList.map(s => s.id === editingStudentId ? { ...s, name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit } : s);
     } else {
+      // react-hooks/purity misreads this submit handler after the legacy class form was removed.
+      // eslint-disable-next-line react-hooks/purity
       updatedStudentsList = [...school.studentsList, { id: Date.now(), name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit }];
     }
 
@@ -605,7 +561,7 @@ export default function InstitutionPanel() {
           {[
             { id: "monitor", icon: MonitorPlay, label: "Monitor de Saída" },
             { id: "students", icon: Users, label: "Gestão de Alunos" },
-            { id: "classes", icon: BookOpen, label: "Gestão de Turmas" },
+            { id: "classes", icon: BookOpen, label: "Configuração acadêmica" },
             { id: "gates", icon: DoorOpen, label: "Gestão de Portões" },
             { id: "import", icon: UploadCloud, label: "Importar Dados" },
             { id: "reports", icon: FileText, label: "Relatórios Avançados", locked: school.plan === "Basic" },
@@ -739,64 +695,9 @@ export default function InstitutionPanel() {
         {/* ABA: GESTÃO DE TURMAS */}
         {/* ------------------------------------------ */}
         {activeTab === "classes" && (
-          <div className="p-8 flex-1 overflow-y-auto">
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestão de Turmas</h1>
-              <p className="text-slate-500">Cadastre, edite as séries e defina os portões padrão delas.</p>
-            </div>
-
-            <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition-colors ${editingClassId ? 'border-secondary bg-slate-50 dark:bg-slate-900/50' : 'bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]'} max-w-3xl`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className={`font-bold flex items-center gap-2 ${editingClassId ? 'text-secondary' : 'text-slate-800 dark:text-white'}`}>
-                  {editingClassId ? <Pencil size={20} className="text-secondary" /> : <BookOpen size={20} className="text-primary" />}
-                  {editingClassId ? "Editando Turma" : "Cadastrar Nova Turma"}
-                </h3>
-                {editingClassId && (
-                  <button onClick={handleCancelClassEdit} className="text-slate-500 hover:text-red-500 flex items-center gap-1 text-sm font-bold bg-white dark:bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#333333]">
-                    <X size={16} /> Cancelar Edição
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleSubmitClass} className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome da Turma</label>
-                  <input type="text" required value={classFormName} onChange={e => setClassFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" placeholder="Ex: 1º Ano B" />
-                </div>
-
-                <div className="w-64">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Saída Padrão da Turma</label>
-                  <select value={classFormExit} onChange={e => setClassFormExit(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
-                    <option value="" disabled>Selecione...</option>
-                    {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                  </select>
-                </div>
-
-                <button type="submit" className={`font-bold px-6 py-3 rounded-xl transition shadow-lg text-white hover:opacity-90 ${editingClassId ? 'bg-secondary' : 'bg-primary'}`}>
-                  {editingClassId ? "Salvar" : "Adicionar"}
-                </button>
-              </form>
-            </div>
-
-            <div className="max-w-3xl space-y-2">
-              {school.classes.map(cls => (
-                <div key={cls.id} className={`flex justify-between items-center p-4 border rounded-xl transition-colors ${editingClassId === cls.id ? 'border-secondary bg-slate-50 dark:bg-slate-900/50' : 'bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]'}`}>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-white">{cls.name}</p>
-                    <p className="text-sm text-slate-500">Saída Padrão: <span className="font-semibold text-slate-600 dark:text-slate-400">{cls.defaultExit || "Não definida"}</span></p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEditClassClick(cls)} className="p-2 text-secondary hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition"><Pencil size={20} /></button>
-                    <button onClick={() => handleRemoveClass(cls.id)} className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"><Trash2 size={20} /></button>
-                  </div>
-                </div>
-              ))}
-              {school.classes.length === 0 && (
-                <p className="text-center text-slate-500 py-4 text-sm">Nenhuma turma cadastrada.</p>
-              )}
-            </div>
-          </div>
+          <AcademicStructureSection schoolId={authorizedSchool.id} />
         )}
+
 
         {/* ------------------------------------------ */}
         {/* ABA: GESTÃO DE ALUNOS */}
