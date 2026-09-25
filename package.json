@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js",
+    "test": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js src/services/platformAdminResolution.test.js",
     "preview": "vite preview",
     "validate:rls": "node scripts/validate-rls-foundation.mjs",
     "audit:db": "node scripts/db-auditor/index.mjs"

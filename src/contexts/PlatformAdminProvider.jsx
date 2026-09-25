@@ -1,28 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { platformAdminService } from '../services/platformAdminService';
+import { isSameUserRevalidation } from '../services/platformAdminResolution';
 import { PlatformAdminContext } from './platformAdminContext';
 
 export function PlatformAdminProvider({ children }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const resolvedUserIdRef = useRef(null);
 
   async function resolveFromSession(session) {
-    setIsLoading(true);
+    const userId = session?.user?.id ?? null;
+    const background = isSameUserRevalidation(resolvedUserIdRef.current, userId);
+
+    if (!background) {
+      setIsLoading(true);
+    }
 
     try {
-      if (!session?.user?.id) {
+      if (!userId) {
+        resolvedUserIdRef.current = null;
         setIsPlatformAdmin(false);
         return;
       }
 
-      const result = await platformAdminService.isPlatformAdmin(session.user.id);
+      const result = await platformAdminService.isPlatformAdmin(userId);
+      resolvedUserIdRef.current = userId;
       setIsPlatformAdmin(result);
     } catch (error) {
       console.error(error);
-      setIsPlatformAdmin(false);
+      if (!background) {
+        resolvedUserIdRef.current = null;
+        setIsPlatformAdmin(false);
+      }
     } finally {
-      setIsLoading(false);
+      if (!background) {
+        setIsLoading(false);
+      }
     }
   }
 
