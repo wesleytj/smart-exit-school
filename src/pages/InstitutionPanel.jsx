@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   Users, Settings, MonitorPlay, LogOut, BookOpen,
   Search, Plus, Trash2, MapPin, CheckCircle,
-  Bell, Megaphone, Pencil, X, UploadCloud,
+  Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
   Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw
 } from "lucide-react"
@@ -12,6 +12,9 @@ import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
 import { authService } from "../services/authService"
 import { schoolService } from "../services/schoolService"
 import { gateService } from "../services/gateService"
+import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
+import { studentService } from "../services/studentService.js"
+import { academicGroupService } from "../services/academicGroupService.js"
 import { callService } from "../services/callService"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
@@ -58,19 +61,18 @@ export default function InstitutionPanel() {
   const [editingGateId, setEditingGateId] = useState(null);
   const [gateFormName, setGateFormName] = useState("");
 
-  // --- 3.3 Gestão de Turmas ---
-  const [classFormName, setClassFormName] = useState("");
-  const [classFormExit, setClassFormExit] = useState("");
-  const [editingClassId, setEditingClassId] = useState(null);
-
-  // --- 3.4 Gestão de Alunos ---
+  // --- 3.3 Gestão de Alunos ---
   const [studentFormName, setStudentFormName] = useState("");
-  const [studentFormGrade, setStudentFormGrade] = useState("");
-  const [studentFormExit, setStudentFormExit] = useState("");
+  const [studentFormIdentifier, setStudentFormIdentifier] = useState("");
+  const [studentFormGroupId, setStudentFormGroupId] = useState("");
   const [editingStudentId, setEditingStudentId] = useState(null);
   const [selectedStudents, setSelectedStudents] = useState([]);
-  const [bulkStudentExitOption, setBulkStudentExitOption] = useState("");
-  const [bulkStudentGradeOption, setBulkStudentGradeOption] = useState("");
+  const [bulkStudentGroupId, setBulkStudentGroupId] = useState("");
+  const [persistedStudents, setPersistedStudents] = useState([]);
+  const [activeGroups, setActiveGroups] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [studentsSaving, setStudentsSaving] = useState(false);
+  const [studentsError, setStudentsError] = useState("");
 
   // --- 3.5 Monitor de Saída ---
   const [monitorSearch, setMonitorSearch] = useState("");
@@ -165,6 +167,49 @@ export default function InstitutionPanel() {
     };
   }, [authorizedSchool?.id, tenantStatus]);
 
+  useEffect(() => {
+    const schoolId = authorizedSchool?.id;
+
+    if (!schoolId || tenantStatus !== "ready") {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const [studentsResult, groupsResult] = await Promise.all([
+        studentService.listForSchool(schoolId),
+        academicGroupService.listForSchool(schoolId)
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (studentsResult.error) {
+        console.error(studentsResult.error);
+        setPersistedStudents([]);
+        setStudentsError("Não foi possível carregar os alunos.");
+      } else {
+        setPersistedStudents(studentsResult.data);
+        setStudentsError("");
+      }
+
+      if (groupsResult.error) {
+        console.error(groupsResult.error);
+        setActiveGroups([]);
+      } else {
+        setActiveGroups((groupsResult.data || []).filter((group) => group.status === "active"));
+      }
+
+      setStudentsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authorizedSchool?.id, tenantStatus]);
+
   // 4.5 Aplica o Dark Mode na raiz do HTML (classe 'dark')
   useEffect(() => {
     void themeService.setThemePreference(isDarkMode);
@@ -189,6 +234,16 @@ export default function InstitutionPanel() {
     .filter((gate) => gate.status !== "inactive")
     .map((gate) => gate.name);
   const firstPersistedExit = persistedExitNames[0] || "";
+  const monitorStudents = persistedStudents.filter((student) => student.status === "active" && student.assignmentId);
+  const editingStudent = persistedStudents.find((student) => student.id === editingStudentId);
+  const studentGroupChoices = [...activeGroups];
+
+  if (editingStudent?.academicGroupId && !studentGroupChoices.some((group) => group.id === editingStudent.academicGroupId)) {
+    studentGroupChoices.unshift({
+      id: editingStudent.academicGroupId,
+      name: editingStudent.grade || "Turma atual"
+    });
+  }
 
   async function reloadGates() {
     const schoolId = authorizedSchool?.id;
@@ -369,90 +424,92 @@ export default function InstitutionPanel() {
     await reloadGates();
   };
 
-  // --- Gestão de Turmas ---
-  function handleSubmitClass(e) {
-    e.preventDefault();
-    if (!classFormName) return;
-
-    let updatedClasses;
-    let updatedStudentsList = [...school.studentsList];
-
-    if (editingClassId) {
-      const oldClass = school.classes.find(c => c.id === editingClassId);
-      updatedClasses = school.classes.map(c => c.id === editingClassId ? { ...c, name: classFormName, defaultExit: classFormExit } : c);
-      updatedStudentsList = updatedStudentsList.map(student => {
-        if (student.grade === oldClass.name) return { ...student, grade: classFormName, defaultExit: classFormExit };
-        return student;
-      });
-    } else {
-      const newClass = { id: Date.now(), name: classFormName, defaultExit: classFormExit };
-      updatedClasses = [...school.classes, newClass];
-    }
-
-    saveSchoolData({ ...school, classes: updatedClasses, studentsList: updatedStudentsList });
-    handleCancelClassEdit();
-  }
-
-  function handleEditClassClick(cls) {
-    setClassFormName(cls.name);
-    setClassFormExit(cls.defaultExit || "");
-    setEditingClassId(cls.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function handleCancelClassEdit() {
-    setClassFormName("");
-    setClassFormExit("");
-    setEditingClassId(null);
-  }
-
-  function handleRemoveClass(id) {
-    const updatedClasses = school.classes.filter(c => c.id !== id);
-    saveSchoolData({ ...school, classes: updatedClasses });
-  }
-
   // --- Gestão de Alunos ---
-  function handleStudentGradeChange(e) {
-    const selectedClassName = e.target.value;
-    setStudentFormGrade(selectedClassName);
-    const classObj = school.classes.find(c => c.name === selectedClassName);
-    if (classObj && classObj.defaultExit) setStudentFormExit(classObj.defaultExit);
-  }
+  async function reloadPersistedStudents() {
+    const schoolId = authorizedSchool.id;
+    const [studentsResult, groupsResult] = await Promise.all([
+      studentService.listForSchool(schoolId),
+      academicGroupService.listForSchool(schoolId)
+    ]);
 
-  function handleSubmitStudent(e) {
-    e.preventDefault();
-    if (!studentFormName || !studentFormGrade) return;
-    let updatedStudentsList;
-
-    if (editingStudentId) {
-      updatedStudentsList = school.studentsList.map(s => s.id === editingStudentId ? { ...s, name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit } : s);
+    if (studentsResult.error) {
+      console.error(studentsResult.error);
+      setStudentsError("Não foi possível carregar os alunos.");
     } else {
-      updatedStudentsList = [...school.studentsList, { id: Date.now(), name: studentFormName, grade: studentFormGrade, defaultExit: studentFormExit || firstPersistedExit }];
+      setPersistedStudents(studentsResult.data);
+      setStudentsError("");
     }
 
-    saveSchoolData({ ...school, studentsList: updatedStudentsList, students: updatedStudentsList.length });
+    if (groupsResult.error) {
+      console.error(groupsResult.error);
+      setActiveGroups([]);
+    } else {
+      setActiveGroups((groupsResult.data || []).filter((group) => group.status === "active"));
+    }
+
+    setStudentsLoading(false);
+  }
+
+  async function handleSubmitStudent(e) {
+    e.preventDefault();
+    if (!studentFormName.trim() || !studentFormGroupId) return;
+
+    setStudentsSaving(true);
+    setStudentsError("");
+    const current = persistedStudents.find((student) => student.id === editingStudentId);
+    const result = editingStudentId
+      ? await studentService.updateStudent(authorizedSchool.id, editingStudentId, {
+        fullName: studentFormName,
+        studentIdentifier: studentFormIdentifier,
+        academicGroupId: studentFormGroupId,
+        currentAcademicGroupId: current?.academicGroupId,
+        enrollmentId: current?.enrollmentId,
+        assignmentId: current?.assignmentId
+      })
+      : await studentService.registerStudent(authorizedSchool.id, {
+        fullName: studentFormName,
+        studentIdentifier: studentFormIdentifier,
+        academicGroupId: studentFormGroupId
+      });
+    setStudentsSaving(false);
+
+    if (result.error) {
+      setStudentsError(result.error.message || "Não foi possível salvar o aluno.");
+      return;
+    }
+
+    await reloadPersistedStudents();
     handleCancelStudentEdit();
   }
 
   function handleEditStudentClick(student) {
     setStudentFormName(student.name);
-    setStudentFormGrade(student.grade);
-    setStudentFormExit(student.defaultExit);
+    setStudentFormIdentifier(student.studentIdentifier || "");
+    setStudentFormGroupId(student.academicGroupId || "");
     setEditingStudentId(student.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleCancelStudentEdit() {
     setStudentFormName("");
-    setStudentFormGrade("");
-    setStudentFormExit("");
+    setStudentFormIdentifier("");
+    setStudentFormGroupId("");
     setEditingStudentId(null);
   }
 
-  function handleRemoveStudent(id) {
-    const updatedList = school.studentsList.filter(s => s.id !== id);
-    saveSchoolData({ ...school, studentsList: updatedList, students: updatedList.length });
-    setSelectedStudents(prev => prev.filter(selectedId => selectedId !== id));
+  async function handleToggleStudentStatus(student) {
+    const nextStatus = student.status === "active" ? "inactive" : "active";
+    setStudentsSaving(true);
+    setStudentsError("");
+    const result = await studentService.setStudentStatus(authorizedSchool.id, student.id, nextStatus);
+    setStudentsSaving(false);
+
+    if (result.error) {
+      setStudentsError(result.error.message || "Não foi possível atualizar o status do aluno.");
+      return;
+    }
+
+    await reloadPersistedStudents();
   }
 
   function handleToggleStudent(id) {
@@ -460,31 +517,41 @@ export default function InstitutionPanel() {
   }
 
   function handleToggleAllStudents(e) {
-    if (e.target.checked) setSelectedStudents(school.studentsList.map(s => s.id));
+    if (e.target.checked) setSelectedStudents(persistedStudents.map(s => s.id));
     else setSelectedStudents([]);
   }
 
-  function handleApplyBulkStudentChanges() {
-    if ((!bulkStudentExitOption && !bulkStudentGradeOption) || selectedStudents.length === 0) return;
+  async function handleApplyBulkStudentChanges() {
+    if (!bulkStudentGroupId || selectedStudents.length === 0) return;
 
-    const updatedStudentsList = school.studentsList.map(s => {
-      if (selectedStudents.includes(s.id)) {
-        let newGrade = bulkStudentGradeOption || s.grade;
-        let newExit = bulkStudentExitOption || s.defaultExit;
+    setStudentsSaving(true);
+    setStudentsError("");
 
-        if (bulkStudentGradeOption && !bulkStudentExitOption) {
-          const classObj = school.classes.find(c => c.name === bulkStudentGradeOption);
-          if (classObj) newExit = classObj.defaultExit;
-        }
-        return { ...s, grade: newGrade, defaultExit: newExit };
+    for (const id of selectedStudents) {
+      const student = persistedStudents.find((item) => item.id === id);
+      if (!student || student.academicGroupId === bulkStudentGroupId) continue;
+
+      const result = await studentService.updateStudent(authorizedSchool.id, student.id, {
+        fullName: student.fullName,
+        studentIdentifier: student.studentIdentifier,
+        academicGroupId: bulkStudentGroupId,
+        currentAcademicGroupId: student.academicGroupId,
+        enrollmentId: student.enrollmentId,
+        assignmentId: student.assignmentId
+      });
+
+      if (result.error) {
+        setStudentsSaving(false);
+        setStudentsError(result.error.message || "Não foi possível alterar a turma.");
+        await reloadPersistedStudents();
+        return;
       }
-      return s;
-    });
+    }
 
-    saveSchoolData({ ...school, studentsList: updatedStudentsList });
+    setStudentsSaving(false);
     setSelectedStudents([]);
-    setBulkStudentExitOption("");
-    setBulkStudentGradeOption("");
+    setBulkStudentGroupId("");
+    await reloadPersistedStudents();
   }
 
   // --- Importação em Lote (CSV) ---
@@ -605,7 +672,7 @@ export default function InstitutionPanel() {
           {[
             { id: "monitor", icon: MonitorPlay, label: "Monitor de Saída" },
             { id: "students", icon: Users, label: "Gestão de Alunos" },
-            { id: "classes", icon: BookOpen, label: "Gestão de Turmas" },
+            { id: "classes", icon: BookOpen, label: "Configuração acadêmica" },
             { id: "gates", icon: DoorOpen, label: "Gestão de Portões" },
             { id: "import", icon: UploadCloud, label: "Importar Dados" },
             { id: "reports", icon: FileText, label: "Relatórios Avançados", locked: school.plan === "Basic" },
@@ -674,11 +741,11 @@ export default function InstitutionPanel() {
               <div className="flex-1 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-slate-100 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#1a1a1a] font-semibold text-slate-700 dark:text-slate-300 flex justify-between">
                   <span>Alunos Disponíveis</span>
-                  <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{school.studentsList.length}</span>
+                  <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{monitorStudents.length}</span>
                 </div>
                 <div className="p-4 overflow-y-auto flex-1 space-y-2">
-                  {school.studentsList
-                    .filter(s => s.name.toLowerCase().includes(monitorSearch.toLowerCase()) || s.grade.toLowerCase().includes(monitorSearch.toLowerCase()))
+                  {monitorStudents
+                    .filter(s => s.name.toLowerCase().includes(monitorSearch.toLowerCase()) || (s.grade || "").toLowerCase().includes(monitorSearch.toLowerCase()))
                     .filter(s => selectedExitFilter === "Todos" || s.defaultExit === selectedExitFilter)
                     .map(student => (
                       <div key={student.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-[#2a2a2a] border border-slate-100 dark:border-[#2a2a2a] rounded-xl transition">
@@ -739,64 +806,9 @@ export default function InstitutionPanel() {
         {/* ABA: GESTÃO DE TURMAS */}
         {/* ------------------------------------------ */}
         {activeTab === "classes" && (
-          <div className="p-8 flex-1 overflow-y-auto">
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestão de Turmas</h1>
-              <p className="text-slate-500">Cadastre, edite as séries e defina os portões padrão delas.</p>
-            </div>
-
-            <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition-colors ${editingClassId ? 'border-secondary bg-slate-50 dark:bg-slate-900/50' : 'bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]'} max-w-3xl`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className={`font-bold flex items-center gap-2 ${editingClassId ? 'text-secondary' : 'text-slate-800 dark:text-white'}`}>
-                  {editingClassId ? <Pencil size={20} className="text-secondary" /> : <BookOpen size={20} className="text-primary" />}
-                  {editingClassId ? "Editando Turma" : "Cadastrar Nova Turma"}
-                </h3>
-                {editingClassId && (
-                  <button onClick={handleCancelClassEdit} className="text-slate-500 hover:text-red-500 flex items-center gap-1 text-sm font-bold bg-white dark:bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#333333]">
-                    <X size={16} /> Cancelar Edição
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleSubmitClass} className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome da Turma</label>
-                  <input type="text" required value={classFormName} onChange={e => setClassFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" placeholder="Ex: 1º Ano B" />
-                </div>
-
-                <div className="w-64">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Saída Padrão da Turma</label>
-                  <select value={classFormExit} onChange={e => setClassFormExit(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
-                    <option value="" disabled>Selecione...</option>
-                    {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                  </select>
-                </div>
-
-                <button type="submit" className={`font-bold px-6 py-3 rounded-xl transition shadow-lg text-white hover:opacity-90 ${editingClassId ? 'bg-secondary' : 'bg-primary'}`}>
-                  {editingClassId ? "Salvar" : "Adicionar"}
-                </button>
-              </form>
-            </div>
-
-            <div className="max-w-3xl space-y-2">
-              {school.classes.map(cls => (
-                <div key={cls.id} className={`flex justify-between items-center p-4 border rounded-xl transition-colors ${editingClassId === cls.id ? 'border-secondary bg-slate-50 dark:bg-slate-900/50' : 'bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]'}`}>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-white">{cls.name}</p>
-                    <p className="text-sm text-slate-500">Saída Padrão: <span className="font-semibold text-slate-600 dark:text-slate-400">{cls.defaultExit || "Não definida"}</span></p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEditClassClick(cls)} className="p-2 text-secondary hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition"><Pencil size={20} /></button>
-                    <button onClick={() => handleRemoveClass(cls.id)} className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"><Trash2 size={20} /></button>
-                  </div>
-                </div>
-              ))}
-              {school.classes.length === 0 && (
-                <p className="text-center text-slate-500 py-4 text-sm">Nenhuma turma cadastrada.</p>
-              )}
-            </div>
-          </div>
+          <AcademicStructureSection schoolId={authorizedSchool.id} />
         )}
+
 
         {/* ------------------------------------------ */}
         {/* ABA: GESTÃO DE ALUNOS */}
@@ -817,26 +829,24 @@ export default function InstitutionPanel() {
                 {editingStudentId && <button onClick={handleCancelStudentEdit} className="text-slate-500 hover:text-red-500 text-sm font-bold bg-white dark:bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#333333]">Cancelar</button>}
               </div>
 
+              {studentsError && <p className="mb-4 text-sm font-medium text-red-500">{studentsError}</p>}
               <form onSubmit={handleSubmitStudent} className="flex gap-4 items-end">
                 <div className="flex-1">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome</label>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome completo</label>
                   <input type="text" required value={studentFormName} onChange={e => setStudentFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
                 </div>
                 <div className="w-48">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Matrícula</label>
+                  <input type="text" value={studentFormIdentifier} onChange={e => setStudentFormIdentifier(e.target.value)} placeholder="Opcional" className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
+                </div>
+                <div className="w-56">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Turma</label>
-                  <select required value={studentFormGrade} onChange={handleStudentGradeChange} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
+                  <select required value={studentFormGroupId} onChange={e => setStudentFormGroupId(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
                     <option value="" disabled>Selecione...</option>
-                    {school.classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {studentGroupChoices.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                   </select>
                 </div>
-                <div className="w-48">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Saída Padrão</label>
-                  <select value={studentFormExit} onChange={e => setStudentFormExit(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
-                    <option value="" disabled>Selecione...</option>
-                    {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                  </select>
-                </div>
-                <button type="submit" className={`font-bold py-3 px-6 rounded-xl transition shadow-lg text-white hover:opacity-90 ${editingStudentId ? 'bg-secondary' : 'bg-primary'}`}>
+                <button type="submit" disabled={studentsSaving || activeGroups.length === 0} className={`font-bold py-3 px-6 rounded-xl transition shadow-lg text-white hover:opacity-90 disabled:opacity-50 ${editingStudentId ? 'bg-secondary' : 'bg-primary'}`}>
                   {editingStudentId ? "Salvar" : "Adicionar"}
                 </button>
               </form>
@@ -845,25 +855,21 @@ export default function InstitutionPanel() {
             <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden mb-8">
               <div className="p-4 border-b border-slate-100 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#1a1a1a] font-semibold text-slate-700 dark:text-slate-300 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <input type="checkbox" onChange={handleToggleAllStudents} checked={school.studentsList.length > 0 && selectedStudents.length === school.studentsList.length} className="w-4 h-4 cursor-pointer accent-primary" />
+                  <input type="checkbox" onChange={handleToggleAllStudents} checked={persistedStudents.length > 0 && selectedStudents.length === persistedStudents.length} className="w-4 h-4 cursor-pointer accent-primary" />
                   <span>Alunos Cadastrados</span>
                 </div>
-                <span className="bg-slate-200 dark:bg-[#2a2a2a] text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{school.studentsList.length}</span>
+                <span className="bg-slate-200 dark:bg-[#2a2a2a] text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{persistedStudents.length}</span>
               </div>
 
               {selectedStudents.length > 0 && (
                 <div className="p-3 px-4 flex justify-between items-center border-b border-slate-200 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#2a2a2a]">
                   <span className="font-bold text-sm text-primary">{selectedStudents.length} selecionado(s)</span>
                   <div className="flex gap-2 items-center">
-                    <select value={bulkStudentGradeOption} onChange={e => setBulkStudentGradeOption(e.target.value)} className="text-sm border border-slate-200 dark:border-[#333333] bg-white dark:bg-[#1a1a1a] text-slate-700 dark:text-white rounded-lg px-3 py-2 outline-none">
-                      <option value="">Nova Turma (Opcional)...</option>
-                      {school.classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    <select value={bulkStudentGroupId} onChange={e => setBulkStudentGroupId(e.target.value)} className="text-sm border border-slate-200 dark:border-[#333333] bg-white dark:bg-[#1a1a1a] text-slate-700 dark:text-white rounded-lg px-3 py-2 outline-none">
+                      <option value="">Nova turma...</option>
+                      {activeGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                     </select>
-                    <select value={bulkStudentExitOption} onChange={e => setBulkStudentExitOption(e.target.value)} className="text-sm border border-slate-200 dark:border-[#333333] bg-white dark:bg-[#1a1a1a] text-slate-700 dark:text-white rounded-lg px-3 py-2 outline-none">
-                      <option value="">Nova Saída (Opcional)...</option>
-                      {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                    </select>
-                    <button onClick={handleApplyBulkStudentChanges} disabled={!bulkStudentExitOption && !bulkStudentGradeOption} className={`px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm text-white ${(!bulkStudentExitOption && !bulkStudentGradeOption) ? 'bg-slate-400 dark:bg-slate-600' : 'bg-primary hover:opacity-90'}`}>
+                    <button onClick={handleApplyBulkStudentChanges} disabled={!bulkStudentGroupId || studentsSaving} className={`px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm text-white ${!bulkStudentGroupId || studentsSaving ? 'bg-slate-400 dark:bg-slate-600' : 'bg-primary hover:opacity-90'}`}>
                       Aplicar
                     </button>
                   </div>
@@ -871,18 +877,22 @@ export default function InstitutionPanel() {
               )}
 
               <div className="divide-y divide-slate-100 dark:divide-[#2a2a2a]">
-                {school.studentsList.map(student => (
+                {studentsLoading && <p className="p-4 text-sm text-slate-500">Carregando alunos...</p>}
+                {!studentsLoading && persistedStudents.length === 0 && <p className="p-4 text-sm text-slate-500">Nenhum aluno cadastrado.</p>}
+                {persistedStudents.map(student => (
                   <div key={student.id} className={`p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-[#2a2a2a] ${selectedStudents.includes(student.id) ? 'bg-slate-50 dark:bg-[#2a2a2a]' : ''}`}>
                     <div className="flex items-center gap-4">
                       <input type="checkbox" checked={selectedStudents.includes(student.id)} onChange={() => handleToggleStudent(student.id)} className="w-4 h-4 cursor-pointer accent-primary" />
                       <div>
                         <p className="font-bold text-slate-800 dark:text-white">{student.name}</p>
-                        <p className="text-sm text-slate-500">{student.grade} • Saída: <span className="font-semibold text-slate-600 dark:text-slate-400">{student.defaultExit}</span></p>
+                        <p className="text-sm text-slate-500">{student.grade || "Sem turma"}{student.studentIdentifier ? ` • Matrícula: ${student.studentIdentifier}` : ""} • {student.status === "active" ? "Ativo" : "Inativo"}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleEditStudentClick(student)} className="p-2 text-secondary hover:bg-slate-100 dark:hover:bg-[#333333] rounded-lg transition"><Pencil size={20} /></button>
-                      <button onClick={() => handleRemoveStudent(student.id)} className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"><Trash2 size={20} /></button>
+                      <button onClick={() => handleToggleStudentStatus(student)} disabled={studentsSaving} className="px-3 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#333333] rounded-lg transition">
+                        {student.status === "active" ? "Inativar" : "Ativar"}
+                      </button>
                     </div>
                   </div>
                 ))}
