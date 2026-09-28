@@ -6,6 +6,16 @@ async function db() {
 }
 
 export const academicGroupRepository = {
+  async getByIdForSchool(id, schoolId) {
+    const supabase = await db();
+    return await supabase
+      .from('academic_groups')
+      .select(GROUP_COLUMNS)
+      .eq('id', id)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+  },
+
   async listBySchool(schoolId) {
     const supabase = await db();
     return await supabase
