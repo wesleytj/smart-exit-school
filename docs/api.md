@@ -4,8 +4,8 @@
 
 **Não há API REST própria.** A aplicação expõe rotas SPA e acessa dados via:
 
-1. **localStorage** — via services (maioria das operações)
-2. **Supabase PostgREST** — CRUD do catálogo `schools` via `schoolService`
+1. **Supabase PostgREST** — catálogo `schools`, alunos, portões e a fila `pickup_events`
+2. **localStorage** — tema e cache operacional (`@SmartExit:schoolOps:`), que não é a fila de saída
 
 Não há GraphQL, WebSocket server-side ou endpoints HTTP customizados.
 
@@ -20,7 +20,7 @@ Estas são rotas de **navegação frontend**, não endpoints de API.
 | `/` | GET | Redirect | Não | Redireciona para `/login` |
 | `/login` | GET | `Login` | Não | Tela de autenticação |
 | `/admin/institutions` | GET | `InstitutionsManager` | **Não enforced** | Painel Super Admin |
-| `/painel` | GET | `InstitutionPanel` | Sessão localStorage | Painel da escola |
+| `/painel` | GET | `InstitutionPanel` | Membership ativa | Painel da escola |
 | `/tv` | GET | `TvDisplay` | **Não enforced** | Telão de chamadas |
 
 \* Em SPA, todas as rotas respondem com o mesmo `index.html`; o "método" efetivo é sempre GET no servidor estático.
@@ -50,9 +50,9 @@ A UI menciona "APIs, webhooks e idiomas secundários" para Diamond, mas **nenhum
 
 ---
 
-## Contratos de dados (localStorage como "API interna")
+## Contratos de dados
 
-Estes contratos descrevem a interface de persistência usada pelos componentes.
+Estes contratos descrevem a persistência usada pelos componentes. A fila de saída está na seção `public.pickup_events`, abaixo.
 
 ### Catálogo `schools` (Supabase)
 
@@ -68,22 +68,17 @@ No update, `saveSchool` persiste `plan` mesmo quando `name` não muda: só reesc
 
 Chave legada. Não é sessão, não autoriza acesso e não escolhe o tenant. A autoridade é Supabase Auth + membership ativa; ver [autenticacao.md](autenticacao.md).
 
-### GET/PUT `@SmartExit:called:{schoolId}`
+### Fila de saída — `public.pickup_events`
 
-**Retorno/Body:** `CalledStudent[]`
+`pickupService` / `pickupEventRepository` usam `public.pickup_events`. A chave `@SmartExit:called:{schoolId}` não é a fila.
 
-```json
-[
-  {
-    "id": 1700000000000,
-    "name": "Maria Silva",
-    "grade": "2º A",
-    "defaultExit": "Portão Principal",
-    "time": "14:35",
-    "exitGate": "Portão Sul"
-  }
-]
-```
+| Operação | Efeito |
+|----------|--------|
+| `getActiveCallsBySchool(schoolId)` | `status = 'called'` da escola, `called_at` descendente, com nome do aluno, turma e portão |
+| `callStudent({ schoolId, studentEnrollmentId, gateId })` | insere a linha `called` |
+| `completeCall(eventId)` | atualiza para `completed` e preenche `completed_at` se a linha ainda está `called` |
+
+O insert não envia nome, turma nem horário. Esses campos são lidos na consulta.
 
 ### `@SmartExit:gates:{schoolId}` — aposentada
 
@@ -91,21 +86,11 @@ A chave não é mais a fonte de verdade. Portões do painel e do Monitor vêm de
 
 ---
 
-## Eventos cross-tab (Telão)
+## Releitura da fila (Telão e Monitor)
 
-### `storage` event
+Não há Supabase Realtime nesta fase. Monitor e TV chamam `getActiveCallsBySchool` ao abrir e a cada 5 segundos (`ACTIVE_CALL_POLL_MS`), enquanto a tela estiver montada.
 
-| Propriedade | Valor |
-|-------------|-------|
-| Origem | Mesma origem (protocol + host + port) |
-| Keys monitoradas | `@SmartExit:called:{id}`, `@SmartExit:loggedSchool`, `@SmartExit:darkMode` |
-| Ação | Re-fetch dos dados afetados |
-
-### Polling fallback
-
-| Intervalo | Ação |
-|-----------|------|
-| 2000ms | `fetchCalls()` — relê `@SmartExit:called:{schoolId}` |
+O listener de `storage` da TV observa só `@SmartExit:darkMode` para o tema.
 
 ---
 
@@ -116,7 +101,7 @@ A chave não é mais a fonte de verdade. Portões do painel e do Monitor vêm de
 | Login Platform Admin | Supabase Auth + `is_platform_admin()` → `/admin/institutions` |
 | Login escola | Supabase Auth + membership ativa em `school_members` |
 | Painel | Contexto de tenant resolvido pela membership; `localStorage` não autoriza |
-| Telão | Cache operacional local; não autoriza o tenant |
+| Telão | Sessão Supabase Auth com membership ativa. Sem sessão pronta, a fila não carrega |
 | Zero memberships | Sem contexto de escola |
 
 ---
@@ -127,22 +112,9 @@ A chave não é mais a fonte de verdade. Portões do painel e do Monitor vêm de
 
 O acesso ao painel exige sessão Supabase Auth e membership ativa. Gravar `@SmartExit:loggedSchool` no console não autoriza `/painel`.
 
-### Simular chamada de aluno
+### Chamar um aluno
 
-Este trecho só escreve cache operacional de chamada. Não autentica e não escolhe o tenant.
-
-```javascript
-const schoolId = 'school-id-ja-autorizado'
-const calls = [{
-  id: 1,
-  name: 'João Teste',
-  grade: '3º A',
-  defaultExit: 'Portão Principal',
-  time: '15:00',
-  exitGate: 'Portão Principal'
-}]
-localStorage.setItem(`@SmartExit:called:${schoolId}`, JSON.stringify(calls))
-```
+A chamada é uma linha em `public.pickup_events`, criada por um usuário autenticado com membership ativa. Gravar `@SmartExit:called:` no console não entra na fila.
 
 ### Inspecionar todos os dados
 

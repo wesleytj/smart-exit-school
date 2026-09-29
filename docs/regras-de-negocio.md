@@ -80,44 +80,35 @@ Contrato vigente: [autenticacao.md](autenticacao.md).
 
 ## 3. Fluxo de saída de alunos
 
+A fila oficial é `public.pickup_events`. A chave `@SmartExit:called:{schoolId}` não faz parte deste fluxo.
+
 ### 3.1 Pré-requisitos
 
 Para chamar um aluno:
 
-1. Aluno deve existir em `school.studentsList`
-2. Deve haver ao menos um portão em `school.exits` (fallback: `"Portão Principal"`)
-3. Aluno não pode já estar na fila `calledStudents` (mesmo `id`)
+1. O aluno está ativo, com matrícula do ano corrente e vínculo ativo de turma (`student.enrollmentId`).
+2. Existe ao menos um portão `active` em `public.gates` da escola. Sem portão ativo, a chamada não é criada.
+3. Essa matrícula não pode ter outra linha com `status = 'called'`.
+
+Qualquer membership `active` da escola opera a fila. Platform Admin não entra neste fluxo.
 
 ### 3.2 Seleção de portão na chamada
 
-Ordem de precedência para `exitGate`:
-
-```
-callExits[student.id]  →  student.defaultExit  →  school.exits[0]  →  "Portão Principal"
-```
-
-Operador pode alterar portão via `<select>` antes de chamar.
+O operador escolhe explicitamente o `gate.id` na hora. Sem essa escolha, a chamada não é enviada. O nome aparece só na tela. `defaultExit` e `school.exits` não escolhem o portão da fila.
 
 ### 3.3 Registro da chamada
 
-Ao chamar:
+`pickupService.callStudent` grava `school_id`, `student_enrollment_id` e `gate_id`. O status nasce `called`. Nome, turma e horário exibidos vêm da consulta, não de um snapshot local.
 
-- Adiciona objeto com `time` (hora:minuto locale) e `exitGate`
-- Insere no **início** da fila (LIFO para exibição — mais recente primeiro)
-- Persiste em `@SmartExit:called:{schoolId}`
+A fila ativa é `status = 'called'`, ordenada por `called_at` descendente. Quem está nela sai da lista de disponíveis.
 
 ### 3.4 Confirmação de saída
 
-- Botão "Confirmar Saída" remove aluno da fila
-- **Não registra histórico** permanente de saídas confirmadas
-- **Não notifica** responsáveis
+"Confirmar Saída" atualiza a linha para `completed` e preenche `completed_at`. A linha permanece no banco. A fila e a TV passam a omiti-la porque só leem `called`. Não há tela de histórico nem cancelamento nesta entrega. Não há aviso a responsáveis.
 
 ### 3.5 Telão (TV)
 
-- Exibe `calledStudents[0]` como "Chamada Atual"
-- Demais itens como "Chamadas Recentes"
-- Sincroniza com painel via `storage` event + polling 2s
-- Clique no header alterna fullscreen
+Com sessão da escola pronta, a TV lê a mesma fila `called`. O primeiro item é a chamada atual. Os demais são o resto da fila. Monitor e TV releem a fila a cada 5 segundos. Realtime ainda não entra neste fluxo. Clique no header alterna fullscreen.
 
 ---
 
