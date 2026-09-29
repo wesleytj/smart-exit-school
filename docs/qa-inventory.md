@@ -7,7 +7,8 @@
 **Método:** `SELECT` em `public.schools` via `docker exec` no Postgres local (`supabase_db_smart-exit-school`). Sem `INSERT`/`UPDATE`/`DELETE`, sem Data API, sem Browser E2E, sem `db reset`.  
 **Campos:** id, name, slug, status, plan, timezone, locale, created_at, updated_at, contagens de `academic_groups` e `students`. Sem senhas, tokens ou PII de alunos.
 
-Política normativa: [qa-data-governance.md](./qa-data-governance.md).
+Política normativa: [qa-data-governance.md](./qa-data-governance.md).  
+Smoke de Production: [qa-production-smoke.md](./qa-production-smoke.md).
 
 ## Classificações usadas
 
@@ -72,3 +73,26 @@ Atributos tabulares abaixo permanecem o snapshot de 2026-09-17. Esta atividade *
 3. `5fbc9b5c-…` / `smart-exit-dev-school` — **preservar**; divergência de plano/timestamps fora de escopo.
 
 Investigação de `plan`/`pro`, `updated_at` ou slug **não** foi reaberta.
+
+## Fixture de Production planejado
+
+**Status:** planejado — o aluno ainda não foi criado. Esta seção não autoriza a criação por si só. A criação segue [qa-production-smoke.md](./qa-production-smoke.md), depois da revisão desse procedimento.
+
+Nenhum ID abaixo foi lido no banco. Os campos de ID ficam pendentes até a criação autorizada. Não há UUID de planejamento.
+
+| Campo | Valor |
+|---|---|
+| Nome | `QA Pickup Smoke` |
+| Matrícula | `QA-PICKUP-001` |
+| Instituição | Colégio Adventista de Esteio |
+| Turma | `6ma` (já existente; não criar outra) |
+| Portão do smoke | `Portão` (já existente) |
+| Estado de repouso | `inactive` fora da janela de teste |
+| Estado final do smoke | `inactive`, e nenhum `pickup_events` desse fixture em `called` |
+| Papel | Fixture permanente. Não excluir após os testes. |
+| `students.id` | Pendente — preencher após a criação autorizada |
+| `student_enrollments.id` | Pendente — preencher após a criação autorizada |
+| `student_group_assignments.id` | Pendente — preencher após a criação autorizada |
+| Fora do procedimento | Alunos já existentes nessa instituição, inclusive matrícula `TEST-001` |
+
+`pickup_events` concluídos desse fixture, quando o smoke passar a existir, permanecem no banco. Ao final de cada smoke o fixture permanece `inactive` e não pode existir evento `called` desse fixture. Esta seção não lista eventos porque nenhum foi criado por este planejamento.
