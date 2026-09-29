@@ -15,7 +15,7 @@ import { gateService } from "../services/gateService"
 import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
 import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
-import { callService } from "../services/callService"
+import { ACTIVE_CALL_POLL_MS, availableStudents, pickupService } from "../services/pickupService.js"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
 import { schoolOpsStore } from "../services/schoolOpsStore"
@@ -76,9 +76,10 @@ export default function InstitutionPanel() {
 
   // --- 3.5 Monitor de Saída ---
   const [monitorSearch, setMonitorSearch] = useState("");
-  const [selectedExitFilter, setSelectedExitFilter] = useState("Todos");
-  const [calledStudents, setCalledStudents] = useState([]);
-  const [callExits, setCallExits] = useState({});
+  const [activeCalls, setActiveCalls] = useState([]);
+  const [selectedGateByStudent, setSelectedGateByStudent] = useState({});
+  const [callsError, setCallsError] = useState("");
+  const callsRequestRef = useRef(0);
 
   // ==================================================================
   // SEÇÃO 4: EFEITOS DE CICLO DE VIDA (useEffect)
@@ -217,11 +218,46 @@ export default function InstitutionPanel() {
     else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
-  // 4.6 Carrega lista de alunos que já foram chamados na sessão
+  // 4.6 Fila ativa em pickup_events. O intervalo é a releitura desta fase.
   useEffect(() => {
-    if (school?.id) {
-      void callService.getCallsBySchool(school.id).then(setCalledStudents);
+    const schoolId = school?.id;
+
+    if (!schoolId) {
+      return;
     }
+
+    let stopped = false;
+
+    async function readActiveCalls(reportError) {
+      const requestId = ++callsRequestRef.current;
+      const result = await pickupService.getActiveCallsBySchool(schoolId);
+
+      if (stopped || requestId !== callsRequestRef.current) {
+        return;
+      }
+
+      if (result.error) {
+        if (reportError) {
+          console.error(result.error);
+          setCallsError("Não foi possível carregar a fila.");
+        }
+        return;
+      }
+
+      setActiveCalls(result.data);
+      setCallsError("");
+    }
+
+    void readActiveCalls(true);
+    const timer = setInterval(() => {
+      void readActiveCalls(false);
+    }, ACTIVE_CALL_POLL_MS);
+
+    return () => {
+      stopped = true;
+      callsRequestRef.current += 1;
+      clearInterval(timer);
+    };
   }, [school?.id]);
 
   // ==================================================================
@@ -230,11 +266,11 @@ export default function InstitutionPanel() {
   // ==================================================================
   if (!school) return null;
 
-  const persistedExitNames = gatesList
-    .filter((gate) => gate.status !== "inactive")
-    .map((gate) => gate.name);
-  const firstPersistedExit = persistedExitNames[0] || "";
-  const monitorStudents = persistedStudents.filter((student) => student.status === "active" && student.assignmentId);
+  const activeGates = gatesList.filter((gate) => gate.status === "active");
+  const monitorStudents = availableStudents(
+    persistedStudents.filter((student) => student.status === "active" && student.assignmentId),
+    activeCalls
+  );
   const editingStudent = persistedStudents.find((student) => student.id === editingStudentId);
   const studentGroupChoices = [...activeGroups];
 
@@ -613,24 +649,61 @@ export default function InstitutionPanel() {
   }
 
   // --- Monitor de Saída ---
-  function handleCallStudent(student) {
-    if (!calledStudents.find(s => s.id === student.id)) {
-      const exitToUse = callExits[student.id] || student.defaultExit || firstPersistedExit;
-      const newCall = {
-        ...student,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        exitGate: exitToUse
-      };
-      void callService.addCall(school.id, newCall).then(() => {
-        setCalledStudents([newCall, ...calledStudents]);
-      });
+  async function reloadActiveCalls() {
+    const requestId = ++callsRequestRef.current;
+    const result = await pickupService.getActiveCallsBySchool(school.id);
+
+    if (requestId !== callsRequestRef.current) {
+      return;
+    }
+
+    if (result.error) {
+      console.error(result.error);
+      setCallsError("Não foi possível carregar a fila.");
+      return;
+    }
+
+    setActiveCalls(result.data);
+    setCallsError("");
+  }
+
+  async function handleCallStudent(student) {
+    const gateId = selectedGateByStudent[student.id] || "";
+    const gateIsActive = activeGates.some((gate) => gate.id === gateId);
+
+    if (!gateIsActive) {
+      setCallsError(activeGates.length === 0
+        ? "Cadastre ou ative um portão antes de chamar um aluno."
+        : "Selecione um portão antes de chamar o aluno.");
+      return;
+    }
+
+    if (!student.enrollmentId) {
+      setCallsError("Este aluno não tem matrícula válida para chamada.");
+      return;
+    }
+
+    const result = await pickupService.callStudent({
+      schoolId: school.id,
+      studentEnrollmentId: student.enrollmentId,
+      gateId
+    });
+
+    await reloadActiveCalls();
+
+    if (result.error) {
+      setCallsError(result.error.message || "Não foi possível chamar o aluno.");
     }
   }
 
-  function handleDismissStudent(id) {
-    void callService.dismissCall(school.id, id).then(async () => {
-      setCalledStudents(await callService.getCallsBySchool(school.id));
-    });
+  async function handleCompleteCall(eventId) {
+    const result = await pickupService.completeCall(eventId);
+
+    await reloadActiveCalls();
+
+    if (result.error) {
+      setCallsError(result.error.message || "Não foi possível confirmar a saída.");
+    }
   }
 
   // ==================================================================
@@ -725,15 +798,16 @@ export default function InstitutionPanel() {
               </button>
             </div>
 
+            {callsError && <p className="mb-4 text-sm font-medium text-red-500">{callsError}</p>}
+            {!gatesLoading && activeGates.length === 0 && (
+              <p className="mb-4 text-sm font-medium text-amber-600">Cadastre ou ative um portão antes de chamar um aluno.</p>
+            )}
+
             <div className="flex gap-4 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input type="text" placeholder="Buscar aluno ou turma..." value={monitorSearch} onChange={(e) => setMonitorSearch(e.target.value)} className="w-full bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-[#2a2a2a] dark:text-white rounded-xl py-3 pl-12 pr-4 outline-none transition" />
               </div>
-              <select value={selectedExitFilter} onChange={(e) => setSelectedExitFilter(e.target.value)} className="bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-[#2a2a2a] rounded-xl px-4 py-3 outline-none font-medium text-slate-700 dark:text-slate-200 transition">
-                <option value="Todos">Filtrar por Portão: Todos</option>
-                {persistedExitNames.map(exit => <option key={exit} value={exit}>{exit}</option>)}
-              </select>
             </div>
 
             <div className="flex gap-6 flex-1 min-h-0">
@@ -746,25 +820,26 @@ export default function InstitutionPanel() {
                 <div className="p-4 overflow-y-auto flex-1 space-y-2">
                   {monitorStudents
                     .filter(s => s.name.toLowerCase().includes(monitorSearch.toLowerCase()) || (s.grade || "").toLowerCase().includes(monitorSearch.toLowerCase()))
-                    .filter(s => selectedExitFilter === "Todos" || s.defaultExit === selectedExitFilter)
                     .map(student => (
                       <div key={student.id} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-[#2a2a2a] border border-slate-100 dark:border-[#2a2a2a] rounded-xl transition">
                         <div>
                           <p className="font-bold text-slate-800 dark:text-white">{student.name}</p>
-                          <p className="text-xs text-slate-500 font-medium">{student.grade} • Padrão: {student.defaultExit || "Não definido"}</p>
+                          <p className="text-xs text-slate-500 font-medium">{student.grade}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex flex-col items-end">
                             <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Sair por:</span>
                             <select
-                              value={callExits[student.id] || student.defaultExit || firstPersistedExit}
-                              onChange={(e) => setCallExits(prev => ({ ...prev, [student.id]: e.target.value }))}
+                              value={selectedGateByStudent[student.id] || ""}
+                              onChange={(e) => setSelectedGateByStudent(prev => ({ ...prev, [student.id]: e.target.value }))}
+                              disabled={activeGates.length === 0}
                               className="text-xs bg-slate-100 dark:bg-[#2a2a2a] border border-slate-200 dark:border-[#333333] text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1.5 outline-none cursor-pointer w-32"
                             >
-                              {persistedExitNames.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                              <option value="">Selecione</option>
+                              {activeGates.map(gate => <option key={gate.id} value={gate.id}>{gate.name}</option>)}
                             </select>
                           </div>
-                          <button onClick={() => handleCallStudent(student)} className="bg-primary text-white hover:opacity-90 h-10 px-4 rounded-lg font-bold transition flex items-center gap-2 mt-3 shadow-sm">
+                          <button onClick={() => handleCallStudent(student)} disabled={!activeGates.some((gate) => gate.id === selectedGateByStudent[student.id])} className="bg-primary text-white hover:opacity-90 h-10 px-4 rounded-lg font-bold transition flex items-center gap-2 mt-3 shadow-sm disabled:opacity-50">
                             <Megaphone size={16} /> Chamar
                           </button>
                         </div>
@@ -779,19 +854,19 @@ export default function InstitutionPanel() {
                   <h3 className="font-bold text-white flex items-center gap-2">
                     <Bell className="text-primary" size={20} /> Fila de Chamada
                   </h3>
-                  <span className="bg-primary text-white px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">{calledStudents.length}</span>
+                  <span className="bg-primary text-white px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">{activeCalls.length}</span>
                 </div>
                 <div className="p-4 overflow-y-auto flex-1 space-y-3">
-                  {calledStudents.map(student => (
-                    <div key={student.id} className="bg-slate-800/50 dark:bg-[#1a1a1a] border border-slate-700 dark:border-[#2a2a2a] p-4 rounded-xl animate-pulse">
+                  {activeCalls.map(call => (
+                    <div key={call.id} className="bg-slate-800/50 dark:bg-[#1a1a1a] border border-slate-700 dark:border-[#2a2a2a] p-4 rounded-xl animate-pulse">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="font-bold text-white text-lg leading-tight">{student.name}</p>
-                          <p className="text-slate-400 text-sm">{student.grade} • <span className="text-primary">{student.exitGate}</span></p>
+                          <p className="font-bold text-white text-lg leading-tight">{call.name}</p>
+                          <p className="text-slate-400 text-sm">{call.grade} • <span className="text-primary">{call.gateName}</span></p>
                         </div>
-                        <span className="text-xs text-slate-500 bg-slate-900 dark:bg-black px-2 py-1 rounded-md">{student.time}</span>
+                        <span className="text-xs text-slate-500 bg-slate-900 dark:bg-black px-2 py-1 rounded-md">{call.time}</span>
                       </div>
-                      <button onClick={() => handleDismissStudent(student.id)} className="w-full mt-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
+                      <button onClick={() => handleCompleteCall(call.id)} className="w-full mt-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
                         <CheckCircle size={16} /> Confirmar Saída
                       </button>
                     </div>

@@ -7,9 +7,9 @@ O projeto opera em **dois modelos de persistência simultâneos**:
 | Camada | Tecnologia | Status | Uso no runtime |
 |--------|------------|--------|----------------|
 | **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Catálogo `schools` via `schoolService` (CRUD) |
-| **localStorage** | `storageClient` + services | Cache operacional no frontend | Chamadas, portões, tema. Não autoriza tenant |
+| **localStorage** | `storageClient` + services | Cache operacional no frontend | Tema e cache `@SmartExit:schoolOps:`. A fila de saída não usa localStorage |
 
-A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). A maior parte do frontend ainda persiste via localStorage.
+A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). Tema e cache operacional ainda usam localStorage. A fila de saída está em `public.pickup_events`.
 
 - Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
 - Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
@@ -482,7 +482,7 @@ Representa eventos operacionais de saída: chamada ativa, conclusão da saída o
 
 ### Relação atual: `gates`, `pickup_events` e `student_enrollments`
 
-Esta seção descreve o **modelo relacional PostgreSQL vigente** (Academic Core + Pickup Core). Ela não descreve o runtime do frontend. O painel operacional ainda persiste portões e chamadas em `localStorage`; ver a distinção explícita abaixo.
+Esta seção descreve o **modelo relacional PostgreSQL vigente** (Academic Core + Pickup Core). A fila operacional do Monitor e da TV é `public.pickup_events`. Os portões operacionais estão em `public.gates`.
 
 #### Papel de cada entidade
 
@@ -516,23 +516,20 @@ Regras objetivas do schema atual:
 
 O diagrama ER no início deste documento já mostra essas FKs. Esta seção apenas torna a relação operacional explícita.
 
-#### PostgreSQL atual vs runtime legado (`localStorage`)
+#### Fila operacional
 
-Os nomes se parecem; os modelos **não são o mesmo sistema** e **não estão sincronizados**.
+`public.pickup_events` é a fila do Monitor e da TV.
 
-| Conceito | Modelo PostgreSQL atual | Runtime legado (frontend ativo) |
-|----------|-------------------------|----------------------------------|
-| Portão | Tabela `public.gates` | Fonte de verdade do painel e do Monitor (`gateRepository` / `gateService`). `school_id` vem do tenant autorizado. RLS autoriza no banco. `@SmartExit:gates:{schoolId}` não é mais lido nem gravado |
-| Chamada de saída | Tabela `public.pickup_events` | Fila `@SmartExit:called:{schoolId}` via `callService` (objetos da sessão local; sem FK para matrícula nem para `public.gates`) |
-| Aluno na chamada | `pickup_events.student_enrollment_id` → `student_enrollments` | Identidade/turma no array `studentsList[]` e no objeto da chamada local; **não existe** entidade de matrícula no `localStorage` |
+- A consulta ativa é `status = 'called'`, ordenada por `called_at` descendente.
+- Chamar insere `school_id`, `student_enrollment_id` e `gate_id`. O status nasce `called`.
+- Confirmar atualiza a mesma linha para `completed` e preenche `completed_at`. A linha não é apagada.
+- A migration `20260928140000_pickup_events_operational_writes.sql` concede `INSERT` e `UPDATE` a `authenticated`. `SELECT` continua o da Migration 0005. `DELETE` não foi concedido.
+- A migration `20260928170000_pickup_events_insert_called_only.sql` exige que o INSERT nasça `called`, permite só a transição `called` → `completed`, rejeita alteração de `school_id`, `student_enrollment_id`, `gate_id` e `called_at` enquanto a linha está `called`, e revoga `DELETE` de `authenticated`.
+- `pickup_events_share_school` e o trigger `pickup_events_coherence` exigem a mesma escola no evento, na matrícula e no portão. As policies de `pickup_events` repetem essa checagem.
+- O índice único parcial `pickup_events_active_enrollment_unique` continua impedindo duas linhas `called` para a mesma matrícula.
+- `@SmartExit:called:{schoolId}` não é a fila.
 
-Consequências do estado atual:
-
-- `gateService` lê e grava `public.gates`. `callService` continua só no `localStorage`. Chamadas ainda não usam `public.pickup_events`.
-- `public.gates` é a fonte de verdade dos portões do painel e do Monitor. A vertical Gates está `CLOSED / PRODUCTION VERIFIED` (`8cb71ac`, `feat(gates): persist school gates in Supabase`).
-- A fila `@SmartExit:called:{schoolId}` não é `public.pickup_events`.
-
-A tabela resumida **Gap schema DB ↔ frontend legado**, mais abaixo neste documento, permanece a visão compacta desse desalinhamento. A fonte desta relação de domínio é o schema das migrations 0002 e 0004.
+`public.gates` segue como fonte dos portões. A vertical Gates está `CLOSED / PRODUCTION VERIFIED` (`8cb71ac`).
 
 ---
 
@@ -625,13 +622,12 @@ Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `st
 |-------|----------|
 | `@SmartExit:loggedSchool` | Chave legada. Não autoriza acesso e não escolhe o tenant |
 | `@SmartExit:darkMode` | Preferência de tema |
-| `@SmartExit:called:{schoolId}` | Fila de chamadas |
 
 ### Catálogo `schools` (Issue #16)
 
 `schoolService` (`getAllSchools`, `saveSchool`, `deleteSchool`) persiste exclusivamente em `public.schools` via `schoolRepository`. A chave `@SmartExit:schools` **não existe mais** no frontend.
 
-Ainda no localStorage: chamadas, tema e o cache operacional de turmas/alunos (`@SmartExit:schoolOps:{schoolId}`). Portões não usam mais `@SmartExit:gates:{schoolId}`. `@SmartExit:loggedSchool` não é sessão nem autorização.
+Ainda no localStorage: tema e o cache operacional `@SmartExit:schoolOps:{schoolId}`. A fila de saída está em `public.pickup_events`. Portões não usam `@SmartExit:gates:{schoolId}`. `@SmartExit:loggedSchool` não é sessão nem autorização.
 
 O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
 
@@ -648,4 +644,4 @@ O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `
 | Turma | `academic_groups` + `student_group_assignments` | `classes[]` |
 | Aluno | `students` + `student_enrollments` | `studentsList[]` |
 | Portão | `gates` (schema ✅; frontend ❌) | `exits[]` + `gatesList` |
-| Chamada de saída | `pickup_events` (schema ✅; frontend ❌) | `called[]` / monitor local |
+| Chamada de saída | `pickup_events` (`called` / `completed`) | `pickupService` lê e grava `public.pickup_events` |

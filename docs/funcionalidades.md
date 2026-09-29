@@ -44,15 +44,14 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Listar alunos disponíveis | ✅ |
+| Listar alunos disponíveis | ✅ Aluno com chamada `called` sai da lista |
 | Buscar por nome ou turma | ✅ |
-| Filtrar por portão | ✅ |
-| Selecionar portão por aluno | ✅ |
-| Chamar aluno (adicionar à fila) | ✅ |
-| Fila de chamada com horário | ✅ |
-| Confirmar saída (remover da fila) | ✅ |
+| Selecionar portão por aluno | ✅ Por `gate.id`; nome só na tela |
+| Chamar aluno | ✅ Insere `pickup_events` com status `called` |
+| Fila de chamada com horário | ✅ `called_at`, mais recente primeiro |
+| Confirmar saída | ✅ Atualiza para `completed`; a linha permanece |
 | Abrir telão em nova aba | ✅ |
-| Impedir chamada duplicada | ✅ |
+| Impedir chamada duplicada | ✅ Lista ativa + índice único por matrícula |
 
 ### Aba: Gestão de Alunos ✅
 
@@ -87,7 +86,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Vincular turmas como saída padrão | ✅ |
 | Propagação para alunos | ✅ |
 | CRUD `school.exits` (legado) | ⚠️ Handlers existem; **UI não exposta** |
-| Uso de gatesList no monitor | ❌ Monitor usa `school.exits` |
+| Uso de `gates` no monitor | ✅ Seletor usa `gate.id` dos portões ativos |
 
 ### Aba: Importar Dados ✅
 
@@ -149,7 +148,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Exibir chamada atual | ✅ |
 | Exibir chamadas recentes | ✅ |
 | Relógio e data (pt-BR) | ✅ |
-| Sincronização em tempo real | ✅ (storage + polling) |
+| Sincronização da fila | ✅ Polling a cada 5 segundos; sem Realtime |
 | Fullscreen (clique no header) | ✅ |
 | Whitelabel (logo/cores) | ✅ Premium/Diamond |
 | Dark mode | ✅ (lê `@SmartExit:darkMode`) |

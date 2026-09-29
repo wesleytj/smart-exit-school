@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Clock, GraduationCap, MapPin, User, Volume2 } from "lucide-react"
-import { callService } from "../services/callService"
+import { ACTIVE_CALL_POLL_MS, pickupService, splitActiveQueue } from "../services/pickupService.js"
 import { themeService } from "../services/themeService"
 import { schoolOpsStore } from "../services/schoolOpsStore"
 import { toPanelSchool } from "../services/tenantAccess"
@@ -9,7 +9,8 @@ import { STORAGE_KEYS } from "../services/core/keys"
 
 export default function TvDisplay() {
   const { status, school } = useTenantSession()
-  const [calledStudents, setCalledStudents] = useState([])
+  const schoolId = school?.id
+  const [activeCalls, setActiveCalls] = useState([])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [schoolInfo, setSchoolInfo] = useState(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -24,25 +25,38 @@ export default function TvDisplay() {
   }, [])
 
   useEffect(() => {
-    let unsubscribeCalls = () => {}
-    let cancelled = false
+    let stopped = false
+    let requestSeq = 0
+    let timer = null
 
     async function init() {
-      if (status !== "ready" || !school?.id) {
+      if (status !== "ready" || !schoolId) {
         setSchoolInfo(null)
-        setCalledStudents([])
+        setActiveCalls([])
         return
       }
 
-      const storedOps = await schoolOpsStore.get(school.id)
-      if (cancelled) return
+      const requestId = ++requestSeq
+      const storedOps = await schoolOpsStore.get(schoolId)
+      if (stopped || requestId !== requestSeq) return
 
       setSchoolInfo(toPanelSchool(school, storedOps, ""))
-      const calls = await callService.getCallsBySchool(school.id)
-      if (cancelled) return
+      const result = await pickupService.getActiveCallsBySchool(schoolId)
+      if (stopped || requestId !== requestSeq) return
 
-      setCalledStudents(calls)
-      unsubscribeCalls = callService.subscribeToCalls(school.id, setCalledStudents)
+      if (!result.error) {
+        setActiveCalls(result.data)
+      }
+
+      if (stopped) return
+
+      timer = setInterval(() => {
+        const pollId = ++requestSeq
+        void pickupService.getActiveCallsBySchool(schoolId).then((next) => {
+          if (stopped || pollId !== requestSeq || next.error) return
+          setActiveCalls(next.data)
+        })
+      }, ACTIVE_CALL_POLL_MS)
     }
 
     const handleStorageChange = (e) => {
@@ -55,11 +69,12 @@ export default function TvDisplay() {
     void init()
 
     return () => {
-      cancelled = true
-      unsubscribeCalls()
+      stopped = true
+      requestSeq += 1
+      if (timer) clearInterval(timer)
       window.removeEventListener("storage", handleStorageChange)
     }
-  }, [school, status])
+  }, [schoolId, status])
 
   function toggleFullScreen() {
     if (!document.fullscreenElement) {
@@ -69,8 +84,9 @@ export default function TvDisplay() {
     }
   }
 
-  const currentCall = calledStudents[0]
-  const recentCalls = calledStudents.slice(1)
+  const queue = splitActiveQueue(activeCalls)
+  const currentCall = queue.current
+  const recentCalls = queue.following
 
   const dateFormatted = currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
   const timeFormatted = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -133,7 +149,7 @@ export default function TvDisplay() {
                     
                     <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xl font-medium transition-colors">
                       <MapPin size={24} className="text-green-600 dark:text-green-500" />
-                      Saída: <span className="font-bold text-green-600 dark:text-green-500 uppercase">{currentCall.exitGate}</span>
+                      Saída: <span className="font-bold text-green-600 dark:text-green-500 uppercase">{currentCall.gateName}</span>
                     </div>
 
                     <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium transition-colors">Por favor, dirija-se à saída indicada.</p>
@@ -143,7 +159,7 @@ export default function TvDisplay() {
                 <div className="w-40 h-40 border-4 border-slate-100 dark:border-[#2a2a2a] rounded-full flex flex-col items-center justify-center bg-slate-50 dark:bg-[#111111] shrink-0 mr-4 shadow-inner transition-colors">
                   <MapPin size={28} className="text-green-600 dark:text-green-500 mb-1" />
                   <span className="text-green-600 dark:text-green-500 font-black text-lg text-center leading-tight uppercase px-2">
-                    {currentCall.exitGate}
+                    {currentCall.gateName}
                   </span>
                 </div>
               </div>
@@ -182,7 +198,7 @@ export default function TvDisplay() {
                   
                   <div className="mt-4 flex items-center gap-1 text-green-600 dark:text-green-500 font-bold text-sm uppercase transition-colors">
                     <MapPin size={16} />
-                    {student.exitGate}
+                    {student.gateName}
                   </div>
                 </div>
               ))}
