@@ -30,4 +30,8 @@ dist-ssr
 # Supabase Studio local query snippets
 supabase/snippets/
 
+# Backups de produção
+supabase/backup_production_pre_pickup_20261001.sql
+supabase/backup_*.sql
+
 .cursor/qa-credentials.local.md
