@@ -1,132 +1,175 @@
-# Smart Exit School
+# Smart Exit School (SES)
 
-Sistema web moderno para gestão e monitoramento da saída de alunos em instituições de ensino, desenvolvido pela **AllTech Solutions**.
+> Sistema SaaS moderno de gestão, organização e chamada inteligente de saída de alunos para instituições de ensino.
 
-![Preview Smart Exit School](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/preview_ses.gif)
+![React](https://img.shields.io/badge/React-19.2.5-61DAFB?logo=react)
+![Vite](https://img.shields.io/badge/Vite-8.0.10-646CFF?logo=vite)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
+![Node Test Runner](https://img.shields.io/badge/Tests-Node_Test_Runner-339933?logo=node.js)
+![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=github-actions)
 
-## Descrição
+---
 
-O **Smart Exit School** é uma plataforma robusta desenvolvida no modelo **SaaS (Software as a Service)**, focada em otimizar e organizar a logística de saída escolar. Operando como uma Single Page Application (SPA) multi-instituição, o sistema conecta o fluxo operacional das escolas com painéis em tempo real (Telão/TV), garantindo que os alunos sejam chamados de forma clara, segura e eficiente.
+## 1. Visão Geral do Produto
 
-## Problema que resolve
+O **Smart Exit School** é uma solução desenvolvida pela **AllTech Solutions** voltada para otimizar, organizar e dar segurança ao fluxo logístico de saída escolar:
 
-O final do expediente escolar costuma ser um momento de estresse, gerando aglomerações em portões, desencontros entre pais e alunos e poluição sonora com o uso excessivo de microfones. 
+- **Elimina aglomerações e poluição sonora:** substitui o uso caótico de microfones por chamadas visuais e silenciosas.
+- **Fila operacional digitalizada:** registro e transição de chamadas em tempo real conectando portarias e salas.
+- **Acompanhamento no telão (TV):** permite que alunos e responsáveis acompanhem o status visualmente através de monitores estrategicamente posicionados.
+- **Gestão integrada:** centraliza a administração de instituições, ciclos acadêmicos, turmas, alunos e portões de saída.
 
-O Smart Exit School resolve esse problema ao **digitalizar a fila de chamadas**, permitindo que inspetores e professores acionem a saída dos alunos de forma silenciosa e coordenada, enquanto os pais e os próprios alunos acompanham o status visualmente através de monitores e telões estrategicamente posicionados na escola.
+---
 
-## Principais funcionalidades
+## 2. Principais Módulos do Sistema
 
-- **Gestão Multi-instituição (SaaS):** Painel Super Admin exclusivo para gerenciamento de clientes, escolas parceiras e controle de assinaturas.
-- **Controle de Acessos e Planos:** Sistema flexível de *tiers* (Basic, Premium, Diamond) com recursos habilitados dinamicamente por plano.
-- **Painel Operacional Institucional:** Interface intuitiva para gestão rápida de turmas, alunos e portões de saída.
-- **Monitor de Chamadas em Tempo Real:** Telão otimizado (TV) para exibição do aluno atualizado na fila, incluindo histórico de chamadas recentes e indicação do portão de saída.
-- **Importação em Lote:** Cadastro acelerado de grandes volumes de alunos via arquivos CSV.
-- **Personalização e Whitelabel:** Suporte a logomarcas customizadas e paleta de cores dinâmicas adaptadas à identidade visual de cada escola (Planos Premium/Diamond).
-- **Dark Mode:** Interface adaptável aos modos claro e escuro, reduzindo o cansaço visual de operadores.
+### 2.1. Gestão de Instituições (Platform Admin)
+- **Rota:** `/admin/institutions`
+- **Acesso:** restrito a Platform Admins (controlado via `usePlatformAdmin()` e RPC `public.is_platform_admin()`).
+- **Funcionalidades:** cadastro de instituições escolares parceiras, controle de planos de assinatura (Basic, Premium, Diamond) e gestão de ciclos de vida/status.
 
-## Diferenciais
+### 2.2. Painel Institucional da Escola
+- **Rota:** `/painel`
+- **Acesso:** protegido por `TenantPanelGate` (autenticação via Supabase Auth + membership ativa em `public.school_members`).
+- **Funcionalidades:** gestão de níveis acadêmicos, turmas, cadastro e enturmação de alunos, matrículas e configuração de portões de saída.
 
-- **Interface de Alta Performance:** Navegação fluida, sem recarregamento de páginas, focada na experiência do usuário (UX).
-- **Identidade Visual Enterprise:** Motor de estilos dinâmicos que assume as cores institucionais do cliente de ponta a ponta.
-- **Arquitetura Modular:** Arquitetura baseada em componentes reutilizáveis e abstração de serviços, facilitando a integração futura com ecossistemas mobile e geolocalização.
+### 2.3. Monitor Operacional de Chamadas
+- **Funcionalidade:** acionamento de chamadas de alunos em tempo real com seleção explícita do portão de saída.
+- **Persistência:** `public.pickup_events` (Supabase PostgreSQL como Fonte da Verdade).
+- **Acesso:** operadores escolares com membership ativa.
 
-## Tecnologias utilizadas
+### 2.4. Monitor de Chamadas Telão (TV)
+- **Rota:** `/tv`
+- **Funcionalidade:** exibição otimizada para televisores e monitores de alta visibilidade com a fila de chamadas recentes, indicação de turma e portão.
+- **Acesso:** público dedicado na escola.
 
-O projeto adota uma stack moderna e consolidada no ecossistema de desenvolvimento web:
+### 2.5. Personalização & Whitelabel
+- Suporte a temas institucionais, logos personalizados da escola parceira e Dark Mode nativo.
 
-- **React 19** 
-- **Vite 8** (Build tool e Dev server ultra-rápido)
-- **Tailwind CSS 4** (Utility-first framework via `@tailwindcss/vite`)
-- **React Router DOM 7** (Roteamento de interface)
-- **Lucide React** (Biblioteca de ícones SVG consistentes)
-- **Supabase** (PostgreSQL + Auth; contexto de escola via `school_members`, ver `docs/autenticacao.md`)
+---
 
-## Arquitetura geral
+## 3. Arquitetura e Engenharia de Software
 
-A arquitetura do projeto segue o padrão modular em um ecossistema React, garantindo separação de responsabilidades:
+### 3.1. Frontend SPA
+- Desenvolvido em **React 19**, **Vite 8** e roteamento declarativo com **React Router DOM 7**.
+- Estilização utilitária moderna com **Tailwind CSS 4**.
 
-- `/components`: Estruturas de interface agnósticas e reutilizáveis (Botões, Modais, Inputs).
-- `/pages`: Componentes de visualização de alto nível atrelados às rotas da aplicação.
-- `/services`: Camada de abstração de dados (DAL) — isolando persistência da UI.
-- `/lib`: Client Supabase.
-- `/supabase`: Migrations SQL, seed e configuração do banco PostgreSQL.
-- `/assets`: Recursos estáticos e mídias globais.
+### 3.2. Separação em Camadas (DAL — Data Access Layer)
+- **Repositórios (`src/repositories/`):** encapsulam as operações de leitura, escrita e relacionamentos diretos com o Supabase.
+- **Serviços (`src/services/`):** abstraem as regras de negócio, transformações e validações de dados.
+- **Camada de Apresentação (`src/components/`, `src/pages/`):** componentes puramente declarativos — **nunca** acessam o banco de dados ou o armazenamento local diretamente.
 
-## Screenshots
+### 3.3. Backend & Persistência
+- **Supabase (PostgreSQL):** fonte oficial da verdade relacional.
+- **Row Level Security (RLS):** habilitado compulsoriamente em todas as tabelas de dados do schema `public`.
+- **Multi-Tenancy:** isolamento estrito de tenants por `school_id`, garantido via policies RLS e contexto validado em `public.school_members`.
+- **Cache Local:** `localStorage` retido exclusivamente para preferências de tema e cache operacional de interface.
 
-| Painel Administrativo | Monitor de Chamadas (TV) |
-| :---: | :---: |
-| ![Painel Admin](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/dashboard_institucional.png) | ![Monitor TV](https://github.com/wesleytj/smart-exit-school/blob/main/docs/screenshots/telao_saida.png) |
+### 3.4. Autenticação & Sessão
+- Identidade corporativa gerenciada via **Supabase Auth** (`auth.uid()`).
+- Separação estrita entre autoridade de plataforma (`is_platform_admin()`) e autoridade de tenant escolar (`public.school_members`).
+- Gestão reativa de estado através de Context Providers (`PlatformAdminProvider`, `TenantSessionProvider`).
 
-## Como executar localmente
+---
 
-Siga as instruções abaixo para configurar o ambiente de desenvolvimento em sua máquina local:
+## 4. Stack Tecnológica
+
+| Categoria | Tecnologia | Versão |
+|---|---|---|
+| **UI Framework** | React | 19.2.5 |
+| **Build Tool / Bundler** | Vite | 8.0.10 |
+| **Styling** | Tailwind CSS | 4.2.4 |
+| **Routing** | React Router DOM | 7.17.0 |
+| **Backend / DB / Auth** | Supabase (PostgreSQL + Auth + RLS) | `@supabase/supabase-js` 2.108.2 |
+| **Iconografia** | Lucide React | 1.14.0 |
+| **Test Runner** | Node Test Runner (`node --test`) | Nativo |
+| **Code Quality** | ESLint | 10.2.1 |
+| **CI** | GitHub Actions | Lint + Build |
+| **Deploy / Hosting** | Vercel | SPA rewrite configurado (`vercel.json`) |
+
+---
+
+## 5. Como Executar Localmente
+
+### 5.1. Pré-requisitos
+- **Node.js:** versão 20.x ou 22.x LTS (recomendado: 22.x)
+- **Docker Desktop:** em execução (para a infraestrutura local do Supabase)
+- **Supabase CLI:** instalado localmente via `npx supabase`
+
+### 5.2. Passo a Passo
 
 ```bash
-# 1. Clone o repositório
+# 1. Clonar o repositório
 git clone https://github.com/wesleytj/smart-exit-school.git
 cd smart-exit-school
 
-# 2. Instale as dependências do projeto
+# 2. Instalar dependências do projeto
 npm install
 
-# 3. Configure variáveis de ambiente (Supabase)
-cp .env.example .env.local   # se .env.example existir; ou crie manualmente
-# VITE_SUPABASE_URL=
-# VITE_SUPABASE_ANON_KEY=
+# 3. Configurar variáveis de ambiente
+cp .env.example .env.local
+# Atualize .env.local com as credenciais do Supabase local (ou remoto)
 
-# 4. Inicie o banco de dados local (Requer Docker Desktop rodando e Supabase CLI)
-supabase start
-supabase db reset
+# 4. Iniciar containers do Supabase local (Docker)
+npx supabase start
 
-# 5. Inicie o servidor de desenvolvimento
+# 5. Aplicar migrations e seed baseline de desenvolvimento
+npx supabase db reset
+
+# 6. Iniciar o servidor de desenvolvimento Vite
 npm run dev
-
-# Acesse a URL exibida no terminal (geralmente http://localhost:5173).
-# O frontend ainda utiliza localStorage para operações operacionais; o schema PostgreSQL está em migração.
 ```
 
-## Documentação
+### 5.3. Endereços de Acesso
+* **Aplicação Web:** `http://localhost:5173`
+* **Supabase Studio Local:** `http://localhost:54323`
 
-A documentação detalhada do ecossistema encontra-se na pasta `/docs`:
+---
 
-- Arquitetura e Fluxos
+## 6. Scripts e Qualidade
 
-- Estrutura de Pastas e Módulos
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o servidor de desenvolvimento com HMR |
+| `npm run build` | Compila o bundle otimizado de produção em `dist/` |
+| `npm run lint` | Executa a verificação estática com ESLint 10 |
+| `npm test` | Executa a suíte de testes unitários automatizados (Node Test Runner) |
+| `npm run audit:db` | Executa o Database Auditor v1 (validação do schema, policies e seed baseline) |
+| `npm run validate:rls` | Executa a validação da fundação de Row Level Security |
 
-- Regras de Negócio e Permissões
+---
 
-- Guia de Deploy
+## 7. Governança e Agentes de IA (AADS)
 
-## Roadmap
+O Smart Exit School é governado compulsoriamente pelo protocolo operacional **AADS (AllTech Agent Development Standard)**:
 
-O desenvolvimento do Smart Exit School é contínuo. Nossos próximos grandes marcos incluem:
+- [AGENTS.md](./AGENTS.md): Protocolo operacional de agentes no workspace (Regra Zero, hierarquia normativa, governança de Decision Gates e Completion Model).
+- [GEMINI.md](./GEMINI.md): Contexto consolidado de arquitetura, stack tecnológica e separação de camadas.
+- [.agents/rules/](./.agents/rules/): Regras permanentes de persistência DAL, governança de dados de QA e segurança de banco de dados.
+- [.agents/skills/](./.agents/skills/): Procedimentos padronizados para auditoria de banco de dados e testes de fumaça (Smoke).
 
-- [ ] Módulo de Relatórios Analytics: Gráficos gerenciais de auditoria e tempo de saída.
+---
 
-- [ ] Ecossistema Mobile (Diamond): Integração com aplicativo para pais, incluindo geolocalização ("Estou Chegando").
+## 8. Documentação Técnica & Roadmap
 
-- [ ] Gestão de Frotas: Módulo dedicado para controle de vans e transportes escolares.
+### 8.1. Manuais Técnicos Oficiais
+* [Arquitetura Geral](docs/arquitetura.md)
+* [Estrutura do Projeto](docs/estrutura-do-projeto.md)
+* [Banco de Dados & Schema](docs/banco-de-dados.md)
+* [Autenticação & Multi-Tenancy](docs/autenticacao.md)
+* [Permissões & Planos](docs/permissoes.md)
+* [Funcionalidades Mapeadas](docs/funcionalidades.md)
+* [Roadmap de Produto](docs/roadmap.md)
+* [API & Rotas](docs/api.md)
+* [Deploy & Infraestrutura](docs/deploy.md)
+* [Governança de Dados de QA](docs/qa-data-governance.md)
 
-- [ ] API Rest e Webhooks: Permitir integrações de catracas e sistemas legados de escolas via endpoints abertos.
+### 8.2. Decisões Arquiteturais
+* [ADRs Consolidadas](docs/arquitetura/decisoes.md) *(Architecture Decision Records 001–028)*
 
-- [ ] Internacionalização (i18n): Suporte nativo a múltiplos idiomas.
+---
 
-## Status atual do projeto
+## 9. Licença
 
-**Fase:** `Beta` / `Em Desenvolvimento Ativo`.
-
-| Área | Status |
-|------|--------|
-| Frontend SPA + DAL | ✅ Funcional |
-| Schema PostgreSQL (Auth + Academic + Pickup) | ✅ Migrations 0001–0004 |
-| Integração Supabase no frontend | ⚠️ Parcial (`schoolService` CRUD do catálogo; demais entities ainda localStorage) |
-| Supabase Auth (ADR-004) | ❌ Pendente no frontend |
-| RLS | ❌ Pendente |
-| Produção 1.0 | 🚧 Em consolidação |
-
-## Sobre a AllTech Solutions
-
-A **AllTech Solutions** tem como missão transformar desafios logísticos do cotidiano através de soluções tecnológicas inteligentes, escaláveis e acessíveis. O Smart Exit School é uma de nossas iniciativas voltadas para a revolução digital na infraestrutura da educação básica.
-
-**Autor:** Wesley Treib Jacques 
+Este projeto é proprietário da **AllTech Solutions**. Todos os direitos reservados.
