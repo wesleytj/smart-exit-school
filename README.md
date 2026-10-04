@@ -15,10 +15,10 @@
 
 O **Smart Exit School** é uma solução desenvolvida pela **AllTech Solutions** voltada para otimizar, organizar e dar segurança ao fluxo logístico de saída escolar:
 
-- **Elimina aglomerações e poluição sonora:** substitui o uso caótico de microfones por chamadas visuais e silenciosas.
-- **Fila operacional digitalizada:** registro e transição de chamadas em tempo real conectando portarias e salas.
-- **Acompanhamento no telão (TV):** permite que alunos e responsáveis acompanhem o status visualmente através de monitores estrategicamente posicionados.
-- **Gestão integrada:** centraliza a administração de instituições, ciclos acadêmicos, turmas, alunos e portões de saída.
+- **Elimina aglomerações e poluição sonora:** substitui o uso caótico de microfones manuais por chamadas visuais e anúncios sonoros inteligentes com voz sintetizada e chime configurável.
+- **Fila operacional digitalizada:** registro, transição e cancelamento operacional de chamadas em tempo real conectando portarias e salas.
+- **Acompanhamento no telão (TV):** permite que alunos e responsáveis acompanhem o status visual e sonoro através de monitores estrategicamente posicionados com áudio integrado.
+- **Gestão integrada:** centraliza a administração de instituições, anos letivos configuráveis, turmas, alunos e portões de saída.
 
 ---
 
@@ -32,16 +32,16 @@ O **Smart Exit School** é uma solução desenvolvida pela **AllTech Solutions**
 ### 2.2. Painel Institucional da Escola
 - **Rota:** `/painel`
 - **Acesso:** protegido por `TenantPanelGate` (autenticação via Supabase Auth + membership ativa em `public.school_members`).
-- **Funcionalidades:** gestão de níveis acadêmicos, turmas, cadastro e enturmação de alunos, matrículas e configuração de portões de saída.
+- **Funcionalidades:** gestão de anos letivos configuráveis (`public.school_years`) com definição de ano ativo, níveis acadêmicos, turmas, cadastro e enturmação de alunos, matrículas e configuração de portões de saída.
 
 ### 2.3. Monitor Operacional de Chamadas
-- **Funcionalidade:** acionamento de chamadas de alunos em tempo real com seleção explícita do portão de saída.
-- **Persistência:** `public.pickup_events` (Supabase PostgreSQL como Fonte da Verdade).
+- **Funcionalidades:** acionamento de chamadas de alunos em tempo real com seleção explícita do portão de saída e suporte a cancelamento operacional de chamadas (transição para `cancelled` com auditoria e preenchimento de `cancelled_at`).
+- **Persistência:** `public.pickup_events` (Supabase PostgreSQL como Fonte da Verdade com coerência garantida via triggers).
 - **Acesso:** operadores escolares com membership ativa.
 
 ### 2.4. Monitor de Chamadas Telão (TV)
 - **Rota:** `/tv`
-- **Funcionalidade:** exibição otimizada para televisores e monitores de alta visibilidade com a fila de chamadas recentes, indicação de turma e portão.
+- **Funcionalidade:** exibição otimizada para televisores e monitores de alta visibilidade com fila de chamadas em tempo real, indicação de turma e portão, acompanhada de anúncio sonoro inteligente (chime e síntese de voz com fila sequencial e debounce).
 - **Acesso:** público dedicado na escola.
 
 ### 2.5. Personalização & Whitelabel
@@ -63,7 +63,7 @@ O **Smart Exit School** é uma solução desenvolvida pela **AllTech Solutions**
 ### 3.3. Backend & Persistência
 - **Supabase (PostgreSQL):** fonte oficial da verdade relacional.
 - **Row Level Security (RLS):** habilitado compulsoriamente em todas as tabelas de dados do schema `public`.
-- **Multi-Tenancy:** isolamento estrito de tenants por `school_id`, garantido via policies RLS e contexto validado em `public.school_members`.
+- **Multi-Tenancy Endurecido:** isolamento estrito de tenants por `school_id`, garantido fim a fim via policies RLS, revogação de privilégios destrutivos (`TRUNCATE`), grants mínimos necessários para o role `authenticated` e defesa em profundidade validada na DAL e em suíte de testes dedicada.
 - **Cache Local:** `localStorage` retido exclusivamente para preferências de tema e cache operacional de interface.
 
 ### 3.4. Autenticação & Sessão
