@@ -1,5 +1,5 @@
-import { gateRepository } from '../repositories/gateRepository';
-import { nextDisplayOrder } from './gateOrder';
+import { gateRepository } from '../repositories/gateRepository.js';
+import { nextDisplayOrder } from './gateOrder.js';
 
 export { nextDisplayOrder };
 

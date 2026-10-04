@@ -91,6 +91,10 @@ function mapPickupError(error) {
     return new Error('A escola, a matrícula, o portão e o horário da chamada não podem ser alterados.');
   }
 
+  if (message.includes('A chamada não pertence a esta escola')) {
+    return new Error('A chamada não pertence a esta escola.');
+  }
+
   if (code === '23514' && (
     message.includes('can only change from called to completed') ||
     message.includes('can only transition from called to completed or cancelled') ||
@@ -190,12 +194,12 @@ export const pickupService = {
     return { data: created.data, error: null };
   },
 
-  async completeCall(eventId) {
+  async completeCall(eventId, schoolId = null) {
     if (!eventId) {
       return { data: null, error: new Error('Chamada inválida.') };
     }
 
-    const result = await pickupEventRepository.complete(eventId);
+    const result = await pickupEventRepository.complete(eventId, schoolId);
 
     if (result.error) {
       return { data: null, error: mapPickupError(result.error) };
@@ -208,12 +212,12 @@ export const pickupService = {
     return { data: result.data, error: null };
   },
 
-  async cancelCall(eventId) {
+  async cancelCall(eventId, schoolId = null) {
     if (!eventId) {
       return { data: null, error: new Error('Chamada inválida.') };
     }
 
-    const result = await pickupEventRepository.cancel(eventId);
+    const result = await pickupEventRepository.cancel(eventId, schoolId);
 
     if (result.error) {
       return { data: null, error: mapPickupError(result.error) };

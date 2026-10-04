@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase.js';
 
 const GATE_COLUMNS = 'id, school_id, name, description, display_order, status, created_at, updated_at';
 
