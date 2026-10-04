@@ -86,8 +86,26 @@ export const pickupEventRepository = {
       .single();
   },
 
-  async complete(eventId) {
+  async complete(eventId, schoolId = null) {
     const supabase = await db();
+
+    const { data: event, error: fetchError } = await supabase
+      .from('pickup_events')
+      .select('id, school_id, status')
+      .eq('id', eventId)
+      .maybeSingle();
+
+    if (fetchError) {
+      return { data: null, error: fetchError };
+    }
+
+    if (!event) {
+      return { data: null, error: new Error('Pickup event not found') };
+    }
+
+    if (schoolId && event.school_id !== schoolId) {
+      return { data: null, error: new Error('A chamada não pertence a esta escola.') };
+    }
 
     return await supabase
       .from('pickup_events')
@@ -101,8 +119,26 @@ export const pickupEventRepository = {
       .maybeSingle();
   },
 
-  async cancel(eventId) {
+  async cancel(eventId, schoolId = null) {
     const supabase = await db();
+
+    const { data: event, error: fetchError } = await supabase
+      .from('pickup_events')
+      .select('id, school_id, status')
+      .eq('id', eventId)
+      .maybeSingle();
+
+    if (fetchError) {
+      return { data: null, error: fetchError };
+    }
+
+    if (!event) {
+      return { data: null, error: new Error('Pickup event not found') };
+    }
+
+    if (schoolId && event.school_id !== schoolId) {
+      return { data: null, error: new Error('A chamada não pertence a esta escola.') };
+    }
 
     return await supabase
       .from('pickup_events')

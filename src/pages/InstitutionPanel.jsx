@@ -729,7 +729,7 @@ export default function InstitutionPanel() {
   }
 
   async function handleCompleteCall(eventId) {
-    const result = await pickupService.completeCall(eventId);
+    const result = await pickupService.completeCall(eventId, authorizedSchool?.id);
 
     await reloadActiveCalls();
 
@@ -739,7 +739,7 @@ export default function InstitutionPanel() {
   }
 
   async function handleCancelCall(eventId) {
-    const result = await pickupService.cancelCall(eventId);
+    const result = await pickupService.cancelCall(eventId, authorizedSchool?.id);
 
     await reloadActiveCalls();
 
