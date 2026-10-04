@@ -1,4 +1,4 @@
-const GROUP_COLUMNS = 'id, school_id, academic_level_id, academic_shift_id, name, display_order, status, external_id, created_at, updated_at';
+const GROUP_COLUMNS = 'id, school_id, academic_level_id, academic_shift_id, school_year_id, name, display_order, status, external_id, created_at, updated_at';
 
 async function db() {
   const { supabase } = await import('../lib/supabase.js');
@@ -16,12 +16,18 @@ export const academicGroupRepository = {
       .maybeSingle();
   },
 
-  async listBySchool(schoolId) {
+  async listBySchool(schoolId, schoolYearId = null) {
     const supabase = await db();
-    return await supabase
+    let query = supabase
       .from('academic_groups')
       .select(GROUP_COLUMNS)
-      .eq('school_id', schoolId)
+      .eq('school_id', schoolId);
+
+    if (schoolYearId) {
+      query = query.eq('school_year_id', schoolYearId);
+    }
+
+    return await query
       .order('display_order', { ascending: true })
       .order('name', { ascending: true });
   },

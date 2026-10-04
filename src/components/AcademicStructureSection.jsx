@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { BookOpen, Pencil, Plus } from "lucide-react"
 import { academicLevelService } from "../services/academicLevelService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
+import { schoolYearService } from "../services/schoolYearService.js"
 import { shiftLabel, sortShifts } from "../services/academicShiftLabels.js"
 
 export default function AcademicStructureSection({ schoolId }) {
@@ -11,8 +12,11 @@ export default function AcademicStructureSection({ schoolId }) {
   const [levelsError, setLevelsError] = useState("");
   const [editingLevelId, setEditingLevelId] = useState(null);
   const [levelFormName, setLevelFormName] = useState("");
+
   const [groupsList, setGroupsList] = useState([]);
   const [shiftsList, setShiftsList] = useState([]);
+  const [schoolYearsList, setSchoolYearsList] = useState([]);
+  const [activeSchoolYear, setActiveSchoolYear] = useState(null);
   const [groupsLoading, setGroupsLoading] = useState(true);
   const [groupsSaving, setGroupsSaving] = useState(false);
   const [groupsError, setGroupsError] = useState("");
@@ -20,6 +24,8 @@ export default function AcademicStructureSection({ schoolId }) {
   const [groupFormName, setGroupFormName] = useState("");
   const [groupFormLevelId, setGroupFormLevelId] = useState("");
   const [groupFormShiftId, setGroupFormShiftId] = useState("");
+  const [groupFormYearId, setGroupFormYearId] = useState("");
+  const [selectedYearFilter, setSelectedYearFilter] = useState("all");
 
   useEffect(() => {
     if (!schoolId) {
@@ -29,10 +35,12 @@ export default function AcademicStructureSection({ schoolId }) {
     let cancelled = false;
 
     void (async () => {
-      const [levelsResult, groupsResult, shiftsResult] = await Promise.all([
+      const [levelsResult, groupsResult, shiftsResult, yearsResult, activeYearResult] = await Promise.all([
         academicLevelService.listForSchool(schoolId),
         academicGroupService.listForSchool(schoolId),
-        academicGroupService.listShifts()
+        academicGroupService.listShifts(),
+        schoolYearService.listYears(schoolId),
+        schoolYearService.getActiveYear(schoolId)
       ]);
 
       if (cancelled) {
@@ -65,6 +73,15 @@ export default function AcademicStructureSection({ schoolId }) {
         setShiftsList(sortShifts(shiftsResult.data));
       }
 
+      if (!yearsResult.error) {
+        setSchoolYearsList(yearsResult.data || []);
+      }
+
+      if (!activeYearResult.error && activeYearResult.data) {
+        setActiveSchoolYear(activeYearResult.data);
+        setGroupFormYearId(activeYearResult.data.id);
+      }
+
       setLevelsLoading(false);
       setGroupsLoading(false);
     })();
@@ -76,6 +93,7 @@ export default function AcademicStructureSection({ schoolId }) {
 
   const levelNameById = new Map(levelsList.map((level) => [level.id, level.name]));
   const shiftById = new Map(shiftsList.map((shift) => [shift.id, shift]));
+  const yearById = new Map(schoolYearsList.map((y) => [y.id, y]));
   const levelOptions = levelsList.filter((level) => level.status !== "inactive" || level.id === groupFormLevelId);
 
   async function reloadAcademicStructure() {
@@ -85,9 +103,11 @@ export default function AcademicStructureSection({ schoolId }) {
       return null;
     }
 
-    const [levelsResult, groupsResult] = await Promise.all([
+    const [levelsResult, groupsResult, yearsResult, activeYearResult] = await Promise.all([
       academicLevelService.listForSchool(schoolId),
-      academicGroupService.listForSchool(schoolId)
+      academicGroupService.listForSchool(schoolId),
+      schoolYearService.listYears(schoolId),
+      schoolYearService.getActiveYear(schoolId)
     ]);
 
     if (levelsResult.error) {
@@ -106,11 +126,15 @@ export default function AcademicStructureSection({ schoolId }) {
       setGroupsError("");
     }
 
-    if (levelsResult.error || groupsResult.error) {
-      return null;
+    if (!yearsResult.error) {
+      setSchoolYearsList(yearsResult.data || []);
     }
 
-    return { levels: levelsResult.data, groups: groupsResult.data };
+    if (!activeYearResult.error && activeYearResult.data) {
+      setActiveSchoolYear(activeYearResult.data);
+    }
+
+    return true;
   }
 
   function resetLevelForm() {
@@ -177,6 +201,7 @@ export default function AcademicStructureSection({ schoolId }) {
     setGroupFormName("");
     setGroupFormLevelId("");
     setGroupFormShiftId("");
+    setGroupFormYearId(activeSchoolYear?.id || "");
     setGroupsError("");
   }
 
@@ -194,8 +219,10 @@ export default function AcademicStructureSection({ schoolId }) {
     const payload = {
       name: groupFormName,
       academicLevelId: groupFormLevelId,
-      academicShiftId: groupFormShiftId
+      academicShiftId: groupFormShiftId,
+      schoolYearId: groupFormYearId || activeSchoolYear?.id || null
     };
+
     const result = editingGroupId
       ? await academicGroupService.updateGroup(schoolId, editingGroupId, payload)
       : await academicGroupService.createGroup(schoolId, { ...payload, existingGroups: groupsList });
@@ -238,11 +265,16 @@ export default function AcademicStructureSection({ schoolId }) {
     await reloadAcademicStructure();
   }
 
+  const filteredGroups = groupsList.filter((g) => {
+    if (selectedYearFilter === "all") return true;
+    return g.school_year_id === selectedYearFilter;
+  });
+
   return (
     <div className="p-8 flex-1 overflow-y-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Configuração acadêmica</h1>
-        <p className="text-slate-500">Cadastre os níveis e as turmas desta escola.</p>
+        <p className="text-slate-500">Cadastre os níveis e as turmas desta escola por ano letivo.</p>
       </div>
 
       <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition-colors max-w-3xl ${editingLevelId ? "border-secondary bg-slate-50 dark:bg-slate-900/50" : "bg-white border-slate-200 dark:bg-[#1a1a1a] dark:border-[#2a2a2a]"}`}>
@@ -322,7 +354,17 @@ export default function AcademicStructureSection({ schoolId }) {
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome da Turma</label>
             <input type="text" required disabled={groupsSaving} value={groupFormName} onChange={e => setGroupFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" placeholder="Ex: 5º Ano A" />
           </div>
-          <div className="w-56">
+          <div className="w-48">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Ano Letivo</label>
+            <select disabled={groupsSaving} value={groupFormYearId || activeSchoolYear?.id || ""} onChange={e => setGroupFormYearId(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
+              {schoolYearsList.map((y) => (
+                <option key={y.id} value={y.id}>
+                  {y.year} {y.is_active ? "(Ativo)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-48">
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nível acadêmico</label>
             <select required disabled={groupsSaving} value={groupFormLevelId} onChange={e => setGroupFormLevelId(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
               <option value="">Selecione...</option>
@@ -331,7 +373,7 @@ export default function AcademicStructureSection({ schoolId }) {
               ))}
             </select>
           </div>
-          <div className="w-44">
+          <div className="w-40">
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Turno</label>
             <select required disabled={groupsSaving} value={groupFormShiftId} onChange={e => setGroupFormShiftId(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
               <option value="">Selecione...</option>
@@ -347,35 +389,63 @@ export default function AcademicStructureSection({ schoolId }) {
       </div>
 
       <div className="max-w-3xl bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden mb-8">
-        <div className="p-4 border-b border-slate-100 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#1a1a1a] font-semibold text-slate-700 dark:text-slate-300 flex justify-between">
-          <span>Turmas</span>
-          <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{groupsList.length}</span>
+        <div className="p-4 border-b border-slate-100 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#1a1a1a] font-semibold text-slate-700 dark:text-slate-300 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <span>Turmas Cadastradas</span>
+            <select
+              value={selectedYearFilter}
+              onChange={(e) => setSelectedYearFilter(e.target.value)}
+              className="text-xs border border-slate-200 dark:border-[#333333] rounded-lg px-2 py-1 bg-white dark:bg-[#2a2a2a] text-slate-700 dark:text-slate-300 outline-none"
+            >
+              <option value="all">Todos os anos</option>
+              {schoolYearsList.map((y) => (
+                <option key={y.id} value={y.id}>
+                  Ano {y.year} {y.is_active ? "(Ativo)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-xs">{filteredGroups.length}</span>
         </div>
         <div className="divide-y divide-slate-100 dark:divide-[#2a2a2a]">
           {groupsLoading ? (
             <p className="p-8 text-center text-slate-500">Carregando turmas...</p>
-          ) : groupsList.length === 0 ? (
-            <p className="p-8 text-center text-slate-500">Nenhuma turma cadastrada.</p>
-          ) : groupsList.map((group) => (
-            <div key={group.id} className="p-4 flex justify-between items-center gap-4">
-              <div>
-                <p className="font-bold text-slate-800 dark:text-white">{group.name}</p>
-                <p className="text-sm text-slate-500">
-                  {levelNameById.get(group.academic_level_id) || "Nível indisponível"}
-                  {" • "}
-                  {shiftLabel(shiftById.get(group.academic_shift_id)?.name)}
-                  {" • "}
-                  {group.status === "inactive" ? "Inativo" : "Ativo"}
-                </p>
+          ) : filteredGroups.length === 0 ? (
+            <p className="p-8 text-center text-slate-500">Nenhuma turma cadastrada neste filtro.</p>
+          ) : filteredGroups.map((group) => {
+            const shift = shiftById.get(group.academic_shift_id);
+            const levelName = levelNameById.get(group.academic_level_id) || "Nível não encontrado";
+            const yearInfo = yearById.get(group.school_year_id);
+
+            return (
+              <div key={group.id} className="p-4 flex justify-between items-center">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-800 dark:text-white">{group.name}</p>
+                    {yearInfo && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${yearInfo.is_active ? "bg-orange-100 text-primary dark:bg-primary/20" : "bg-slate-100 text-slate-500 dark:bg-slate-800"}`}>
+                        {yearInfo.year} {yearInfo.is_active ? "• Ativo" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500">{levelName} • {shift ? shiftLabel(shift.name) : "Turno não encontrado"} • {group.status === "inactive" ? "Inativa" : "Ativa"}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => {
+                    setEditingGroupId(group.id);
+                    setGroupFormName(group.name);
+                    setGroupFormLevelId(group.academic_level_id);
+                    setGroupFormShiftId(group.academic_shift_id);
+                    setGroupFormYearId(group.school_year_id || activeSchoolYear?.id || "");
+                    setGroupsError("");
+                  }} className="p-2 text-secondary hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition"><Pencil size={20} /></button>
+                  <button type="button" disabled={groupsSaving} onClick={() => handleToggleGroupStatus(group)} className="px-3 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition disabled:opacity-60">
+                    {group.status === "inactive" ? "Ativar" : "Inativar"}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button type="button" onClick={() => { setEditingGroupId(group.id); setGroupFormName(group.name); setGroupFormLevelId(group.academic_level_id); setGroupFormShiftId(group.academic_shift_id); setGroupsError(""); }} className="p-2 text-secondary hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition"><Pencil size={20} /></button>
-                <button type="button" disabled={groupsSaving} onClick={() => handleToggleGroupStatus(group)} className="px-3 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2a2a2a] rounded-lg transition disabled:opacity-60">
-                  {group.status === "inactive" ? "Ativar" : "Inativar"}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
