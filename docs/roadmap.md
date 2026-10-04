@@ -25,38 +25,39 @@ Itens com base existente no código que precisam de conclusão ou correção.
 
 | Item | Evidência | Prioridade sugerida |
 |------|-----------|---------------------|
-| Portões em `public.gates` | Vertical fechada e verificada em produção (`8cb71ac`, hotfix `d7d0ca5`) | — |
-| Referência Turma → Portão por `gate_id` | `defaultExit` ainda é texto no cache local. Sem migration nesta etapa | Futura vertical Students/Classes |
+| Portões em `public.gates` | ✅ Vertical fechada e verificada em produção (`8cb71ac`, hotfix `d7d0ca5`) | — |
+| Route guards | ✅ Concluídos: `usePlatformAdmin()` para `/admin/institutions` e `TenantPanelGate` para `/painel` | — |
+| Testes automatizados | ✅ Concluídos: Node Test Runner nativo com 6 suítes unitárias cobrindo DAL, services e gates | — |
+| CI/CD pipeline | ✅ Concluído: GitHub Actions executando lint e build automatizados em cada push/PR | — |
+| Migração Supabase (Fase 2) | ✅ Concluída: escolas, portões, turmas, alunos e `pickup_events` integrados ao PostgreSQL | — |
+| Referência Turma → Portão por `gate_id` | `defaultExit` ainda é texto no cache local. Sem migration nesta etapa | Média |
 | UI bulk edit para turmas | Funções existem; interface ausente | Média |
-| Route guard Super Admin | `/admin/institutions` desprotegida | Alta |
 | Bloquear login instituição Inativa | Status existe; não enforced | Alta |
 | Remover código morto | `StudentCard`, `students.js`, `App.css`, `call.mp3` | Baixa |
 | Reproduzir som de chamada | `public/sounds/call.mp3` existe | Média |
 | Corrigir chaves legado | `institutions`, `currentUser` | ✅ Removido na Fase 1 DAL | — |
-| Sincronizar telão mesma aba | Depende de polling 2s | Baixa |
+| Sincronizar telão mesma aba | Depende de polling 5s | Baixa |
 
 ---
 
-## Médio prazo
+## Médio prazo e Próximas fases
 
-Funcionalidades com placeholder "Em breve" ou menção explícita na UI.
+Funcionalidades priorizadas para evolução arquitetural e produto.
 
-| Item | Evidência | Plano |
-|------|-----------|-------|
+| Item | Evidência / Escopo | Prioridade |
+|------|--------------------|------------|
+| Isolamento de dois tenants | Validar multi-tenancy estrito por `school_id` com duas escolas e dois usuários distintos | Alta |
+| Áudio no telão da TV | Anúncio sonoro da chamada de aluno (`call.mp3`) disparado no monitor/TV | Alta |
+| Cancelamento de chamadas | Suporte operacional ao status `cancelled` em `public.pickup_events` | Alta |
+| Ano letivo configurável | Resolver dívida técnica #1 (substituir ano letivo fixo 2026 por configuração dinâmica) | Média |
+| Provisionamento de usuário escolar | Fluxo de onboarding/convite de novos membros escolares via interface (sem SQL privilegiado) | Alta |
+| Histórico de saídas confirmadas | Consulta e relatórios de eventos `completed` / `cancelled` | Média |
 | Relatórios avançados | "Em breve: Gráficos e inteligência de dados" | Premium+ |
-| Histórico de saídas confirmadas | Chamadas removidas sem persistência | Premium+ |
 | Internacionalização (i18n) | Seletor idioma Diamond; UI fixa PT | Diamond |
 | API REST funcional | API Key gerada; sem endpoints | Diamond |
 | Webhooks | Mencionado em Configurações Diamond | Diamond |
 | Lógica plano Trial (14 dias) | Option no select admin | Trial |
-| Completar migração Supabase (Fase 2) | Catálogo `schools` já no Supabase; `gateService`/`callService` e dados operacionais ainda em localStorage | Todos |
-| Integrar Pickup Core no frontend | Migrations 0004 (`gates`, `pickup_events`) validadas; services ainda usam localStorage | Todos |
-| Supabase Auth no frontend (ADR-004) | Implementado na Feature #49 e exercido em produção com um tenant de homologação. UI de membership ainda ausente | Todos |
-| RLS e políticas de acesso | Fundação aplicada (Migration 0005); a Feature #49 não alterou policies | Todos |
-| Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Todos |
-| Autenticação segura | Identidade no Supabase Auth; tenant via `school_members`; sem bypass por `localStorage` | Todos |
-| Testes automatizados | Ausentes | Todos |
-| CI/CD pipeline | Ausente | Todos |
+| Mapeamento planos UI ↔ DB | Basic/Premium/Diamond vs basic/pro/enterprise | Média |
 
 ---
 
