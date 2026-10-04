@@ -9,7 +9,7 @@ const ACTIVE_CALL_COLUMNS = [
   'student_enrollments(id, student_id, students(id, full_name), student_group_assignments(status, academic_groups(name)))'
 ].join(', ');
 
-const EVENT_COLUMNS = 'id, school_id, student_enrollment_id, gate_id, status, called_at, completed_at';
+const EVENT_COLUMNS = 'id, school_id, student_enrollment_id, gate_id, status, called_at, completed_at, cancelled_at';
 
 async function db() {
   const { supabase } = await import('../lib/supabase.js');
@@ -94,6 +94,20 @@ export const pickupEventRepository = {
       .update({
         status: 'completed',
         completed_at: new Date().toISOString()
+      })
+      .eq('id', eventId)
+      .eq('status', 'called')
+      .select(EVENT_COLUMNS)
+      .maybeSingle();
+  },
+
+  async cancel(eventId) {
+    const supabase = await db();
+
+    return await supabase
+      .from('pickup_events')
+      .update({
+        status: 'cancelled'
       })
       .eq('id', eventId)
       .eq('status', 'called')

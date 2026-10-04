@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Users, Settings, MonitorPlay, LogOut, BookOpen,
-  Search, Plus, Trash2, MapPin, CheckCircle,
+  Search, Plus, Trash2, MapPin, CheckCircle, XCircle,
   Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
   Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw
@@ -706,6 +706,16 @@ export default function InstitutionPanel() {
     }
   }
 
+  async function handleCancelCall(eventId) {
+    const result = await pickupService.cancelCall(eventId);
+
+    await reloadActiveCalls();
+
+    if (result.error) {
+      setCallsError(result.error.message || "Não foi possível cancelar a chamada.");
+    }
+  }
+
   // ==================================================================
   // SEÇÃO 7: ESTILOS CALCULADOS E INJEÇÃO DE CSS
   // ==================================================================
@@ -866,9 +876,14 @@ export default function InstitutionPanel() {
                         </div>
                         <span className="text-xs text-slate-500 bg-slate-900 dark:bg-black px-2 py-1 rounded-md">{call.time}</span>
                       </div>
-                      <button onClick={() => handleCompleteCall(call.id)} className="w-full mt-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
-                        <CheckCircle size={16} /> Confirmar Saída
-                      </button>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => handleCompleteCall(call.id)} className="flex-1 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
+                          <CheckCircle size={16} /> Confirmar Saída
+                        </button>
+                        <button onClick={() => handleCancelCall(call.id)} className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-3 py-2 rounded-lg font-bold transition flex justify-center items-center gap-1.5 text-sm" title="Cancelar chamada">
+                          <XCircle size={16} /> Cancelar
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
