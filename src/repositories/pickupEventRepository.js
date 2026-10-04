@@ -44,7 +44,7 @@ export const pickupEventRepository = {
 
     return await supabase
       .from('student_enrollments')
-      .select('id, student_id, academic_year, status, students!inner(id, school_id, status)')
+      .select('id, student_id, school_year_id, academic_year, status, students!inner(id, school_id, status), school_years(id, year, is_active)')
       .eq('id', enrollmentId)
       .eq('students.school_id', schoolId)
       .maybeSingle();

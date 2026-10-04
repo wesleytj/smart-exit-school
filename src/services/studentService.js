@@ -2,9 +2,11 @@ import { academicGroupRepository } from '../repositories/academicGroupRepository
 import { studentRepository } from '../repositories/studentRepository.js';
 import { studentEnrollmentRepository } from '../repositories/studentEnrollmentRepository.js';
 import { studentGroupAssignmentRepository } from '../repositories/studentGroupAssignmentRepository.js';
+import { schoolYearRepository } from '../repositories/schoolYearRepository.js';
 import { currentAcademicYear } from './academicYear.js';
 import { studentEnrollmentService } from './studentEnrollmentService.js';
 import { studentGroupAssignmentService } from './studentGroupAssignmentService.js';
+import { schoolYearService } from './schoolYearService.js';
 
 function requireSchoolId(schoolId) {
   if (!schoolId) {
@@ -55,6 +57,7 @@ function toView(student, enrollment, assignment, group) {
     studentIdentifier: student.student_identifier,
     status: student.status,
     enrollmentId: enrollment?.id ?? null,
+    schoolYearId: enrollment?.school_year_id ?? null,
     academicYear: enrollment?.academic_year ?? null,
     assignmentId: assignment?.id ?? null,
     academicGroupId: assignment?.academic_group_id ?? null,
@@ -63,7 +66,7 @@ function toView(student, enrollment, assignment, group) {
 }
 
 export const studentService = {
-  async listForSchool(schoolId, now = new Date()) {
+  async listForSchool(schoolId, optionsOrNow = new Date()) {
     const schoolError = requireSchoolId(schoolId);
 
     if (schoolError) {
@@ -82,14 +85,47 @@ export const studentService = {
       return { data: [], error: null };
     }
 
-    const year = currentAcademicYear(now);
+    let targetYearId = null;
+    let targetYear = null;
+    let now = new Date();
+
+    if (optionsOrNow instanceof Date) {
+      now = optionsOrNow;
+    } else if (optionsOrNow && typeof optionsOrNow === 'object') {
+      if (optionsOrNow.schoolYearId) {
+        targetYearId = optionsOrNow.schoolYearId;
+      }
+      if (optionsOrNow.now instanceof Date) {
+        now = optionsOrNow.now;
+      }
+    }
+
+    if (!targetYearId) {
+      const activeYearResult = await schoolYearService.getActiveYear(schoolId);
+      if (activeYearResult.data) {
+        targetYearId = activeYearResult.data.id;
+        targetYear = activeYearResult.data.year;
+      } else {
+        targetYear = currentAcademicYear(now);
+      }
+    }
+
     const enrollmentsResult = await studentEnrollmentRepository.listByStudentIds(students.map((student) => student.id));
 
     if (enrollmentsResult.error) {
       return { data: [], error: enrollmentsResult.error };
     }
 
-    const enrollments = (enrollmentsResult.data || []).filter((enrollment) => enrollment.academic_year === year);
+    const enrollments = (enrollmentsResult.data || []).filter((enrollment) => {
+      if (targetYearId && enrollment.school_year_id) {
+        return enrollment.school_year_id === targetYearId;
+      }
+      if (targetYear) {
+        return enrollment.academic_year === targetYear;
+      }
+      return false;
+    });
+
     const enrollmentIds = enrollments.map((enrollment) => enrollment.id);
     const assignmentsResult = enrollmentIds.length === 0
       ? { data: [], error: null }
@@ -99,7 +135,7 @@ export const studentService = {
       return { data: [], error: assignmentsResult.error };
     }
 
-    const groupsResult = await academicGroupRepository.listBySchool(schoolId);
+    const groupsResult = await academicGroupRepository.listBySchool(schoolId, targetYearId);
 
     if (groupsResult.error) {
       return { data: [], error: groupsResult.error };
@@ -124,7 +160,7 @@ export const studentService = {
     };
   },
 
-  async registerStudent(schoolId, { fullName, studentIdentifier, academicGroupId }, now = new Date()) {
+  async registerStudent(schoolId, { fullName, studentIdentifier, academicGroupId, schoolYearId }, now = new Date()) {
     const schoolError = requireSchoolId(schoolId);
 
     if (schoolError) {
@@ -148,7 +184,24 @@ export const studentService = {
       return { data: null, error: mapStudentError(createdStudent.error) };
     }
 
-    const createdEnrollment = await studentEnrollmentService.createForCurrentYear(createdStudent.data.id, now);
+    let resolvedSchoolYear = null;
+    if (schoolYearId) {
+      const yearResult = await schoolYearRepository.getByIdForSchool(schoolYearId, schoolId);
+      if (yearResult.data) {
+        resolvedSchoolYear = yearResult.data;
+      }
+    }
+
+    if (!resolvedSchoolYear) {
+      const activeYearResult = await schoolYearService.getActiveYear(schoolId);
+      if (activeYearResult.data) {
+        resolvedSchoolYear = activeYearResult.data;
+      }
+    }
+
+    const createdEnrollment = resolvedSchoolYear
+      ? await studentEnrollmentService.createForSchoolYear(createdStudent.data.id, resolvedSchoolYear)
+      : await studentEnrollmentService.createForCurrentYear(createdStudent.data.id, now);
 
     if (createdEnrollment.error || !createdEnrollment.data) {
       await studentRepository.remove(createdStudent.data.id, schoolId);
@@ -194,7 +247,15 @@ export const studentService = {
     }
 
     if (!academicGroupId || !enrollmentId || academicGroupId === currentAcademicGroupId) {
-      return { data: toView(updated.data, enrollmentId ? { id: enrollmentId, academic_year: null } : null, assignmentId ? { id: assignmentId, academic_group_id: currentAcademicGroupId } : null, null), error: null };
+      return {
+        data: toView(
+          updated.data,
+          enrollmentId ? { id: enrollmentId, school_year_id: null, academic_year: null } : null,
+          assignmentId ? { id: assignmentId, academic_group_id: currentAcademicGroupId } : null,
+          null
+        ),
+        error: null
+      };
     }
 
     const replaced = await studentGroupAssignmentService.replaceActiveGroup(schoolId, {
@@ -210,7 +271,7 @@ export const studentService = {
     return {
       data: toView(
         updated.data,
-        { id: enrollmentId, academic_year: null },
+        { id: enrollmentId, school_year_id: null, academic_year: null },
         replaced.data,
         null
       ),

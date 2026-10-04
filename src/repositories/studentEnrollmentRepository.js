@@ -1,4 +1,4 @@
-const ENROLLMENT_COLUMNS = 'id, student_id, academic_year, status, external_id, created_at, updated_at';
+const ENROLLMENT_COLUMNS = 'id, student_id, school_year_id, academic_year, status, external_id, created_at, updated_at';
 
 async function db() {
   const { supabase } = await import('../lib/supabase.js');
@@ -30,6 +30,16 @@ export const studentEnrollmentRepository = {
       .select(ENROLLMENT_COLUMNS)
       .eq('student_id', studentId)
       .eq('academic_year', academicYear)
+      .maybeSingle();
+  },
+
+  async findByStudentAndSchoolYear(studentId, schoolYearId) {
+    const supabase = await db();
+    return await supabase
+      .from('student_enrollments')
+      .select(ENROLLMENT_COLUMNS)
+      .eq('student_id', studentId)
+      .eq('school_year_id', schoolYearId)
       .maybeSingle();
   },
 

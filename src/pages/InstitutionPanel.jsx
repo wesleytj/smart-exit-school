@@ -5,7 +5,7 @@ import {
   Search, Plus, Trash2, MapPin, CheckCircle, XCircle,
   Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
-  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw
+  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw, Calendar
 } from "lucide-react"
 
 import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
@@ -13,8 +13,10 @@ import { authService } from "../services/authService"
 import { schoolService } from "../services/schoolService"
 import { gateService } from "../services/gateService"
 import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
+import SchoolYearsSection from "../components/SchoolYearsSection.jsx"
 import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
+import { schoolYearService } from "../services/schoolYearService.js"
 import { ACTIVE_CALL_POLL_MS, availableStudents, pickupService } from "../services/pickupService.js"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
@@ -65,11 +67,14 @@ export default function InstitutionPanel() {
   const [studentFormName, setStudentFormName] = useState("");
   const [studentFormIdentifier, setStudentFormIdentifier] = useState("");
   const [studentFormGroupId, setStudentFormGroupId] = useState("");
+  const [studentFormYearId, setStudentFormYearId] = useState("");
   const [editingStudentId, setEditingStudentId] = useState(null);
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [bulkStudentGroupId, setBulkStudentGroupId] = useState("");
   const [persistedStudents, setPersistedStudents] = useState([]);
   const [activeGroups, setActiveGroups] = useState([]);
+  const [schoolYearsList, setSchoolYearsList] = useState([]);
+  const [activeSchoolYear, setActiveSchoolYear] = useState(null);
   const [studentsLoading, setStudentsLoading] = useState(true);
   const [studentsSaving, setStudentsSaving] = useState(false);
   const [studentsError, setStudentsError] = useState("");
@@ -178,9 +183,11 @@ export default function InstitutionPanel() {
     let cancelled = false;
 
     void (async () => {
-      const [studentsResult, groupsResult] = await Promise.all([
+      const [studentsResult, groupsResult, yearsResult, activeYearResult] = await Promise.all([
         studentService.listForSchool(schoolId),
-        academicGroupService.listForSchool(schoolId)
+        academicGroupService.listForSchool(schoolId),
+        schoolYearService.listYears(schoolId),
+        schoolYearService.getActiveYear(schoolId)
       ]);
 
       if (cancelled) {
@@ -201,6 +208,15 @@ export default function InstitutionPanel() {
         setActiveGroups([]);
       } else {
         setActiveGroups((groupsResult.data || []).filter((group) => group.status === "active"));
+      }
+
+      if (!yearsResult.error) {
+        setSchoolYearsList(yearsResult.data || []);
+      }
+
+      if (!activeYearResult.error && activeYearResult.data) {
+        setActiveSchoolYear(activeYearResult.data);
+        setStudentFormYearId(activeYearResult.data.id);
       }
 
       setStudentsLoading(false);
@@ -463,9 +479,11 @@ export default function InstitutionPanel() {
   // --- Gestão de Alunos ---
   async function reloadPersistedStudents() {
     const schoolId = authorizedSchool.id;
-    const [studentsResult, groupsResult] = await Promise.all([
+    const [studentsResult, groupsResult, yearsResult, activeYearResult] = await Promise.all([
       studentService.listForSchool(schoolId),
-      academicGroupService.listForSchool(schoolId)
+      academicGroupService.listForSchool(schoolId),
+      schoolYearService.listYears(schoolId),
+      schoolYearService.getActiveYear(schoolId)
     ]);
 
     if (studentsResult.error) {
@@ -481,6 +499,17 @@ export default function InstitutionPanel() {
       setActiveGroups([]);
     } else {
       setActiveGroups((groupsResult.data || []).filter((group) => group.status === "active"));
+    }
+
+    if (!yearsResult.error) {
+      setSchoolYearsList(yearsResult.data || []);
+    }
+
+    if (!activeYearResult.error && activeYearResult.data) {
+      setActiveSchoolYear(activeYearResult.data);
+      if (!studentFormYearId) {
+        setStudentFormYearId(activeYearResult.data.id);
+      }
     }
 
     setStudentsLoading(false);
@@ -505,7 +534,8 @@ export default function InstitutionPanel() {
       : await studentService.registerStudent(authorizedSchool.id, {
         fullName: studentFormName,
         studentIdentifier: studentFormIdentifier,
-        academicGroupId: studentFormGroupId
+        academicGroupId: studentFormGroupId,
+        schoolYearId: studentFormYearId || activeSchoolYear?.id || null
       });
     setStudentsSaving(false);
 
@@ -522,6 +552,7 @@ export default function InstitutionPanel() {
     setStudentFormName(student.name);
     setStudentFormIdentifier(student.studentIdentifier || "");
     setStudentFormGroupId(student.academicGroupId || "");
+    setStudentFormYearId(student.schoolYearId || activeSchoolYear?.id || "");
     setEditingStudentId(student.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -530,6 +561,7 @@ export default function InstitutionPanel() {
     setStudentFormName("");
     setStudentFormIdentifier("");
     setStudentFormGroupId("");
+    setStudentFormYearId(activeSchoolYear?.id || "");
     setEditingStudentId(null);
   }
 
@@ -756,6 +788,7 @@ export default function InstitutionPanel() {
             { id: "monitor", icon: MonitorPlay, label: "Monitor de Saída" },
             { id: "students", icon: Users, label: "Gestão de Alunos" },
             { id: "classes", icon: BookOpen, label: "Configuração acadêmica" },
+            { id: "school-years", icon: Calendar, label: "Anos Letivos" },
             { id: "gates", icon: DoorOpen, label: "Gestão de Portões" },
             { id: "import", icon: UploadCloud, label: "Importar Dados" },
             { id: "reports", icon: FileText, label: "Relatórios Avançados", locked: school.plan === "Basic" },
@@ -800,7 +833,14 @@ export default function InstitutionPanel() {
           <div className="p-8 flex-1 flex flex-col h-full overflow-hidden">
             <div className="mb-6 flex justify-between items-center">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Monitor de Saída</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Monitor de Saída</h1>
+                  {activeSchoolYear && (
+                    <span className="text-xs bg-orange-100 text-primary dark:bg-primary/20 px-2.5 py-1 rounded-md font-bold">
+                      Ano Letivo {activeSchoolYear.year}
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-500">Controle a liberação dos alunos em tempo real.</p>
               </div>
               <button onClick={() => window.open('/tv', '_blank')} className="bg-primary text-white hover:opacity-90 px-5 py-2.5 rounded-xl font-bold transition flex items-center gap-2 shadow-sm">
@@ -899,6 +939,19 @@ export default function InstitutionPanel() {
           <AcademicStructureSection schoolId={authorizedSchool.id} />
         )}
 
+        {/* ------------------------------------------ */}
+        {/* ABA: ANOS LETIVOS */}
+        {/* ------------------------------------------ */}
+        {activeTab === "school-years" && (
+          <SchoolYearsSection
+            schoolId={authorizedSchool.id}
+            onYearActivated={async (activatedYear) => {
+              setActiveSchoolYear(activatedYear);
+              await reloadPersistedStudents();
+            }}
+          />
+        )}
+
 
         {/* ------------------------------------------ */}
         {/* ABA: GESTÃO DE ALUNOS */}
@@ -920,16 +973,30 @@ export default function InstitutionPanel() {
               </div>
 
               {studentsError && <p className="mb-4 text-sm font-medium text-red-500">{studentsError}</p>}
-              <form onSubmit={handleSubmitStudent} className="flex gap-4 items-end">
-                <div className="flex-1">
+              <form onSubmit={handleSubmitStudent} className="flex gap-4 items-end flex-wrap">
+                <div className="flex-1 min-w-[200px]">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome completo</label>
                   <input type="text" required value={studentFormName} onChange={e => setStudentFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
                 </div>
-                <div className="w-48">
+                <div className="w-40">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Matrícula</label>
                   <input type="text" value={studentFormIdentifier} onChange={e => setStudentFormIdentifier(e.target.value)} placeholder="Opcional" className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
                 </div>
-                <div className="w-56">
+                <div className="w-44">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Ano Letivo</label>
+                  <select
+                    value={studentFormYearId || activeSchoolYear?.id || ""}
+                    onChange={e => setStudentFormYearId(e.target.value)}
+                    className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white"
+                  >
+                    {schoolYearsList.map(y => (
+                      <option key={y.id} value={y.id}>
+                        {y.year} {y.is_active ? "(Ativo)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-52">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Turma</label>
                   <select required value={studentFormGroupId} onChange={e => setStudentFormGroupId(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white">
                     <option value="" disabled>Selecione...</option>
@@ -975,7 +1042,7 @@ export default function InstitutionPanel() {
                       <input type="checkbox" checked={selectedStudents.includes(student.id)} onChange={() => handleToggleStudent(student.id)} className="w-4 h-4 cursor-pointer accent-primary" />
                       <div>
                         <p className="font-bold text-slate-800 dark:text-white">{student.name}</p>
-                        <p className="text-sm text-slate-500">{student.grade || "Sem turma"}{student.studentIdentifier ? ` • Matrícula: ${student.studentIdentifier}` : ""} • {student.status === "active" ? "Ativo" : "Inativo"}</p>
+                        <p className="text-sm text-slate-500">{student.grade || "Sem turma"}{student.academicYear ? ` • Ano: ${student.academicYear}` : ""}{student.studentIdentifier ? ` • Matrícula: ${student.studentIdentifier}` : ""} • {student.status === "active" ? "Ativo" : "Inativo"}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">

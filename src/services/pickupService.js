@@ -143,7 +143,11 @@ export const pickupService = {
       return { data: null, error: new Error('A matrícula não pertence a esta escola.') };
     }
 
-    if (enrollment.status !== 'active' || enrollment.academic_year !== currentAcademicYear(now) || enrollment.students?.status !== 'active') {
+    const isYearActive = enrollment.school_years
+      ? enrollment.school_years.is_active === true
+      : enrollment.academic_year === currentAcademicYear(now);
+
+    if (enrollment.status !== 'active' || !isYearActive || enrollment.students?.status !== 'active') {
       return { data: null, error: new Error('A matrícula não está ativa para chamada.') };
     }
 
