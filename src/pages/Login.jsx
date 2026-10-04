@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Mail, Lock, LogIn } from "lucide-react"
+import { Mail, LogIn } from "lucide-react"
+import PasswordInput from "../components/PasswordInput"
 import { platformAdminService } from "../services/platformAdminService"
 import { tenantSessionService } from "../services/tenantSessionService"
 import { decidePostLogin, resolveTenantAccess } from "../services/tenantAccess"
@@ -106,18 +107,16 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition"
-              />
-            </div>
+            <label htmlFor="login-password" className="text-sm font-semibold text-slate-700 ml-1">Senha</label>
+            <PasswordInput
+              id="login-password"
+              name="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
           </div>
 
           <button
