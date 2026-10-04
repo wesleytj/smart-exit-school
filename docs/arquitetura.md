@@ -2,112 +2,114 @@
 
 ## Visão geral
 
-O Smart Exit School é uma **SPA React** em transição arquitetural: o frontend opera via **camada de serviços (DAL)**, com persistência majoritariamente em **localStorage**, enquanto o **schema PostgreSQL (Supabase)** já está parcialmente definido e integrado de forma incremental.
+O Smart Exit School é uma **Single Page Application (SPA) React** desacoplada e robusta, operando sobre uma **Camada de Abstração de Dados (DAL)** estruturada em Repositórios e Serviços, com persistência relacional completa no **Supabase (PostgreSQL)** e segurança garantida por **Row Level Security (RLS)**.
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (React 19 + Vite)"]
-        Pages["Pages<br/>Login, Admin, Painel, TV"]
-        Services["Services Layer<br/>auth, school, gate, call, theme"]
-        StorageClient["storageClient"]
-        SupabaseJS["@supabase/supabase-js"]
+    subgraph Frontend["Frontend (React 19 + Vite 8)"]
+        Pages["Pages / Guards<br/>Login, Admin, TenantPanelGate, Painel, TV"]
+        Contexts["Contexts / Hooks<br/>PlatformAdmin, TenantSession"]
+        Services["Services Layer (DAL)<br/>auth, school, gate, academic, student, pickup"]
+        Repositories["Repositories Layer<br/>schoolRepo, gateRepo, pickupRepo, studentRepo, etc."]
     end
 
-    subgraph Persistence["Persistência"]
-        LS[("localStorage<br/>Runtime atual")]
-        PG[("PostgreSQL<br/>Supabase")]
-        Auth["Supabase Auth<br/>identidade do usuário"]
+    subgraph Backend["Persistência & Segurança (Supabase)"]
+        Auth["Supabase Auth<br/>identidade do usuário (auth.uid)"]
+        PG[("PostgreSQL Multi-Tenant<br/>schools, gates, students, pickup_events")]
+        RLS["Row Level Security<br/>isolamento estrito por school_id"]
     end
 
+    Pages --> Contexts
     Pages --> Services
-    Services --> StorageClient
-    Services --> SupabaseJS
-    StorageClient --> LS
-    SupabaseJS --> PG
-    SupabaseJS -.-> Auth
+    Services --> Repositories
+    Repositories --> PG
+    Contexts --> Auth
+    PG --- RLS
 
     style PG fill:#e8f5e9
-    style LS fill:#fff3e0
+    style Frontend fill:#f0f4f8
+    style Backend fill:#e1f5fe
 ```
 
-## Estado da migração
+---
 
-| Componente | Destino | Status |
-|------------|---------|--------|
-| Schema Authentication Core | PostgreSQL | ✅ Migration 0001 |
-| Schema Academic Core | PostgreSQL | ✅ Migration 0002 |
-| Schema Enrollment Assignment | PostgreSQL | ✅ Migration 0003 |
-| Schema Pickup Core | PostgreSQL | ✅ Migration 0004 |
-| RLS Foundation | PostgreSQL | ✅ Migration 0005 |
-| Database Auditor v1 | Tooling local | ✅ `npm run audit:db` (fundação do banco: tabelas esperadas, RLS foundation e seed baseline) |
-| `schoolService` (catálogo `schools`) | Supabase | ✅ CRUD em `public.schools` |
-| Portões (`gateService`) | Supabase `public.gates` | ✅ `CLOSED / PRODUCTION VERIFIED` (`8cb71ac`). Hotfix de painel `d7d0ca5` |
-| Demais services operacionais | localStorage | ✅ Chamadas, turmas e alunos ainda locais |
-| Supabase Auth + `school_members` | Supabase | ✅ Identidade e contexto de tenant (Feature #49). Produção publicada; um tenant escolar de homologação validado. Isolamento com duas escolas ainda não certificado |
+## Estado da Migração de Persistência
 
-## Camadas
+Todas as verticais core do Smart Exit School já foram migradas do armazenamento local temporário para a persistência relacional oficial no Supabase:
+
+| Componente | Destino | Status | Evidência / Detalhes |
+|------------|---------|--------|----------------------|
+| Schema Authentication Core | PostgreSQL | ✅ Concluído | Migrations 0001 e complementares |
+| Schema Academic Core | PostgreSQL | ✅ Concluído | Migration 0002 |
+| Schema Student Enrollment & Assignments | PostgreSQL | ✅ Concluído | Migration 0003 |
+| Schema Pickup Core & Events | PostgreSQL | ✅ Concluído | Migration 0004 e complementares de permissão |
+| RLS Foundation | PostgreSQL | ✅ Concluído | Migration 0005 e validações automatizadas |
+| Database Auditor v1 | Tooling local | ✅ Ativo | Script `npm run audit:db` validando schema e baseline |
+| `schoolService` (Catálogo `schools`) | Supabase | ✅ Concluído | CRUD relacional em `public.schools` |
+| `gateService` (Portões da Escola) | Supabase | ✅ Concluído | Persistência relacional em `public.gates` |
+| Núcleo Acadêmico (Níveis e Turmas) | Supabase | ✅ Concluído | `academicLevelService` e `academicGroupService` |
+| Alunos e Matrículas | Supabase | ✅ Concluído | `studentService`, `studentEnrollmentService`, `studentGroupAssignmentService` |
+| Fila Operacional de Saída (Pickup) | Supabase | ✅ Concluído | `pickupService` persistindo eventos em `public.pickup_events` |
+| Autenticação & Resolução de Tenant | Supabase | ✅ Concluído | Supabase Auth + `public.school_members` + `TenantPanelGate` |
+
+---
+
+## Camadas da Aplicação
 
 | Camada | Tecnologia | Responsabilidade |
 |--------|------------|------------------|
-| Apresentação | React 19 + JSX | UI, formulários, navegação |
-| Roteamento | React Router DOM 7 | Rotas declarativas |
-| Estilização | Tailwind CSS 4 | Utility-first, dark mode |
-| Serviços | `src/services/*` | Abstração de dados (DAL) |
-| Storage local | `storageClient` | Adapter localStorage |
-| Storage remoto | `lib/supabase.js` | Client Supabase (parcial) |
-| Banco | PostgreSQL via Supabase | Schema relacional multi-tenant |
+| **Apresentação** | React 19 + JSX | Componentes visuais declarativos e responsivos |
+| **Roteamento** | React Router DOM 7 | Rotas client-side declarativas com fallback SPA na Vercel |
+| **Estilização** | Tailwind CSS 4 | Utility-first styling moderno, temas customizados e dark mode |
+| **Contextos & Hooks** | React Context API | Gestão de sessão (`TenantSessionProvider`) e autoridade (`PlatformAdminProvider`) |
+| **Serviços de Negócio** | `src/services/*` | Regras de negócio, normalização, cálculos e validações |
+| **Repositórios** | `src/repositories/*` | Comunicação direta e isolada com o PostgreSQL via `@supabase/supabase-js` |
+| **Banco & Segurança** | PostgreSQL via Supabase | Modelo relacional multi-tenant com RLS compulsório |
 
-## Frontend
+---
 
-### Rotas
+## Frontend e Proteção de Rotas
 
-| Rota | Componente | Proteção |
-|------|------------|----------|
-| `/` | Redirect → `/login` | — |
-| `/login` | `Login.jsx` | Pública |
-| `/admin/institutions` | `InstitutionsManager.jsx` | Platform Admin via `is_platform_admin()` |
-| `/painel` | `InstitutionPanel.jsx` | Membership ativa em `school_members` |
-| `/tv` | `TvDisplay.jsx` | Cache operacional local; não autoriza o tenant |
+### Rotas Declaradas
 
-### Comunicação Telão ↔ Painel
+| Rota | Componente | Proteção / Autoridade |
+|------|------------|-----------------------|
+| `/` | `Navigate` | Redirecionamento automático para `/login` |
+| `/login` | `Login.jsx` | Rota pública de autenticação via Supabase Auth |
+| `/admin/institutions` | `InstitutionsManager.jsx` | Protegida por `usePlatformAdmin()` (requer `is_platform_admin()`) |
+| `/painel` | `TenantPanelGate.jsx` | Protegida por `TenantPanelGate` (requer sessão ativa e membership em `school_members`) |
+| `/tv` | `TvDisplay.jsx` | Rota pública dedicada para exibição do telão na instituição |
 
-Via `callService.subscribeToCalls()`:
-- Evento `storage` (cross-tab)
-- Polling fallback a cada 2 segundos
+### Guarda de Sessão do Tenant (`TenantPanelGate`)
 
-## Backend / Banco de dados
+O acesso ao painel da escola (`/painel`) não é montado diretamente:
+1. O componente de guarda `TenantPanelGate` avalia se o usuário autenticado possui privilégio de Platform Admin (redirecionando-o para `/admin/institutions`).
+2. Avalia as memberships ativas do usuário em `public.school_members`.
+3. Se houver mais de uma escola ativa vinculada, apresenta uma interface de seleção explícita.
+4. Se houver exatamente uma escola ativa, injeta o contexto e renderiza o `InstitutionPanel`.
+5. Se não houver membership ativa ou a sessão expirar, encerra a sessão e redireciona para `/login` com mensagem descritiva.
 
-- **Supabase:** migrations em `supabase/migrations/` (fundação até **0005 — RLS Foundation**), seed em `supabase/seed.sql`
-- **Database Auditor v1:** `scripts/db-auditor/` via `npm run audit:db` — valida a fundação do banco local até a Migration 0005 (tabelas esperadas, RLS foundation, policies/helper functions e invariantes do seed); não substitui testes funcionais nem o futuro Audit Core (`audit_logs`)
-- **Sem API REST própria** — acesso direto via Supabase client (parcial)
-- Detalhes: [banco-de-dados.md](banco-de-dados.md)
+---
 
-## Documentação arquitetural
+## Comunicação Telão (TV) ↔ Painel Operacional
+
+A fila de chamadas em tempo real é centralizada na tabela `public.pickup_events`:
+
+1. **Acionamento:** O operador na portaria aciona o aluno no painel institucional. O `pickupService` insere o registro com status `called`, vinculado ao `school_id`, `student_enrollment_id` e ao `gate_id` selecionado.
+2. **Exibição no Telão:** A tela do monitor (`/tv`) utiliza o `pickupService.getActiveCallsBySchool(schoolId)`, consultando em tempo real as chamadas ativas (`status = 'called'`) ordenadas por `called_at` descendente.
+3. **Sincronização:** Telão e Painel realizam consulta ativa periódica através da constante `ACTIVE_CALL_POLL_MS` (5 segundos), garantindo convergência imediata entre múltiplos dispositivos e salas de aula.
+4. **Conclusão:** Ao confirmar a saída do aluno com seu responsável, o evento é atualizado para `completed` com registro de `completed_at`, saindo automaticamente da fila ativa do telão.
+
+---
+
+## Documentação Arquitetural de Referência
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [arquitetura/decisoes.md](arquitetura/decisoes.md) | ADRs congeladas |
-| [arquitetura/modelagem.md](arquitetura/modelagem.md) | Modelo de domínio |
-| [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções de código e DB |
-| [arquitetura/checklist-modelagem.md](arquitetura/checklist-modelagem.md) | Fluxo de modelagem |
-| [arquitetura/arquitetura-futura.md](arquitetura/arquitetura-futura.md) | Funcionalidades planejadas |
-
-## Fluxo de autenticação
-
-O fluxo vigente está em [autenticacao.md](autenticacao.md). Resumo:
-
-```text
-Supabase Auth → auth.uid() → school_members (ativa) → school_id → tenant
-Platform Admin → is_platform_admin() → /admin/institutions
-```
-
-`localStorage` e `@SmartExit:loggedSchool` não autorizam acesso. Platform Admin não é tenant de escola.
-
-Em produção, o frontend está na Vercel e as migrations estão aplicadas no Supabase. O primeiro login escolar de homologação resolveu o Colégio Adventista de Esteio e abriu `/painel`. O Platform Admin foi para `/admin/institutions`. A membership foi provisionada por SQL privilegiado: não há UI para usuários escolares. O `seed.sql` completo não rodou em produção; só o catálogo de roles foi inserido. Detalhe e limites do teste: [autenticacao.md](autenticacao.md).
-
-## Pontos que precisam de validação
-
-- Unificação dos clientes Supabase (`lib/supabase.js` vs `services/core/supabaseClient.js`)
-- Conclusão da Fase 2: services 100% Supabase
-- Evolução da segurança além da RLS Foundation (grants, fixtures de membership, políticas por papel)
-- Mapeamento de planos frontend ↔ schema PostgreSQL
+| [arquitetura/decisoes.md](arquitetura/decisoes.md) | ADRs congeladas 001 a 028 |
+| [arquitetura/modelagem.md](arquitetura/modelagem.md) | Modelo relacional de domínio |
+| [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções técnicas de código e banco |
+| [arquitetura/checklist-modelagem.md](arquitetura/checklist-modelagem.md) | Checklist de modelagem relacional |
+| [arquitetura/arquitetura-futura.md](arquitetura/arquitetura-futura.md) | Roadmap arquitetural |
+| [banco-de-dados.md](banco-de-dados.md) | Detalhamento de schema, RLS e seed baseline |
+| [autenticacao.md](autenticacao.md) | Modelo normativo de autenticação e sessão |

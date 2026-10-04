@@ -2,36 +2,42 @@
 
 ## Árvore de diretórios
 
-```
+```text
 smart-exit-school/
-├── .github/                  # Templates de Issue e Pull Request
+├── .agents/                          # Governança AADS local (regras e skills SES)
+│   ├── rules/                        # 01-ses-architecture, 02-ses-qa-governance, 03-ses-database-security
+│   └── skills/                       # ses-database-audit, ses-qa-smoke
+├── .github/                          # CI workflows (ci.yml), templates de Issue e PR
 ├── .gitignore
+├── AGENTS.md                         # Protocolo operacional compulsório AADS
+├── GEMINI.md                         # Contexto de arquitetura e tecnologia
 ├── eslint.config.js
 ├── index.html
 ├── package.json
+├── vercel.json                       # Configuração de SPA rewrite fallback para Vercel
 ├── vite.config.js
 ├── README.md
 │
-├── ai/                       # Contexto para ferramentas de IA
-├── docs/                     # Documentação técnica
-│   ├── qa-data-governance.md # Política de dados de QA (reutilizar antes de criar)
-│   ├── qa-inventory.md       # Snapshot read-only; não autoriza limpeza
+├── docs/                             # Documentação técnica oficial
+│   ├── qa-data-governance.md         # Política de dados de QA (reutilizar antes de criar)
+│   ├── qa-inventory.md               # Snapshot read-only de fixtures
+│   ├── qa-production-smoke.md        # Roteiro operacional de smoke em produção
 │   ├── auditoria-isolamento-multi-tenant.md # Spike #47 — auditoria read-only RLS/tenant
-│   └── arquitetura/          # ADRs, modelagem, padrões
+│   └── arquitetura/                  # ADRs, modelagem, padrões
 │
 ├── public/
 │   ├── favicon.svg
 │   ├── icons.svg
-│   └── sounds/call.mp3       # Não referenciado no código
+│   └── sounds/call.mp3
 │
 ├── supabase/
 │   ├── config.toml
-│   ├── migrations/           # Schema PostgreSQL versionado
+│   ├── migrations/                   # 18 migrations SQL versionadas
 │   ├── seed.sql
 │   └── README.md
 │
 ├── scripts/
-│   ├── validate-rls-foundation.mjs  # Smoke parcial de RLS (legado)
+│   ├── validate-rls-foundation.mjs  # Validação de RLS foundation
 │   └── db-auditor/                  # Database Auditor v1
 │       ├── index.mjs
 │       ├── expected-foundation.mjs
@@ -45,99 +51,139 @@ smart-exit-school/
 └── src/
     ├── main.jsx
     ├── App.jsx
-    ├── App.css               # Legado Vite — não importado
+    ├── App.css
     ├── index.css
     │
-    ├── assets/               # Logotipos AllTech
+    ├── assets/                       # Logotipos e identidades visuais
     ├── components/
-    │   └── StudentCard.jsx   # Legado — não utilizado
+    │   ├── AcademicStructureSection.jsx
+    │   └── StudentCard.jsx           # Legado
+    │
+    ├── contexts/                     # Context Providers de Estado Reativo
+    │   ├── PlatformAdminProvider.jsx
+    │   ├── platformAdminContext.js
+    │   ├── TenantSessionProvider.jsx
+    │   └── tenantSessionContext.js
+    │
+    ├── hooks/                        # Custom React Hooks
+    │   ├── usePlatformAdmin.js
+    │   └── useTenantSession.js
+    │
     ├── lib/
-    │   └── supabase.js       # Client Supabase (usado por schoolService)
+    │   └── supabase.js               # Client Supabase
     │
     ├── pages/
-    │   ├── Login.jsx
-    │   ├── InstitutionsManager.jsx
-    │   ├── InstitutionPanel.jsx
-    │   └── TvDisplay.jsx
+    │   ├── Login.jsx                 # Rota /login (Pública)
+    │   ├── InstitutionsManager.jsx   # Rota /admin/institutions (Platform Admin)
+    │   ├── TenantPanelGate.jsx       # Rota /painel (Guarda de sessão do tenant)
+    │   ├── InstitutionPanel.jsx      # Painel operacional institucional
+    │   └── TvDisplay.jsx             # Rota /tv (Monitor público telão)
     │
-    └── services/             # Data Abstraction Layer (DAL)
+    ├── repositories/                 # Camada de Acesso a Dados (DAL - Repositories)
+    │   ├── academicGroupRepository.js
+    │   ├── academicLevelRepository.js
+    │   ├── academicShiftRepository.js
+    │   ├── gateRepository.js
+    │   ├── pickupEventRepository.js
+    │   ├── platformAdminRepository.js
+    │   ├── schoolMemberRepository.js
+    │   ├── schoolRepository.js
+    │   ├── studentEnrollmentRepository.js
+    │   ├── studentGroupAssignmentRepository.js
+    │   └── studentRepository.js
+    │
+    └── services/                     # Camada de Serviços de Negócio (DAL - Services)
+        ├── academicGroupService.js
+        ├── academicLevelService.js
+        ├── academicShiftLabels.js
+        ├── academicYear.js
         ├── authService.js
-        ├── schoolService.js
+        ├── gateOrder.js
         ├── gateService.js
-        ├── callService.js
+        ├── pickupService.js
+        ├── platformAdminResolution.js
+        ├── platformAdminService.js
+        ├── schoolOpsStore.js
+        ├── schoolService.js
+        ├── studentEnrollmentService.js
+        ├── studentGroupAssignmentService.js
+        ├── studentService.js
+        ├── tenantAccess.js
+        ├── tenantSessionService.js
         ├── themeService.js
         └── core/
             ├── keys.js
             ├── storageClient.js
-            └── supabaseClient.js  # Duplicata de lib/supabase.js
+            └── supabaseClient.js
 ```
+
+---
 
 ## Responsabilidade por pasta
 
 ### `supabase/`
 
-Infraestrutura de banco PostgreSQL via Supabase CLI.
+Infraestrutura de banco PostgreSQL gerenciada via Supabase CLI.
 
 | Item | Responsabilidade |
 |------|------------------|
-| `migrations/` | Schema versionado (0001 Auth, 0002 Academic, 0003 Enrollment Assignment, 0004 Pickup Core, 0005 RLS Foundation) |
-| `seed.sql` | Dados iniciais idempotentes (roles, shifts, massa dev acadêmica e portões) |
-| `config.toml` | Configuração local Supabase |
+| `migrations/` | 18 migrations SQL versionadas cobrindo Authentication Core, Academic Core, Student Enrollments, Pickup Core, RLS Foundation, Platform Admins, Constraints de Unicidade e Permissões Operacionais |
+| `seed.sql` | Dados iniciais idempotentes (roles, academic_shifts, escola e massa dev acadêmica/portões) |
+| `config.toml` | Configuração do ambiente local Supabase |
+
+---
 
 ### `scripts/db-auditor/`
 
-Ferramenta técnica que **valida a fundação do banco local até a Migration 0005** (**Database Auditor v1**). **Não faz parte do domínio da aplicação** e não é o futuro Audit Core (`audit_logs`).
+Ferramenta técnica interna (**Database Auditor v1**) que valida a fundação do banco de dados local.
 
-Verifica presença das tabelas esperadas, RLS foundation, policies/helper functions esperadas e invariantes do seed atual. Não substitui testes funcionais nem o futuro Audit Core. Execução: `npm run audit:db`.
+Verifica a presença das tabelas esperadas, integridade da fundação de RLS, policies/helper functions e invariantes do seed. Execução: `npm run audit:db`.
 
-| Arquivo | Responsabilidade |
-|---------|------------------|
-| `index.mjs` | Orquestra os inspectors e define o exit code |
-| `expected-foundation.mjs` | Contrato declarado (tabelas, policies, functions, seed) |
-| `inspect-schema.mjs` | Verifica existência das tabelas esperadas |
-| `inspect-rls.mjs` | Verifica RLS, policies e helper functions |
-| `inspect-seed.mjs` | Verifica invariantes do `seed.sql` |
-| `report.mjs` | Normaliza resultados `PASS` / `FAIL` / `WARN` / `SKIP` e imprime o relatório |
-| `runtime.mjs` | Helpers de conexão e consulta ao Postgres local |
+---
 
-Detalhes: [banco-de-dados.md](banco-de-dados.md) e [scripts/db-auditor/README.md](../scripts/db-auditor/README.md).
+### `src/repositories/`
+
+Camada especializada de persistência relacional. Cada repositório é responsável por interagir diretamente com as tabelas do PostgreSQL no Supabase via `@supabase/supabase-js`, normalizando queries, selects e mutations.
+
+---
 
 ### `src/services/`
 
-Camada de abstração de dados. **Páginas não acessam localStorage ou Supabase diretamente.**
+Camada de abstração de regras de negócio (DAL). **A camada de apresentação (componentes e páginas) nunca acessa diretamente o Supabase ou o localStorage.**
 
-| Service | Persistência atual |
-|---------|-------------------|
-| `authService` | localStorage |
-| `schoolService` | Supabase (`public.schools` CRUD) |
-| `gateService` | localStorage |
-| `callService` | localStorage |
-| `themeService` | localStorage |
+| Service | Persistência Atual | Papel no Domínio |
+|---------|-------------------|------------------|
+| `authService` | Supabase Auth (`supabase.auth`) | Login, logout, sessão e estado de autenticação |
+| `schoolService` | Supabase (`public.schools`) | CRUD de instituições escolares |
+| `gateService` | Supabase (`public.gates`) | Gestão e ordenação de portões de saída |
+| `academicLevelService` | Supabase (`public.academic_levels`) | Níveis e etapas educacionais |
+| `academicGroupService` | Supabase (`public.academic_groups`) | Turmas e agrupamentos acadêmicos |
+| `studentService` | Supabase (`public.students`) | Cadastro base de alunos |
+| `studentEnrollmentService` | Supabase (`public.student_enrollments`) | Matrículas por ano letivo |
+| `studentGroupAssignmentService` | Supabase (`public.student_group_assignments`) | Enturmação de alunos |
+| `pickupService` | Supabase (`public.pickup_events`) | Fila operacional de chamadas e conclusões de saída |
+| `platformAdminService` | Supabase RPC (`is_platform_admin`) | Validação de autoridade global de plataforma |
+| `tenantAccess` / `tenantSessionService` | Supabase (`public.school_members`) | Resolução e validação de contexto da escola ativa |
+| `themeService` | localStorage (`@SmartExit:darkMode`) | Preferência de tema visual (claro/escuro) |
+| `schoolOpsStore` | localStorage (`@SmartExit:schoolOps:`) | Cache temporário de apoio operacional de interface |
 
-### `src/lib/` vs `src/services/core/supabaseClient.js`
+---
 
-Dois arquivos criam client Supabase idêntico — **duplicação a consolidar**.
+### `src/contexts/` & `src/hooks/`
+
+Provedores de estado reativo global e hooks de consumo seguro:
+- **`PlatformAdminProvider` / `usePlatformAdmin`:** gerencia o estado de privilégio de plataforma e previne acessos indevidos a `/admin/institutions`.
+- **`TenantSessionProvider` / `useTenantSession`:** resolve a sessão do usuário escolar, identifica as memberships ativas em `school_members` e gerencia a seleção de escolas.
+
+---
 
 ### `docs/arquitetura/`
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `decisoes.md` | ADRs congeladas (fonte de verdade arquitetural) |
-| `modelagem.md` | Entidades de domínio |
-| `padroes.md` | Convenções código/DB/commits |
-| `checklist-modelagem.md` | Fluxo antes de migrations |
-| `workflow.md` | Fluxo de trabalho |
+| `decisoes.md` | ADRs congeladas 001–028 (fonte de verdade arquitetural permanente) |
+| `modelagem.md` | Entidades e relacionamentos de domínio |
+| `padroes.md` | Convenções de código, banco e commits |
+| `checklist-modelagem.md` | Checklist antes de novas migrations |
+| `workflow.md` | Fluxo de trabalho de engenharia |
 | `arquitetura-futura.md` | Roadmap arquitetural |
-
-## Arquivos órfãos / legado
-
-| Arquivo | Status |
-|---------|--------|
-| `src/App.css` | Não importado |
-| `src/components/StudentCard.jsx` | Não referenciado |
-| `src/data/` | Removido (pasta vazia/inexistente) |
-| `public/sounds/call.mp3` | Não referenciado |
-
-## Convenção localStorage
-
-Prefixo `@SmartExit:` — ver [banco-de-dados.md](banco-de-dados.md).
