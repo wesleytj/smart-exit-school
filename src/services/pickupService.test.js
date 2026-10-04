@@ -374,22 +374,103 @@ describe('pickupService.completeCall', { concurrency: 1 }, () => {
   })
 })
 
-describe('pickup_events insert state machine', () => {
+describe('pickupService.cancelCall', { concurrency: 1 }, () => {
+  it('marks the event cancelled and keeps the row out of the active queue', async () => {
+    const stored = [
+      nestedCall({ id: 'event-1', called_at: '2026-09-28T18:00:00.000Z' })
+    ]
+    let cancelPayload = null
+    const restore = stub(pickupEventRepository, {
+      listActiveBySchool: async () => ({
+        data: stored.filter((row) => row.status === 'called'),
+        error: null
+      }),
+      cancel: async (eventId) => {
+        const row = stored.find((item) => item.id === eventId && item.status === 'called')
+        if (!row) {
+          return { data: null, error: null }
+        }
+
+        row.status = 'cancelled'
+        row.cancelled_at = '2026-09-28T18:05:00.000Z'
+        cancelPayload = { id: row.id, status: row.status, cancelled_at: row.cancelled_at }
+        return { data: cancelPayload, error: null }
+      }
+    })
+
+    const before = await pickupService.getActiveCallsBySchool(SCHOOL_ID)
+    const cancelled = await pickupService.cancelCall('event-1')
+    const after = await pickupService.getActiveCallsBySchool(SCHOOL_ID)
+    restore()
+
+    assert.equal(before.data.length, 1)
+    assert.equal(cancelled.error, null)
+    assert.equal(cancelled.data.status, 'cancelled')
+    assert.ok(cancelled.data.cancelled_at)
+    assert.equal(after.data.length, 0)
+    assert.equal(stored.length, 1)
+    assert.equal(stored[0].status, 'cancelled')
+  })
+
+  it('does not cancel a row that is no longer called', async () => {
+    const restore = stub(pickupEventRepository, {
+      cancel: async () => ({ data: null, error: null })
+    })
+
+    const result = await pickupService.cancelCall('event-1')
+    restore()
+
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'Esta chamada já foi cancelada ou não está mais ativa.')
+  })
+
+  it('maps an identity rejection from the database error text', async () => {
+    const restore = stub(pickupEventRepository, {
+      cancel: async () => ({
+        data: null,
+        error: { code: '23514', message: 'pickup event identity fields are immutable' }
+      })
+    })
+
+    const result = await pickupService.cancelCall('event-1')
+    restore()
+
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'A escola, a matrícula, o portão e o horário da chamada não podem ser alterados.')
+  })
+
+  it('maps a state transition rejection from the database error text', async () => {
+    const restore = stub(pickupEventRepository, {
+      cancel: async () => ({
+        data: null,
+        error: { code: '23514', message: 'pickup event status can only transition from called to completed or cancelled' }
+      })
+    })
+
+    const result = await pickupService.cancelCall('event-1')
+    restore()
+
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'Esta chamada já foi confirmada ou não está mais ativa.')
+  })
+})
+
+describe('pickup_events insert and transition state machine', () => {
   const sql = readFileSync(
-    new URL('../../supabase/migrations/20260928170000_pickup_events_insert_called_only.sql', import.meta.url),
+    new URL('../../supabase/migrations/20261003220000_pickup_events_allow_cancellation.sql', import.meta.url),
     'utf8'
   )
 
-  it('rejects an insert that is not called and keeps called to completed', () => {
+  it('rejects an insert that is not called and allows called to completed or cancelled', () => {
     assert.match(sql, /tg_op = 'INSERT' and new\.status is distinct from 'called'/)
     assert.match(sql, /pickup event insert must start as called/)
-    assert.match(sql, /old\.status is distinct from 'called' or new\.status is distinct from 'completed'/)
-    assert.match(sql, /pickup event status can only change from called to completed/)
+    assert.match(sql, /old\.status = 'called' and new\.status in \('completed', 'cancelled'\)/)
+    assert.match(sql, /pickup event status can only transition from called to completed or cancelled/)
     assert.match(sql, /new\.completed_at := now\(\)/)
+    assert.match(sql, /new\.cancelled_at := now\(\)/)
     assert.match(sql, /new\.updated_at := now\(\)/)
     assert.match(sql, /pickup_events_share_school/)
-    assert.equal(sql.includes('grant delete'), false)
-    assert.match(sql, /revoke delete on table public\.pickup_events from authenticated/)
+    assert.match(sql, /grant execute on function public\.enforce_pickup_event_coherence\(\) to authenticated/)
   })
 
   it('rejects identity changes while the row is called', () => {

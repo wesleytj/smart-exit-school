@@ -91,7 +91,11 @@ function mapPickupError(error) {
     return new Error('A escola, a matrícula, o portão e o horário da chamada não podem ser alterados.');
   }
 
-  if (code === '23514' && (message.includes('can only change from called to completed') || message.includes('only be completed'))) {
+  if (code === '23514' && (
+    message.includes('can only change from called to completed') ||
+    message.includes('can only transition from called to completed or cancelled') ||
+    message.includes('only be completed')
+  )) {
     return new Error('Esta chamada já foi confirmada ou não está mais ativa.');
   }
 
@@ -195,6 +199,24 @@ export const pickupService = {
 
     if (!result.data || result.data.status !== 'completed' || !result.data.completed_at) {
       return { data: null, error: new Error('Esta chamada já foi confirmada ou não está mais ativa.') };
+    }
+
+    return { data: result.data, error: null };
+  },
+
+  async cancelCall(eventId) {
+    if (!eventId) {
+      return { data: null, error: new Error('Chamada inválida.') };
+    }
+
+    const result = await pickupEventRepository.cancel(eventId);
+
+    if (result.error) {
+      return { data: null, error: mapPickupError(result.error) };
+    }
+
+    if (!result.data || result.data.status !== 'cancelled' || !result.data.cancelled_at) {
+      return { data: null, error: new Error('Esta chamada já foi cancelada ou não está mais ativa.') };
     }
 
     return { data: result.data, error: null };
