@@ -1,5 +1,6 @@
 import { useState, forwardRef } from "react"
 import { Lock, Eye, EyeOff } from "lucide-react"
+import { getPasswordInputProps, togglePasswordVisibility } from "../services/passwordVisibility"
 
 const PasswordInput = forwardRef(function PasswordInput(
   {
@@ -19,6 +20,7 @@ const PasswordInput = forwardRef(function PasswordInput(
   ref
 ) {
   const [show, setShow] = useState(false)
+  const { inputType, buttonAriaLabel, buttonAriaPressed } = getPasswordInputProps(show)
 
   return (
     <div className="relative w-full">
@@ -31,7 +33,7 @@ const PasswordInput = forwardRef(function PasswordInput(
       )}
       <input
         ref={ref}
-        type={show ? "text" : "password"}
+        type={inputType}
         id={id}
         name={name}
         required={required}
@@ -48,10 +50,10 @@ const PasswordInput = forwardRef(function PasswordInput(
       />
       <button
         type="button"
-        onClick={() => setShow((prev) => !prev)}
+        onClick={() => setShow(togglePasswordVisibility)}
         disabled={disabled}
-        aria-label={show ? "Ocultar senha" : "Mostrar senha"}
-        aria-pressed={show}
+        aria-label={buttonAriaLabel}
+        aria-pressed={buttonAriaPressed}
         className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-slate-600 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       >
         {show ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
