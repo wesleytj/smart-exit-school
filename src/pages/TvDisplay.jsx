@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Clock, GraduationCap, MapPin, User, Volume2 } from "lucide-react"
 import { ACTIVE_CALL_POLL_MS, pickupService, splitActiveQueue } from "../services/pickupService.js"
 import { themeService } from "../services/themeService"
@@ -14,6 +14,9 @@ export default function TvDisplay() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [schoolInfo, setSchoolInfo] = useState(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [lastCallId, setLastCallId] = useState(null)
+  const audioRef = useRef(null)
+  const playedCallIdsRef = useRef(new Set())
 
   useEffect(() => {
     void themeService.getThemePreference().then(setIsDarkMode)
@@ -88,6 +91,19 @@ export default function TvDisplay() {
   const currentCall = queue.current
   const recentCalls = queue.following
 
+  useEffect(() => {
+    if (currentCall && currentCall.id !== lastCallId && !playedCallIdsRef.current.has(currentCall.id)) {
+      playedCallIdsRef.current.add(currentCall.id)
+      setLastCallId(currentCall.id)
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0
+        audioRef.current.play().catch((err) => {
+          console.warn("Reprodução automática de áudio bloqueada ou falhou:", err)
+        })
+      }
+    }
+  }, [currentCall, lastCallId])
+
   const dateFormatted = currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
   const timeFormatted = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
@@ -100,6 +116,7 @@ export default function TvDisplay() {
 
   return (
     <div className={isDarkMode ? "dark" : ""}>
+      <audio ref={audioRef} src="/call.mp3" preload="auto" />
       <div style={customStyles} className="h-screen w-screen bg-[#f4f7fb] dark:bg-[#020817] flex flex-col overflow-hidden font-sans select-none transition-colors duration-300">
         
         <header className="h-20 bg-white dark:bg-[#1a1a1a] border-b border-slate-200 dark:border-[#2a2a2a] flex justify-between items-center px-10 shadow-sm shrink-0 transition-colors duration-300" onClick={toggleFullScreen} title="Clique para Tela Cheia">
