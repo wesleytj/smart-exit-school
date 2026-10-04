@@ -1,209 +1,112 @@
-# Instalação — Smart Exit School
+# Guia de Instalação e Execução — Smart Exit School
 
-Tutorial completo para configurar e executar o projeto localmente.
-
----
-
-## Pré-requisitos
-
-| Requisito | Versão | Observação |
-|-----------|--------|------------|
-| Node.js | LTS 20.x ou 22.x | Gerenciador de pacotes local |
-| npm | Configurado globalmente | Variáveis de ambiente (PATH) devem estar corretas |
-| Git | Qualquer versão recente | Para clonar o repositório |
-| Navegador moderno | Chrome, Firefox, Edge, Safari | ES Modules + localStorage |
-| Docker Desktop | Mais recente | **Obrigatório** para rodar o banco localmente |
-| Supabase CLI | Mais recente | Instalado globalmente (`npm install -g supabase`) |
+Guia oficial para configuração, inicialização e validação do ambiente de desenvolvimento local do Smart Exit School.
 
 ---
 
-## 1. Clonar o projeto
+## 1. Pré-requisitos
 
+| Requisito | Versão Recomendada | Finalidade |
+|---|---|---|
+| **Node.js** | 20.x ou 22.x LTS (recomendado: `22.x`) | Runtime JavaScript para tooling e servidor Vite |
+| **npm** | 10.x+ | Gerenciador de pacotes do projeto |
+| **Git** | 2.40+ | Controle de versão |
+| **Docker Desktop** | Mais recente (em execução) | **Obrigatório** para executar os containers do Supabase local |
+| **Supabase CLI** | Mais recente | Gerenciamento de migrations e ambiente local via `npx supabase` |
+| **Navegador Moderno** | Chrome, Edge, Firefox, Safari | Renderização com suporte a ES Modules e DevTools |
+
+---
+
+## 2. Passo a Passo de Instalação
+
+### Passo 2.1: Clonar o Repositório
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/wesleytj/smart-exit-school.git
 cd smart-exit-school
 ```
 
-Substitua `<url-do-repositorio>` pela URL real do repositório Git.
-
----
-
-## 2. Instalar dependências
-
+### Passo 2.2: Instalar Dependências
 ```bash
 npm install
 ```
 
-Isso instala as dependências definidas em `package.json` e resolve versões via `package-lock.json`.
+### Passo 2.3: Configurar Variáveis de Ambiente
+Crie o arquivo `.env.local` na raiz do projeto (já ignorado pelo `.gitignore`):
 
----
+```bash
+cp .env.example .env.local
+```
 
-## 3. Configurar ambiente
-
-Crie `.env.local` na raiz (ignorado pelo Git):
-
+Preencha com os dados do seu Supabase local (ou remoto):
 ```env
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anon
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=sua-chave-anon-local
 ```
 
-### Banco PostgreSQL (opcional)
-
-Com [Supabase CLI](https://supabase.com/docs/guides/cli) instalado:
-
-```bash
-npx supabase start
-npx supabase db reset   # aplica migrations + seed.sql
-npm run audit:db        # valida a fundação do banco local até a Migration 0005
-```
-
-Ver [supabase/README.md](../supabase/README.md) e a seção 3.1 abaixo.
-
-Para limpar dados legados do navegador:
-
-```javascript
-// DevTools Console
-localStorage.clear()
-```
-
-### 3.1 Inicializar o Banco de Dados Local (Docker + Supabase)
-
-Para desenvolvimento de migrations e banco de dados, é necessário rodar a stack local do Supabase. Certifique-se de que o **Docker Desktop** está aberto e rodando.
-
-```bash
-# Iniciar os containers do Supabase (banco, auth, studio, etc)
-npx supabase start
-
-# O console exibirá as credenciais locais, como o Studio URL (geralmente http://127.0.0.1:54323) e as chaves locais.
-# Atualize o seu `.env.local` com as chaves locais fornecidas pelo comando start, caso vá testar a conexão.
-
-# Aplicar migrations atuais e rodar o seed
-npx supabase db reset
-
-# Validar a fundação do banco local até a Migration 0005 (Database Auditor v1)
-npm run audit:db
-```
-
-Após o reset, o ambiente local é populado com dados mínimos de desenvolvimento (escola, nível, turmas, aluno, matrícula, vínculo matrícula↔turma e portões). O comando `npm run audit:db` verifica presença das tabelas esperadas, RLS foundation, policies/helper functions esperadas e invariantes do seed atual.
-
-O Auditor v1 **não** substitui testes funcionais da aplicação nem o futuro domínio Audit Core (`audit_logs`).
 ---
 
-## 4. Executar localmente
+## 3. Inicializar o Supabase Local (Obrigatório)
 
-### Modo desenvolvimento (recomendado)
+O Smart Exit School depende ativamente do Supabase PostgreSQL para autenticação, catálogo de escolas, portões, turmas, alunos e eventos de saída. O banco **não é opcional**.
+
+Certifique-se de que o **Docker Desktop** está em execução e execute:
+
+```bash
+# Iniciar a infraestrutura de containers locais do Supabase
+npx supabase start
+```
+
+Após a inicialização, o console exibirá as URLs e credenciais locais:
+* **API URL:** `http://127.0.0.1:54321`
+* **GraphQL URL:** `http://127.0.0.1:54321/graphql/v1`
+* **DB URL:** `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+* **Studio URL:** `http://127.0.0.1:54323`
+* **anon key:** `sb_publishable_...` (copie para a chave `VITE_SUPABASE_ANON_KEY` no `.env.local`)
+
+### Aplicar Migrations e Baseline Seed
+```bash
+npx supabase db reset
+```
+Esse comando aplica as 18 migrations versionadas e executa `supabase/seed.sql`, populando a escola de desenvolvimento (`smart-exit-dev-school`), níveis acadêmicos, turmas de exemplo e portões.
+
+---
+
+## 4. Executar o Servidor de Desenvolvimento
 
 ```bash
 npm run dev
 ```
 
-Saída esperada (similar):
+* **Aplicação Web:** `http://localhost:5173`
+* **Painel Supabase Studio:** `http://localhost:54323`
 
-```
-  VITE v8.x.x  ready in XXX ms
+---
 
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
+## 5. Scripts de Validação e Qualidade
 
-Acesse `http://localhost:5173` no navegador.
-
-### Modo produção local
+Antes de enviar commits ou abrir Pull Requests, valide seu ambiente com a suíte oficial:
 
 ```bash
+# 1. Análise estática de código com ESLint 10
+npm run lint
+
+# 2. Suíte de testes unitários automatizados (Node Test Runner)
+npm test
+
+# 3. Auditoria estrutural do schema, policies e seed baseline (Database Auditor v1)
+npm run audit:db
+
+# 4. Validação formal das políticas de Row Level Security
+npm run validate:rls
+
+# 5. Compilação de teste do bundle de produção
 npm run build
-npm run preview
 ```
 
 ---
 
-## 5. Primeiro acesso
+## 6. Solução de Problemas Rápidos
 
-### Fluxo recomendado para teste
-
-1. Acesse `http://localhost:5173` → redirect para `/login`
-2. A identidade é a sessão do Supabase Auth
-3. O painel de escola só abre com membership ativa em `school_members`
-4. Platform Admin (`is_platform_admin()`) vai para `/admin/institutions` e não é tenant
-
-No ambiente local, após o seed, não há `school_members`. Sem membership ativa já existente, o caminho de uma escola não pode ser exercido localmente. A aplicação não cria membership automaticamente. Em produção, o primeiro vínculo de homologação foi SQL privilegiado; ver [autenticacao.md](autenticacao.md). `@SmartExit:loggedSchool` não autoriza acesso.
-
-Contrato: [autenticacao.md](autenticacao.md).
-
-### Criar instituição
-
-Para testes de Platform Admin, seguir [qa-data-governance.md](./qa-data-governance.md): reutilizar a instituição QA canônica antes de criar outra.
-
-O cadastro de instituição não cria usuário nem membership. Sem `school_members` ativo, a instituição nova não abre o painel de escola.
-
----
-
-## 6. Testar fluxo completo
-
-```mermaid
-flowchart TD
-    A[Login escola Premium] --> B[/painel]
-    B --> C[Cadastrar turma]
-    C --> D[Adicionar portão em exits via mock ou import]
-    D --> E[Cadastrar alunos]
-    E --> F[Monitor: Chamar aluno]
-    F --> G[Abrir /tv em nova aba]
-    G --> H[Verificar chamada no telão]
-    F --> I[Confirmar saída]
-```
-
-### Passo a passo
-
-1. Login: `teste@premium.com` / `123456`
-2. Aba **Gestão de Turmas** → criar "3º A"
-3. Aba **Gestão de Alunos** → cadastrar aluno vinculado à turma
-4. Aba **Monitor de Saída** → clicar "Chamar"
-5. Clicar "Abrir Telão (TV)" ou acessar `/tv`
-6. Verificar exibição da chamada
-7. "Confirmar Saída" no monitor
-
----
-
-## 7. Scripts disponíveis
-
-| Comando | Descrição |
-|---------|-----------|
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
-| `npm run preview` | Preview do build |
-| `npm run lint` | Executar ESLint |
-| `npm run audit:db` | Database Auditor v1 — valida a fundação do banco local até a Migration 0005 |
-| `npm run validate:rls` | Smoke parcial de RLS (script legado; não substitui o Auditor v1) |
-
----
-
-## 8. Estrutura após instalação
-
-```
-smart-exit-school/
-├── node_modules/     # Criado após npm install
-├── dist/             # Criado após npm run build
-└── ...
-```
-
-Ambos estão no `.gitignore` (`node_modules`, `dist`).
-
----
-
-## Problemas comuns
-
-Consulte [troubleshooting.md](troubleshooting.md) para lista detalhada.
-
-| Problema | Solução rápida |
-|----------|----------------|
-| Login escola falha | Sessão Auth sem membership ativa. O seed local não cria `school_members`. Produção: ver [autenticacao.md](autenticacao.md) |
-| Telão vazio | Fazer login da escola antes; mesma origem localhost |
-| Dados inconsistentes | `localStorage.clear()` + reload |
-| Porta 5173 ocupada | Vite usa próxima porta automaticamente |
-
----
-
-## Pontos que precisam de validação
-
-- Versão mínima de Node.js para Vite 8
-- URL exata do repositório Git para clone
+* **Docker não iniciado:** Se `npx supabase start` falhar, certifique-se de que o Docker Desktop está aberto e inicializado no sistema.
+* **Portas em conflito (54321, 54322, 54323):** Verifique se não há instâncias antigas de PostgreSQL ou outros containers rodando.
+* **Limpar cache do navegador:** Se houver resíduos locais antigos em `localStorage`, limpe via DevTools (`localStorage.clear()`).
