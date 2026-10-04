@@ -1,15 +1,15 @@
 # Banco de Dados — Smart Exit School
 
-## Situação atual (híbrida)
+## Situação atual da persistência
 
-O projeto opera em **dois modelos de persistência simultâneos**:
+Todas as entidades principais de negócio estão integradas e consolidadas no **PostgreSQL (Supabase)**:
 
 | Camada | Tecnologia | Status | Uso no runtime |
 |--------|------------|--------|----------------|
-| **PostgreSQL (Supabase)** | Migrations SQL | Schema parcial implementado | Catálogo `schools` via `schoolService` (CRUD) |
-| **localStorage** | `storageClient` + services | Cache operacional no frontend | Tema e cache `@SmartExit:schoolOps:`. A fila de saída não usa localStorage |
+| **PostgreSQL (Supabase)** | Migrations SQL + Services DAL | Fonte de verdade consolidada | Escolas (`schools`), Portões (`gates`), Níveis e Turmas (`academic_levels`, `academic_groups`), Alunos e Matrículas (`students`, `student_enrollments`, `student_group_assignments`) e Chamadas de Saída (`pickup_events`) |
+| **localStorage** | `storageClient` | Cache operacional e preferências de UI | Tema (`@SmartExit:darkMode`) e gatilhos de sincronização cross-tab (`@SmartExit:schoolOps:`). Nenhuma entidade de negócio utiliza localStorage como fonte de verdade |
 
-A migração para Supabase está **em andamento**. O schema relacional já cobre autenticação, núcleo acadêmico, fundação operacional de saída (Pickup Core) e a **fundação de RLS** (Migration 0005). Tema e cache operacional ainda usam localStorage. A fila de saída está em `public.pickup_events`.
+A persistência do Smart Exit School está consolidada no Supabase PostgreSQL através da Data Access Layer (DAL). O schema relacional cobre autenticação, Platform Admins, núcleo acadêmico, portões operacionais, alunos, matrículas, eventos de chamada (`public.pickup_events`) e fundação completa de Row Level Security (RLS). O `localStorage` atua exclusivamente como cache volátil de interface e preferências locais de navegação.
 
 - Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
 - Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md)
@@ -18,20 +18,28 @@ A migração para Supabase está **em andamento**. O schema relacional já cobre
 
 ## PostgreSQL — Schema implementado
 
-A fundação atual do banco vai até a **Migration 0005 — RLS Foundation**.
+O banco de dados relacional é governado por **18 migrations versionadas** sequenciais em `supabase/migrations/`:
 
-Migrations em `supabase/migrations/`:
-
-| Migration | Arquivo | Domínio |
-|-----------|---------|---------|
-| 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core |
-| 0002 | `20260701014657_create_academic_core.sql` | Academic Core |
-| 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment |
-| 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core |
-| 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation |
-| 0013 | `20260904180000_add_schools_name_unique.sql` | UNIQUE `public.schools.name` |
-
-Migrations 0006–0012 cobrem Platform Admin, policies extras de `schools` e bootstrap de auth; não alteram a unicidade de `name`.
+| Migration | Arquivo | Domínio / Descrição |
+|-----------|---------|---------------------|
+| 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core (`schools`, `roles`, `profiles`, `school_members`) |
+| 0002 | `20260701014657_create_academic_core.sql` | Academic Core (`academic_levels`, `academic_shifts`, `academic_groups`, `students`, `student_enrollments`) |
+| 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment (`student_group_assignments`) |
+| 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core Foundation (`gates`, `guardians`, `pickup_authorizations`, `pickup_events`) |
+| 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation (Políticas e funções auxiliares de isolamento multi-tenant) |
+| 0006 | `20260727150000_create_platform_admins.sql` | Platform Admins Core (`public.platform_admins`) |
+| 0007 | `20260727160000_extend_schools_policies_for_platform_admin.sql` | Extend Schools Policies for Platform Admin (`SELECT`, `UPDATE`) |
+| 0008 | `20260727170000_bootstrap_platform_admin.sql` | Bootstrap Platform Admin RPC / Seeds |
+| 0009 | `20260727180000_sync_auth_users_with_profiles.sql` | Trigger de sincronização de `auth.users` com `public.profiles` |
+| 0010 | `20260728140000_enable_rls_platform_admins.sql` | Enable RLS em `public.platform_admins` |
+| 0011 | `20260728150000_schools_insert_delete_for_platform_admin.sql` | Permissões de `INSERT` e `DELETE` em `public.schools` para Platform Admins |
+| 0012 | `20260904180000_add_schools_name_unique.sql` | UNIQUE constraint em `public.schools.name` (`schools_name_unique`) |
+| 0013 | `20260925160000_students_optional_identifier_and_birth_date.sql` | Campos opcionais em `students` (`student_identifier`, `birth_date`) |
+| 0014 | `20260925170000_grant_student_writes_to_authenticated.sql` | Concessão de permissões de escrita em alunos e matrículas para `authenticated` |
+| 0015 | `20260925180000_revoke_unused_student_writes_from_authenticated.sql` | Revogação de escritas desnecessárias de alunos para `authenticated` |
+| 0016 | `20260928140000_pickup_events_operational_writes.sql` | Permissões e validação de escrita operacional em `public.pickup_events` |
+| 0017 | `20260928170000_pickup_events_insert_called_only.sql` | Restrição de inserção em `pickup_events` (`status = 'called'` exclusivo) |
+| 0018 | `20260928190000_revoke_pickup_events_truncate.sql` | Revogação de TRUNCATE em `public.pickup_events` |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -614,7 +622,7 @@ Essa massa **não representa seed de produção**. Em produção o `supabase/see
 
 ## localStorage — Persistência runtime (frontend)
 
-Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `storageClient`.
+O frontend utiliza o `localStorage` exclusivamente para preferências visuais e eventos operacionais locais de interface. Nenhuma entidade de negócio utiliza o `localStorage` como fonte de verdade.
 
 ### Chaves ativas
 
@@ -622,26 +630,31 @@ Enquanto a migração não conclui, o frontend usa chaves `@SmartExit:*` via `st
 |-------|----------|
 | `@SmartExit:loggedSchool` | Chave legada. Não autoriza acesso e não escolhe o tenant |
 | `@SmartExit:darkMode` | Preferência de tema |
+| `@SmartExit:schoolOps:{schoolId}` | Gatilho operacional de eventos cross-tab de interface |
 
-### Catálogo `schools` (Issue #16)
+### Entidades de domínio consolidadas no Supabase
 
-`schoolService` (`getAllSchools`, `saveSchool`, `deleteSchool`) persiste exclusivamente em `public.schools` via `schoolRepository`. A chave `@SmartExit:schools` **não existe mais** no frontend.
+Todas as entidades principais de negócio estão integradas ao Supabase PostgreSQL via Data Access Layer (DAL):
 
-Ainda no localStorage: tema e o cache operacional `@SmartExit:schoolOps:{schoolId}`. A fila de saída está em `public.pickup_events`. Portões não usam `@SmartExit:gates:{schoolId}`. `@SmartExit:loggedSchool` não é sessão nem autorização.
+- **Escolas (`public.schools`):** Gerenciadas via `schoolService` e `schoolRepository`. A chave legada `@SmartExit:schools` foi removida.
+- **Portões (`public.gates`):** Gerenciados via `gateService` e `gateRepository`. Não usam `@SmartExit:gates:{schoolId}`.
+- **Turmas e Níveis (`public.academic_levels`, `public.academic_groups`):** Gerenciados via `academicLevelService` e `academicGroupService`.
+- **Alunos e Matrículas (`public.students`, `public.student_enrollments`, `public.student_group_assignments`):** Gerenciados via `studentService` e `studentEnrollmentService`.
+- **Chamadas de Saída (`public.pickup_events`):** Fila operacional gerenciada via `pickupService`. Não usa `@SmartExit:called:{schoolId}`.
 
-O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha não pertencem a `public.schools` (ADR-005).
+O formulário de `InstitutionsManager` coleta apenas campos do schema (`name`, `plan`, `status`). E-mail/senha pertencem ao Supabase Auth e não a `public.schools` (ADR-005).
 
-`name` é `NOT NULL` e **UNIQUE** (`schools_name_unique`; igualdade exata após o valor persistido). O cadastro rejeita nome vazio ou só espaços na aplicação (`schoolService` + modal); não há CHECK de não-vazio no PostgreSQL. Nome duplicado é rejeitado na aplicação e pela constraint no Supabase.
+`name` é `NOT NULL` e **UNIQUE** (`schools_name_unique`; igualdade exata após o valor persistido). O cadastro rejeita nome vazio ou só espaços na aplicação (`schoolService` + modal); nome duplicado é rejeitado na aplicação e pela constraint no Supabase.
 
-### Gap schema DB ↔ frontend legado
+### Gap schema DB ↔ frontend (Status da convergência)
 
-| Conceito | PostgreSQL | Frontend (localStorage) |
-|----------|------------|-------------------------|
-| Plano | `basic` / `pro` / `enterprise` | Basic / Premium / Diamond / Trial |
-| Status escola | `trial` / `active` / `inactive` / `suspended` | Ativo / Inativo |
-| ID escola | UUID | number/string timestamp |
-| Autenticação | Supabase Auth + `school_members` | `localStorage` não autoriza |
-| Turma | `academic_groups` + `student_group_assignments` | `classes[]` |
-| Aluno | `students` + `student_enrollments` | `studentsList[]` |
-| Portão | `gates` (schema ✅; frontend ❌) | `exits[]` + `gatesList` |
-| Chamada de saída | `pickup_events` (`called` / `completed`) | `pickupService` lê e grava `public.pickup_events` |
+| Conceito | PostgreSQL | Frontend / DAL | Status de Convergência |
+|----------|------------|----------------|------------------------|
+| Plano | `basic` / `pro` / `enterprise` | Basic / Premium / Diamond / Trial | Mapeamento no frontend |
+| Status escola | `trial` / `active` / `inactive` / `suspended` | Ativo / Inativo | Mapeamento no frontend |
+| ID escola | UUID | UUID | ✅ Alinhado |
+| Autenticação | Supabase Auth + `school_members` | `authService` + `tenantAccess` | ✅ Supabase Auth |
+| Turma | `academic_levels` + `academic_groups` + `student_group_assignments` | `academicGroupService` | ✅ Supabase PostgreSQL |
+| Aluno | `students` + `student_enrollments` | `studentService` + `studentEnrollmentService` | ✅ Supabase PostgreSQL |
+| Portão | `gates` (schema ✅; frontend ✅) | `gateService` | ✅ Supabase PostgreSQL |
+| Chamada de saída | `pickup_events` (`called` / `completed`) | `pickupService` | ✅ Supabase PostgreSQL (`public.pickup_events`) |

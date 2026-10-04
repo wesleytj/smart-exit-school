@@ -7,12 +7,14 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Super Admin (AllTech Solutions)
 
 **Rota:** `/admin/institutions`  
-**Autenticação:** Supabase Auth + `is_platform_admin()`. Platform Admin não é tenant de escola.
+**Autenticação:** Supabase Auth + `is_platform_admin()`. Platform Admin não é tenant de escola.  
+**Proteção de Rota:** Protegido via `usePlatformAdmin()` (`PlatformAdminGate`), restringindo o acesso exclusivamente a Platform Admins autenticados.
 
 ### Implementadas
 
 | Funcionalidade | Descrição | Arquivo |
 |----------------|-----------|---------|
+| Guard de rota (`/admin/institutions`) | Proteção estrita via `usePlatformAdmin()` (redireciona não-admins) | `PlatformAdminGate.jsx` |
 | Dashboard de métricas | Total escolas, ativas, alunos gerenciados | `InstitutionsManager.jsx` |
 | Listagem de instituições | Tabela com nome, e-mail, plano, alunos, status | `InstitutionsManager.jsx` |
 | Busca | Por nome ou e-mail | `InstitutionsManager.jsx` |
@@ -27,7 +29,6 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Guard de rota (proteção da URL) | **Não implementado** |
 | Impersonar escola (login como cliente) | **Não identificado** |
 | Billing / faturamento | **Não identificado** |
 | Logs de auditoria | **Não identificado** |
@@ -38,29 +39,33 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 ## Operador da escola (Painel institucional)
 
 **Rota:** `/painel`  
-**Autenticação:** Supabase Auth e membership ativa em `school_members`. `localStorage` não autoriza. Em produção, uma conta escolar de teste já abriu `/painel` para o Colégio Adventista de Esteio. A aplicação não cria a membership. Ver [autenticacao.md](autenticacao.md).
+**Autenticação:** Supabase Auth e membership ativa em `public.school_members`. `localStorage` não autoriza. Em produção, uma conta escolar de teste já abriu `/painel` para o Colégio Adventista de Esteio. Ver [autenticacao.md](autenticacao.md).  
+**Proteção de Rota:** Protegido via `TenantPanelGate`, validando sessão ativa no Supabase Auth e membership ativa no tenant escolar correspondente.  
+**Domínio e Persistência:** Gestão institucional completa conectada ao Supabase PostgreSQL: níveis acadêmicos (`academic_levels`), turmas (`academic_groups`), alunos (`students`), matrículas (`student_enrollments`, `student_group_assignments`), portões (`public.gates`) e chamadas de saída (`public.pickup_events`).
 
 ### Aba: Monitor de Saída ✅
 
 | Funcionalidade | Status |
 |----------------|--------|
+| Fonte da verdade de chamadas | ✅ `public.pickup_events` é a fonte oficial da fila operacional |
 | Listar alunos disponíveis | ✅ Aluno com chamada `called` sai da lista |
 | Buscar por nome ou turma | ✅ |
-| Selecionar portão por aluno | ✅ Por `gate.id`; nome só na tela |
+| Selecionar portão por aluno | ✅ Seleção gravada diretamente em `public.pickup_events` (`gate_id`) |
 | Chamar aluno | ✅ Insere `pickup_events` com status `called` |
-| Fila de chamada com horário | ✅ `called_at`, mais recente primeiro |
-| Confirmar saída | ✅ Atualiza para `completed`; a linha permanece |
+| Fila de chamada com horário | ✅ `called_at`, mais recente primeiro, lido de `public.pickup_events` |
+| Confirmar saída | ✅ Atualiza para `completed` em `public.pickup_events`; o registro histórico permanece |
 | Abrir telão em nova aba | ✅ |
-| Impedir chamada duplicada | ✅ Lista ativa + índice único por matrícula |
+| Impedir chamada duplicada | ✅ Lista ativa + índice único por matrícula no banco (`pickup_events_active_enrollment_unique`) |
 
 ### Aba: Gestão de Alunos ✅
 
 | Funcionalidade | Status |
 |----------------|--------|
+| Persistência relacional | ✅ Dados persistidos no PostgreSQL (`students` e `student_enrollments`) via DAL |
 | Cadastrar aluno | ✅ |
 | Editar aluno | ✅ |
 | Excluir aluno | ✅ |
-| Vincular turma | ✅ |
+| Vincular turma | ✅ Vínculo formal em `public.student_group_assignments` |
 | Definir saída padrão | ✅ |
 | Herdar saída da turma | ✅ |
 | Seleção em massa (checkbox) | ✅ |
@@ -71,6 +76,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
+| Persistência relacional | ✅ Dados persistidos no PostgreSQL (`academic_levels` e `academic_groups`) via DAL |
 | Cadastrar turma | ✅ |
 | Editar turma | ✅ |
 | Excluir turma | ✅ |
@@ -78,15 +84,16 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Propagação ao renomear turma | ✅ |
 | Edição em massa de turmas | ⚠️ Lógica existe; **UI ausente** |
 
-### Aba: Gestão de Portões ⚠️
+### Aba: Gestão de Portões ✅
 
 | Funcionalidade | Status |
 |----------------|--------|
+| Fonte da verdade | ✅ `public.gates` (vertical fechada e verificada em produção via `gateService`) |
 | CRUD portões avançados (nome, horário) | ✅ |
 | Vincular turmas como saída padrão | ✅ |
 | Propagação para alunos | ✅ |
 | CRUD `school.exits` (legado) | ⚠️ Handlers existem; **UI não exposta** |
-| Uso de `gates` no monitor | ✅ Seletor usa `gate.id` dos portões ativos |
+| Uso de `gates` no monitor | ✅ Seletor usa `gate.id` dos portões ativos em `public.gates` |
 
 ### Aba: Importar Dados ✅
 
@@ -141,14 +148,16 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 ## Público / Telão
 
-**Rota:** `/tv`
+**Rota:** `/tv`  
+**Acesso:** Rota pública de telão para exibição de chamadas em tempo real.  
+**Fonte de Dados:** `public.pickup_events` lida a cada 5s (polling operacional).
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Exibir chamada atual | ✅ |
-| Exibir chamadas recentes | ✅ |
+| Exibir chamada atual | ✅ Primeira chamada ativa (`called`) de `public.pickup_events` |
+| Exibir chamadas recentes | ✅ Demais chamadas ativas da fila `called` |
 | Relógio e data (pt-BR) | ✅ |
-| Sincronização da fila | ✅ Polling a cada 5 segundos; sem Realtime |
+| Sincronização da fila | ✅ Polling a cada 5 segundos contra `public.pickup_events`; sem Realtime |
 | Fullscreen (clique no header) | ✅ |
 | Whitelabel (logo/cores) | ✅ Premium/Diamond |
 | Dark mode | ✅ (lê `@SmartExit:darkMode`) |
@@ -178,7 +187,7 @@ Não há:
 
 **Não identificado como perfil autenticado.**
 
-Alunos existem apenas como registros de dados (`studentsList`) gerenciados pelo operador da escola. Não há login ou interface para alunos.
+Alunos existem apenas como registros de dados gerenciados pelo operador da escola (persistidos em `public.students` e `public.student_enrollments` via DAL). Não há login ou interface para alunos.
 
 ---
 
@@ -189,7 +198,7 @@ Alunos existem apenas como registros de dados (`studentsList`) gerenciados pelo 
 | `StudentCard.jsx` | Componente de card com foto — não integrado |
 | `students.js` | Mock com 3 alunos e URLs pravatar — não usado |
 | `App.css` | Estilos template Vite — não importado |
-| `school.exits` vs `gatesList` | Dois modelos de portão coexistindo |
+| `school.exits` (legado) | Modelo legado substituído por `public.gates` |
 | Chaves `institutions` / `currentUser` | Persistência legada parcial |
 
 ---
