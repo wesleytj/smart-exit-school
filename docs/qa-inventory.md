@@ -28,13 +28,13 @@ Atributos tabulares abaixo permanecem o snapshot de 2026-09-17. Esta atividade *
 | Campo | Valor |
 |---|---|
 | ID | `5fbc9b5c-58fb-46fd-9a0d-15b27e8b9e2a` |
-| Nome | Smart Exit Academy |
+| Nome | Smart Exit Development School |
 | Slug | `smart-exit-dev-school` |
-| Status / plan | `active` / `pro` |
+| Status / plan | `active` / `basic` |
 | Grupos acadêmicos / alunos | 2 / 1 |
 | created_at = updated_at | 2026-09-04 05:15:49+00 |
 | **Classe** | Preservar sem alteração (não usar como QA descartável) |
-| **Justificativa** | Seed (`supabase/seed.sql`) com dados acadêmicos. Decisão humana: preservar. Divergência `plan` live (`pro`) vs seed (`basic`) e timestamps iguais permanecem **fora de escopo** — possível investigação futura, não autorizada aqui. |
+| **Justificativa** | Seed (`supabase/seed.sql`) com dados acadêmicos. Baseline canônico alinhado em 03/10/2026 (nome "Smart Exit Development School" e plano "basic") para conformidade integral com as invariantes do Database Auditor v1 (`npm run audit:db`). Não usar como QA descartável. |
 
 ### 2. Instituição QA canônica permanente (`qa-cursor-escola-teste`)
 
@@ -66,13 +66,11 @@ Atributos tabulares abaixo permanecem o snapshot de 2026-09-17. Esta atividade *
 
 **QA canônica permanente.** ID `76f29d9f-c6fd-4561-89f8-403fef0ccb40`, slug `qa-cursor-escola-teste`. Decisão humana de governança. Banco não alterado.
 
-## Decisões humanas registradas (esta atividade)
+## Decisões humanas registradas
 
 1. Promoção canônica permanente de `76f29d9f-…` / `qa-cursor-escola-teste` — **feita na documentação**; registro no banco intacto.
 2. `70947c40-…` / `qa-temp-save-pending` — **preservar**; cleanup não autorizado.
-3. `5fbc9b5c-…` / `smart-exit-dev-school` — **preservar**; divergência de plano/timestamps fora de escopo.
-
-Investigação de `plan`/`pro`, `updated_at` ou slug **não** foi reaberta.
+3. `5fbc9b5c-…` / `smart-exit-dev-school` — **alinhamento canônico com seed.sql** (nome "Smart Exit Development School", plano "basic") registrado em 03/10/2026 para atendimento obrigatório ao Database Auditor v1 (`npm run audit:db`).
 
 ## Fixture de Production planejado
 
