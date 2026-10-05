@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js src/services/platformAdminResolution.test.js src/services/academicStructure.test.js src/services/studentFlow.test.js src/services/pickupService.test.js src/services/schoolYearService.test.js src/services/multiTenantIsolation.test.js",
+    "test": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js src/services/platformAdminResolution.test.js src/services/academicStructure.test.js src/services/studentFlow.test.js src/services/pickupService.test.js src/services/schoolYearService.test.js src/services/multiTenantIsolation.test.js src/services/authPasswordFlows.test.js",
     "preview": "vite preview",
     "validate:rls": "node scripts/validate-rls-foundation.mjs",
     "audit:db": "node scripts/db-auditor/index.mjs"

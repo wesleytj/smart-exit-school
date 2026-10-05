@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
-import { Mail, Lock, LogIn } from "lucide-react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Mail, LogIn } from "lucide-react"
+import PasswordInput from "../components/PasswordInput"
 import { platformAdminService } from "../services/platformAdminService"
 import { tenantSessionService } from "../services/tenantSessionService"
 import { decidePostLogin, resolveTenantAccess } from "../services/tenantAccess"
@@ -11,7 +12,8 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const navigate = useNavigate()
   const location = useLocation()
-  const [error, setError] = useState(location.state?.authMessage || "")
+  const [error, setError] = useState(location.state?.authMessage && !location.state?.successMessage ? location.state.authMessage : "")
+  const [successMessage] = useState(location.state?.successMessage || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleLogin(e) {
@@ -81,7 +83,13 @@ export default function Login() {
           <p className="text-slate-500 text-sm mt-1">Acesse sua conta para continuar</p>
         </div>
 
-        {/* MENSAGEM DE ERRO */}
+        {/* MENSAGEM DE SUCESSO OU ERRO */}
+        {successMessage && !error && (
+          <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-sm font-semibold text-center mb-4 border border-emerald-100">
+            {successMessage}
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 text-red-500 p-3 rounded-xl text-sm font-semibold text-center mb-4 border border-red-100">
             {error}
@@ -106,17 +114,23 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition"
-              />
+            <label htmlFor="login-password" className="text-sm font-semibold text-slate-700 ml-1">Senha</label>
+            <PasswordInput
+              id="login-password"
+              name="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+            <div className="flex justify-end pt-1">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition"
+              >
+                Esqueci minha senha
+              </Link>
             </div>
           </div>
 
