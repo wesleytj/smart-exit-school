@@ -917,3 +917,11 @@ Eventos adicionais (ações realizadas durante a sessão) poderão ser incluído
 - Isolamento por escola via `school_members` é preservado.
 - Platform opera *cross-tenant* por autoridade explícita de plataforma, não por vínculos artificiais em todas as escolas.
 - Um mesmo `profile` poderá, em cenários futuros, ser usuário Platform e também membro Tenant em escolas distintas — mas as autoridades não se confundem: Platform ≠ membership.
+
+---
+
+## ADR-029: Impersonation User-Level com JWT Manual
+
+- **Status:** Aceito
+- **Arquivo:** [docs/adr/0029-impersonation-user-level-jwt.md](../adr/0029-impersonation-user-level-jwt.md)
+- **Resumo:** Adoção de JWT manual assinado em Edge Function (Opção B) para suporte operacional em primeira pessoa, com rejeição do Magic Link (Opção A), claims customizadas em `auth.jwt()`, sentinela `impersonation_no_refresh` e TTL de 45 minutos.
