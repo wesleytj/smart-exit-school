@@ -42,10 +42,10 @@ Preencha com os dados do seu Supabase local (ou remoto):
 ```env
 VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_ANON_KEY=sua-chave-anon-local
-SUPABASE_AUTH_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+SUPABASE_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
 ```
 
-> **Nota sobre `SUPABASE_AUTH_JWT_SECRET`:** No ambiente local do Supabase, o segredo padrão gerado em `supabase/.temp/jwt_secret` é `super-secret-jwt-token-with-at-least-32-characters-long`. Ele é consumido pelas suítes de teste de integração e pelas Edge Functions locais para cunhagem e validação dos tokens de impersonation.
+> **Nota sobre `SUPABASE_JWT_SECRET`:** No ambiente local do Supabase, o segredo padrão gerado em `supabase/.temp/jwt_secret` é `super-secret-jwt-token-with-at-least-32-characters-long`. Ele é consumido pelas Edge Functions (`impersonate-user`, `end-impersonation`) e suítes de teste para cunhagem e validação dos tokens de impersonation. Na suíte de testes de auditoria de segurança em Node.js (`src/services/impersonationSecurityAudit.test.js`), a variável `SUPABASE_LOCAL_JWT_SECRET` também é suportada como alias em `.env.local`.
 
 ---
 

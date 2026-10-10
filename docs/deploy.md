@@ -83,7 +83,7 @@ As Edge Functions utilizam as seguintes variáveis no ambiente Deno:
 * `SUPABASE_URL` *(injetada automaticamente pelo Supabase)*
 * `SUPABASE_ANON_KEY` *(injetada automaticamente pelo Supabase)*
 * `SUPABASE_SERVICE_ROLE_KEY` *(injetada automaticamente pelo Supabase)*
-* `SUPABASE_JWT_SECRET` *(segredo criptográfico HMAC-SHA256 para assinatura do JWT manual)*
+* `SUPABASE_JWT_SECRET` *(segredo criptográfico HMAC-SHA256 para assinatura do JWT manual; fallback suportado em código para `JWT_SECRET`)*
 
 Caso o segredo de assinatura não seja herdado automaticamente no projeto de produção, configure via CLI:
 ```bash
