@@ -4,7 +4,7 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
 
 ---
 
-## 1. Autenticação e Sessão
+## 1. Autenticação, Sessão e Recuperação de Senha
 
 ### 1.1. Erro de Login ou Credenciais Inválidas
 * **Sintoma:** Mensagem de erro de autenticação na tela `/login`.
@@ -32,14 +32,66 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
 
 ---
 
-### 1.3. Platform Admin Redirecionado para `/admin/institutions`
-* **Comportamento Esperado:** Se uma conta possuir a flag de Platform Admin (verificada via RPC `public.is_platform_admin()`), ela não opera como tenant escolar e é intencionalmente direcionada para `/admin/institutions`.
+### 1.3. E-mail de Recuperação de Senha Não Chega
+* **Sintoma:** Ao submeter a tela `/recuperar-senha`, o e-mail transacional com o link de redefinição não é recebido.
+* **Diagnóstico e Soluções:**
+  1. **Relay SMTP no Supabase Auth:** Certifique-se de que as configurações de Custom SMTP estão ativas no Supabase (Authentication → Email Templates → SMTP Settings), conforme detalhado no [Guia de Setup Brevo](infra/smtp-brevo-setup.md).
+  2. **Remetente Verificado:** O e-mail remetente configurado deve estar validado no Brevo.
+  3. **Quota / Rate Limit:** Verifique se a conta Brevo não atingiu o limite de envios do plano.
+  4. **Filtro de Spam:** Cheque a pasta de spam ou lixo eletrônico.
 
 ---
 
-## 2. Monitor Operacional e Telão TV (`/tv`)
+## 2. Serverless Edge Functions (Deno)
 
-### 2.1. Chamadas Acionadas no Painel Não Aparecem no Telão
+### 2.1. Erro 403 Forbidden ao Iniciar Impersonation
+* **Sintoma:** O modal de impersonation exibe erro `Forbidden: caller is not a platform admin`.
+* **Causa:** O usuário autenticado que está chamando a função não está cadastrado na tabela `public.platform_admins`.
+* **Solução:**
+  - Verificar se o usuário chamador possui privilégios de plataforma:
+    ```sql
+    SELECT public.is_platform_admin();
+    ```
+  - Se necessário em ambiente local, vincule o ID do usuário em `public.platform_admins`:
+    ```sql
+    INSERT INTO public.platform_admins (profile_id) VALUES ('<uuid-do-admin>') ON CONFLICT DO NOTHING;
+    ```
+
+---
+
+### 2.2. Erro de CORS ao Chamar Edge Functions
+* **Sintoma:** O navegador bloqueia requisições com mensagem de falha em `Access-Control-Allow-Origin`.
+* **Solução:**
+  - Verificar se o módulo `_shared/cors.ts` está presente e importado na função.
+  - Garantir que requisições pré-vôo (`OPTIONS`) retornem status 200 com os cabeçalhos de CORS esperados.
+
+---
+
+### 2.3. Erro `JWT secret not found` ou Assinatura Inválida
+* **Sintoma:** A Edge Function `impersonate-user` retorna erro de servidor ao assinar o token.
+* **Causa:** A variável `SUPABASE_JWT_SECRET` não foi injetada no ambiente.
+* **Solução:**
+  - Localmente, certifique-se de executar `npx supabase functions serve --no-verify-jwt`.
+  - No Supabase Cloud, defina o segredo via CLI:
+    ```bash
+    npx supabase secrets set SUPABASE_JWT_SECRET="seu-jwt-secret"
+    ```
+
+---
+
+### 2.4. Função Retorna 404 Not Found
+* **Sintoma:** A requisição para `/functions/v1/impersonate-user` retorna 404.
+* **Causa:** O servidor local de funções não foi iniciado ou o nome do endpoint está incorreto.
+* **Solução:** Iniciar o runtime local em terminal separado:
+  ```bash
+  npx supabase functions serve --no-verify-jwt
+  ```
+
+---
+
+## 3. Monitor Operacional e Telão TV (`/tv`)
+
+### 3.1. Chamadas Acionadas no Painel Não Aparecem no Telão
 * **Sintoma:** O operador clica para chamar o aluno no painel institucional, mas o nome não surge na fila do telão.
 * **Diagnóstico e Soluções:**
   1. **Fonte da Verdade em `public.pickup_events`:** As chamadas são gravadas no Supabase, não no `localStorage`. Verifique no Supabase Studio se a linha foi criada:
@@ -55,17 +107,17 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
 
 ---
 
-### 2.2. Telão Mostra "Carregando..." Indefinidamente
-* **Causa:** O componente está aguardando a resolução do contexto de tenant ou a conexão com o Supabase falhou.
-* **Solução:**
-  - Verifique o console do navegador (F12) para checar erros de rede ou CORS.
-  - Certifique-se de que o `.env.local` contém as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` válidas.
+### 3.2. Síntese de Voz Sem Áudio no Telão
+* **Sintoma:** O telão exibe o nome do aluno, mas a voz sintetizada não toca.
+* **Causas e Soluções:**
+  1. **Política de Autoplay dos Navegadores:** Navegadores modernos exigem que o usuário interaja com a página (clique inicial) antes de autorizar a reprodução de áudio/Web Speech API. Clique em qualquer área do telão para desbloquear o áudio.
+  2. **Voz do Sistema Indisponível:** Verifique se o sistema operacional possui vozes em português instaladas para a Web Speech API.
 
 ---
 
-## 3. Banco de Dados Local e Migrações (Supabase)
+## 4. Banco de Dados Local e Migrações (Supabase)
 
-### 3.1. Falha ao Iniciar o Supabase Local (`npx supabase start`)
+### 4.1. Falha ao Iniciar o Supabase Local (`npx supabase start`)
 * **Sintomas:** Erros de conexão Docker, portas em uso ou timeout.
 * **Solução:**
   1. Certifique-se de que o Docker Desktop está em execução.
@@ -78,10 +130,10 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
 
 ---
 
-### 3.2. Divergências de Schema ou Falha no Database Auditor
+### 4.2. Divergências de Schema ou Falha no Database Auditor
 * **Sintoma:** O comando `npm run audit:db` ou `npm run validate:rls` retorna erros de tabelas ou policies ausentes.
 * **Solução:**
-  - Execute o reset completo do banco local para reaplicar todas as 18 migrations e o seed:
+  - Execute o reset completo do banco local para reaplicar todas as 22 migrations e o seed baseline:
     ```bash
     npx supabase db reset
     ```
@@ -92,19 +144,19 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
 
 ---
 
-## 4. Ambiente e Frontend
+## 5. Ambiente e Frontend
 
-### 4.1. Erros de Roteamento SPA na Vercel (404 em Reload)
-* **Sintoma:** Ao atualizar páginas como `/painel` ou `/admin/institutions`, o navegador recebia `404 NOT_FOUND`.
+### 5.1. Erros de Roteamento SPA na Vercel (404 em Reload)
+* **Sintoma:** Ao atualizar páginas como `/painel`, `/admin/institutions`, `/recuperar-senha` ou `/redefinir-senha`, o navegador recebia `404 NOT_FOUND`.
 * **Solução:** Confirmar que o arquivo [vercel.json](../vercel.json) está presente na raiz com a configuração de rewrites direcionando para `/index.html`.
 
 ---
 
-### 4.2. Falha nos Testes Unitários (`npm test`)
+### 5.2. Falha nos Testes Unitários (`npm test`)
 * **Sintoma:** Testes falhando localmente.
 * **Solução:**
   - Execute a suíte de testes com o runner nativo do Node.js:
     ```bash
     npm test
     ```
-  - Certifique-se de que não há arquivos temporários corrompidos no working tree.
+  - Verifique se a infraestrutura do Supabase local está em execução se os testes exigirem validação de integração.
