@@ -2,11 +2,12 @@
 
 ## Ambiente de Produção
 
-O Smart Exit School opera em modelo arquitetural desacoplado, combinando um frontend estático de alta performance hospedado na **Vercel** com um backend escalável gerenciado no **Supabase Cloud**:
+O Smart Exit School opera em modelo arquitetural desacoplado, combinando um frontend estático de alta performance hospedado na **Vercel** com um backend escalável e Serverless Edge Functions gerenciados no **Supabase Cloud**:
 
 * **Frontend (Vercel):** `https://smart-exit-school.vercel.app`
 * **Backend / Database (Supabase Cloud):** Projeto `yantfnekslrzhussewdh` (PostgreSQL com RLS ativo)
-* **Automação & CI:** GitHub Actions executando lint e build em Pull Requests e pushes para a branch `main`.
+* **Serverless Edge Functions (Supabase Cloud):** Endpoints `impersonate-user` e `end-impersonation` executados sob runtime Deno
+* **Automação & CI:** GitHub Actions executando lint e build em Pull Requests e pushes para a branch `main`
 
 ---
 
@@ -18,6 +19,8 @@ flowchart LR
     Repo -->|Trigger CI| GHA[GitHub Actions<br/>Lint + Build]
     Repo -->|Deploy Automático| Vercel[Vercel Edge Network<br/>SPA React 19]
     Vercel -->|HTTPS / JWT| Supabase[Supabase Cloud<br/>PostgreSQL + Auth + RLS]
+    Vercel -->|HTTP POST| Edge[Supabase Edge Functions<br/>impersonate-user / end-impersonation]
+    Edge -->|Service Role / RLS| Supabase
     Users[Navegadores & Telões TV] -->|Acesso Web| Vercel
     Users -.->|PostgREST / Auth| Supabase
 ```
@@ -26,7 +29,7 @@ flowchart LR
 
 ## Roteamento e Fallback SPA (`vercel.json`)
 
-Como a aplicação é uma Single Page Application (SPA) que utiliza o `react-router-dom` no modo `BrowserRouter`, as rotas client-side (`/login`, `/painel`, `/admin/institutions`, `/tv`) exigem redirecionamento interno para o `index.html`.
+Como a aplicação é uma Single Page Application (SPA) que utiliza o `react-router-dom` no modo `BrowserRouter`, todas as rotas client-side (`/login`, `/recuperar-senha`, `/redefinir-senha`, `/painel`, `/admin/institutions`, `/tv`) exigem redirecionamento interno para o `index.html`.
 
 O arquivo [vercel.json](../vercel.json) está versionado na raiz do repositório garantindo esse fallback:
 
@@ -47,7 +50,8 @@ Isso elimina erros de rota `404 NOT_FOUND` no servidor de borda e delega o rotea
 
 ## Variáveis de Ambiente em Produção
 
-O frontend consome variáveis prefixadas com `VITE_` em tempo de compilação. No painel da Vercel (Project Settings → Environment Variables), configure:
+### Frontend (Vercel)
+No painel da Vercel (Project Settings → Environment Variables), configure:
 
 | Variável | Obrigatória | Finalidade |
 |---|---|---|
@@ -58,7 +62,37 @@ O frontend consome variáveis prefixadas com `VITE_` em tempo de compilação. N
 
 ---
 
-## Processo de Build
+## Deploy das Edge Functions (Supabase Cloud)
+
+As Serverless Edge Functions de personificação e suporte operam em ambiente Deno gerenciado pelo Supabase.
+
+### Comandos de Publicação
+```bash
+# 1. Vincular o projeto ao Supabase Cloud (se ainda não vinculado)
+npx supabase link --project-ref yantfnekslrzhussewdh
+
+# 2. Publicar a função de início de impersonation
+npx supabase functions deploy impersonate-user
+
+# 3. Publicar a função de encerramento de impersonation
+npx supabase functions deploy end-impersonation
+```
+
+### Configuração de Secrets nas Edge Functions
+As Edge Functions utilizam as seguintes variáveis no ambiente Deno:
+* `SUPABASE_URL` *(injetada automaticamente pelo Supabase)*
+* `SUPABASE_ANON_KEY` *(injetada automaticamente pelo Supabase)*
+* `SUPABASE_SERVICE_ROLE_KEY` *(injetada automaticamente pelo Supabase)*
+* `SUPABASE_JWT_SECRET` *(segredo criptográfico HMAC-SHA256 para assinatura do JWT manual)*
+
+Caso o segredo de assinatura não seja herdado automaticamente no projeto de produção, configure via CLI:
+```bash
+npx supabase secrets set SUPABASE_JWT_SECRET="seu-jwt-secret-de-producao"
+```
+
+---
+
+## Processo de Build do Frontend
 
 O build de produção é gerado pelo Vite:
 
@@ -81,11 +115,13 @@ npm run preview
 
 1. **Validação Local:**
    - `npm run lint` (verificação de código limpo)
-   - `npm test` (suíte de testes unitários passando)
+   - `npm test` (147 testes automatizados passando)
    - `npm run audit:db` / `npm run validate:rls` (se houver migrações de banco)
 2. **Entrega Git:**
    - Abertura de Pull Request para a branch `main`.
    - Validação dos checks do GitHub Actions (CI).
    - Aprovação humana formalizada via Decision Gate (`G-MERGE`).
-3. **Deploy Contínuo:**
+3. **Publicação Contínua:**
    - Ao realizar o merge na `main`, a Vercel compila e disponibiliza a nova versão em produção automaticamente.
+   - Se houver novas migrations, aplicar via `npx supabase db push`.
+   - Se houver alterações em `supabase/functions/`, executar o deploy via `npx supabase functions deploy`.
