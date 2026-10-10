@@ -17,21 +17,23 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Guard de rota (`/admin/institutions`) | Proteção estrita via `usePlatformAdmin()` (redireciona não-admins) | `PlatformAdminGate.jsx` |
 | Dashboard de métricas | Total escolas, ativas, alunos gerenciados | `InstitutionsManager.jsx` |
 | Listagem de instituições | Tabela com nome, e-mail, plano, alunos, status | `InstitutionsManager.jsx` |
-| Busca | Por nome ou e-mail | `InstitutionsManager.jsx` |
-| Criar instituição | Modal com nome e plano; nome obrigatório e único no Supabase; salvamento usa o mesmo estado `Salvando...` do formulário | `InstitutionsManager.jsx` |
-| Editar instituição | Modal pré-preenchido; nome vazio, só espaços ou duplicado é rejeitado; alteração só do plano é persistida; durante o salvamento o botão fica desabilitado com feedback `Salvando...` e novos envios são ignorados | `InstitutionsManager.jsx` |
-| Excluir instituição | Com confirmação | `InstitutionsManager.jsx` |
+| Busca de instituições | Por nome ou e-mail | `InstitutionsManager.jsx` |
+| Criar instituição | Modal com nome e plano; nome obrigatório e único no Supabase; feedback visual `Salvando...` | `InstitutionsManager.jsx` |
+| Editar instituição | Modal pré-preenchido; validação de unicidade de nome e persistência de alteração de plano | `InstitutionsManager.jsx` |
+| Excluir instituição | Com confirmação explícita | `InstitutionsManager.jsx` |
 | Suspender/Reativar | Toggle status Ativo/Inativo | `InstitutionsManager.jsx` |
-| Logout | Navega para `/login` | `InstitutionsManager.jsx` |
+| Logout | Encerra sessão Auth e navega para `/login` | `InstitutionsManager.jsx` |
+| Catálogo global de usuários | ✅ Super Admin busca usuários por nome, e-mail e instituição via RPC `list_platform_users` | `InstitutionsManager.jsx`, `platformAdminService.js` |
+| Impersonar escola (login como usuário) | ✅ Super Admin acessa conta de usuário-alvo via impersonation auditada, com JWT manual, sentinela anti-refresh, TTL 45min e trilha imutável em `impersonation_audit_logs` | `InstitutionsManager.jsx`, Edge Functions `impersonate-user` / `end-impersonation` |
+| Banner de suporte (Impersonation) | ✅ Componente `SupportBanner` com identificação visual, contador regressivo de 45min e botão de encerramento seguro | `SupportBanner.jsx` |
+| Logs de auditoria | ✅ Tabela `public.impersonation_audit_logs` com snapshots imutáveis de e-mail/nome, constraints de validação, RLS restritivo e testes de segurança (Grupos A/B) | `impersonation_audit_logs`, Edge Functions |
 | Migração plano Pro → Basic | Automática no load | `InstitutionsManager.jsx` |
 
 ### Incompletas / Ausentes
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Impersonar escola (login como cliente) | **Não identificado** |
 | Billing / faturamento | **Não identificado** |
-| Logs de auditoria | **Não identificado** |
 | Gestão de planos Trial (expiração 14 dias) | Plano existe no select; **lógica ausente** |
 
 ---
@@ -41,7 +43,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 **Rota:** `/painel`  
 **Autenticação:** Supabase Auth e membership ativa em `public.school_members`. `localStorage` não autoriza. Em produção, uma conta escolar de teste já abriu `/painel` para o Colégio Adventista de Esteio. Ver [autenticacao.md](autenticacao.md).  
 **Proteção de Rota:** Protegido via `TenantPanelGate`, validando sessão ativa no Supabase Auth e membership ativa no tenant escolar correspondente.  
-**Domínio e Persistência:** Gestão institucional completa conectada ao Supabase PostgreSQL: níveis acadêmicos (`academic_levels`), turmas (`academic_groups`), alunos (`students`), matrículas (`student_enrollments`, `student_group_assignments`), portões (`public.gates`) e chamadas de saída (`public.pickup_events`).
+**Domínio e Persistência:** Gestão institucional completa conectada ao Supabase PostgreSQL: níveis acadêmicos (`academic_levels`), turmas (`academic_groups`), anos letivos (`school_years`), alunos (`students`), matrículas (`student_enrollments`, `student_group_assignments`), portões (`public.gates`) e chamadas de saída (`public.pickup_events`).
 
 ### Aba: Monitor de Saída ✅
 
@@ -52,10 +54,19 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Buscar por nome ou turma | ✅ |
 | Selecionar portão por aluno | ✅ Seleção gravada diretamente em `public.pickup_events` (`gate_id`) |
 | Chamar aluno | ✅ Insere `pickup_events` com status `called` |
+| Cancelamento de chamadas | ✅ Operador pode cancelar chamada acionada, preenchendo `cancelled_at` e registrando justificativa via modal (`pickupService.cancelCall`) |
 | Fila de chamada com horário | ✅ `called_at`, mais recente primeiro, lido de `public.pickup_events` |
 | Confirmar saída | ✅ Atualiza para `completed` em `public.pickup_events`; o registro histórico permanece |
 | Abrir telão em nova aba | ✅ |
 | Impedir chamada duplicada | ✅ Lista ativa + índice único por matrícula no banco (`pickup_events_active_enrollment_unique`) |
+
+### Aba: Anos Letivos ✅
+
+| Funcionalidade | Status |
+|----------------|--------|
+| Ano letivo configurável | ✅ Cada tenant possui tabela `public.school_years` com alternância atômica do ano letivo ativo via RPC `activate_school_year` |
+| Gestão de datas | ✅ Validação de intervalo (`start_date`, `end_date`) e restrição de sobreposição |
+| Vinculação de matrículas | ✅ Matrículas e turmas acadêmicas associadas explicitamente ao ano letivo ativo |
 
 ### Aba: Gestão de Alunos ✅
 
@@ -136,13 +147,14 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Gerar API Key | Diamond | ✅ (não consumida) |
 | Reset de fábrica | Todos | ✅ |
 
-### Funcionalidades administrativas gerais
+### Autenticação & Recuperação de Senha ✅
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Logout | Encerra a sessão Auth |
-| Seed MOCK_SCHOOLS (primeiro acesso) | ✅ |
-| Migração classes string → object | ✅ |
+| Login com e-mail/senha | ✅ Supabase Auth com suporte a toggle de visualização (`PasswordInput`) |
+| Recuperação de senha (`/forgot-password`) | ✅ Envio de e-mail de redefinição integrado ao Supabase Auth / SMTP Brevo |
+| Redefinição de senha (`/update-password`) | ✅ Atualização atômica de senha com token de recuperação |
+| Logout | ✅ Encerra a sessão Auth e limpa caches de tenant |
 
 ---
 
@@ -161,8 +173,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Fullscreen (clique no header) | ✅ |
 | Whitelabel (logo/cores) | ✅ Premium/Diamond |
 | Dark mode | ✅ (lê `@SmartExit:darkMode`) |
-| Som de chamada (`call.mp3`) | ❌ Arquivo existe; **não reproduzido** |
-| Síntese de voz / TTS | **Não identificado** |
+| Áudio no telão | ✅ Anúncio sonoro inteligente: chime harmônico (Web Audio API) + síntese de voz (Web Speech API), fila sequencial e debounce |
 
 ---
 
@@ -174,12 +185,7 @@ Mencionado apenas em copy de marketing na aba Fleet (Diamond):
 
 > "integração com o app dos pais para organizar a fila da chamada antes mesmo deles chegarem no portão"
 
-Não há:
-
-- Portal do responsável
-- App mobile
-- Notificações push
-- Autorização de retirada por responsável
+Não há portal do responsável, app mobile ou autorização de retirada ativa.
 
 ---
 
@@ -195,11 +201,10 @@ Alunos existem apenas como registros de dados gerenciados pelo operador da escol
 
 | Item | Descrição |
 |------|-----------|
-| `StudentCard.jsx` | Componente de card com foto — não integrado |
-| `students.js` | Mock com 3 alunos e URLs pravatar — não usado |
-| `App.css` | Estilos template Vite — não importado |
-| `school.exits` (legado) | Modelo legado substituído por `public.gates` |
-| Chaves `institutions` / `currentUser` | Persistência legada parcial |
+| `StudentCard.jsx` | Componente de card com foto — mantido para futura integração visual |
+| `students.js` | Mock inicial com alunos de demonstração |
+| `App.css` | Estilos template Vite |
+| `school.exits` (legado) | Modelo textual substituído por `public.gates` |
 
 ---
 
@@ -211,9 +216,10 @@ graph TD
     Premium[Plano Premium]
     Diamond[Plano Diamond]
 
-    Basic --> Monitor[Monitor de Saída]
-    Basic --> CRUD[CRUD Alunos/Turmas/Portões]
+    Basic --> Monitor[Monitor de Saída & Cancelamento]
+    Basic --> CRUD[CRUD Alunos/Turmas/Portões/Anos Letivos]
     Basic --> Import[Import CSV]
+    Basic --> TV[Telão com Áudio Sintetizado]
 
     Premium --> Basic
     Premium --> WL[Whitelabel Logo/Cores]
@@ -233,18 +239,14 @@ graph TD
 | Capacidade | Super Admin | Operador Escola | Telão | Responsável | Aluno |
 |------------|:-----------:|:---------------:|:-----:|:-----------:|:-----:|
 | Login | ✅ | ✅ | — | ❌ | ❌ |
+| Catálogo global de usuários | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Impersonation auditada | ✅ | ❌ | ❌ | ❌ | ❌ |
 | CRUD instituições | ✅ | ❌ | ❌ | ❌ | ❌ |
-| CRUD alunos/turmas | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Chamar alunos | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Ver chamadas | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Configurar whitelabel | ❌ | ✅* | — | ❌ | ❌ |
+| CRUD alunos/turmas | ❌ (direto) / ✅ (impersonado) | ✅ | ❌ | ❌ | ❌ |
+| Anos letivos configuráveis | ❌ (direto) / ✅ (impersonado) | ✅ | ❌ | ❌ | ❌ |
+| Chamar alunos | ❌ (direto) / ✅ (impersonado) | ✅ | ❌ | ❌ | ❌ |
+| Cancelar chamadas | ❌ (direto) / ✅ (impersonado) | ✅ | ❌ | ❌ | ❌ |
+| Ver chamadas | ❌ (direto) / ✅ (impersonado) | ✅ | ✅ | ❌ | ❌ |
+| Configurar whitelabel | ❌ (direto) / ✅ (impersonado) | ✅* | — | ❌ | ❌ |
 
 \* Premium/Diamond apenas
-
----
-
-## Pontos que precisam de validação
-
-- Escopo exato do plano Trial
-- Se botões "Falar com Suporte" / "Upgrade" devem ter ação real
-- Prioridade de implementação: relatórios vs fleet vs app pais
