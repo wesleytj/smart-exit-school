@@ -1,6 +1,6 @@
 # Autenticação — Smart Exit School
 
-A identidade do usuário é a sessão do Supabase Auth (ADR-004). O identificador usado pela aplicação é `auth.uid()`. `public.schools` representa a organização e não guarda credencial (ADR-005). `public.profiles` não carrega `school_id` (ADR-007). A autorização do tenant não é lida de `profiles`.
+A identidade do usuário é a sessão do Supabase Auth ([ADR-004](./arquitetura/decisoes.md#adr-004-identidade-e-autenticacao-via-supabase-auth)). O identificador usado pela aplicação é `auth.uid()`. `public.schools` representa a organização e não guarda credencial ([ADR-005](./arquitetura/decisoes.md#adr-005-representacao-de-escola-em-publicschools)). `public.profiles` não carrega `school_id` ([ADR-007](./arquitetura/decisoes.md#adr-007-perfil-de-usuario-em-publicprofiles)). A autorização do tenant não é lida de `profiles`.
 
 ```text
 Supabase Auth
@@ -32,6 +32,20 @@ is_platform_admin()
 /admin/institutions
 ```
 
+---
+
+## Três Contextos de Identidade
+
+A arquitetura do Smart Exit School reconhece e isola três contextos distintos de sessão:
+
+| Contexto | Origem & Mecanismo | Ciclo de Vida & Refresh | Escopo de Acesso |
+|---|---|---|---|
+| **1. Sessão Autenticada Normal** | Supabase Auth via credenciais do usuário (`signInWithPassword`) | Renovável via GoTrue `refresh_token`; `autoRefreshToken = true` | Resolvido via `school_members` para operador de escola, ou `/admin/institutions` para Platform Admin |
+| **2. Sessão de Suporte (Impersonation)** | Edge Function `impersonate-user` (JWT manual HS256 assinado com a secret da plataforma) | **Não renovável**; sentinela `impersonation_no_refresh`; `stopAutoRefresh()`; TTL estrito de 45 min | Assume em primeira pessoa a identidade do operador-alvo com isolamento RLS do tenant; banner visual no topo |
+| **3. Sessão de Recuperação de Senha** | Token temporário via link enviado por e-mail (`resetPasswordForEmail`) | Temporária, restrita ao fluxo de redefinição de credenciais | Redireciona para `/update-password` para invocação de `updatePassword()`; sem acesso aos painéis de tenant até conclusão |
+
+---
+
 ## Usuário de escola
 
 `school_members` é a fonte de autorização do tenant. A membership precisa estar ativa. A escola autorizada é `school_members.school_id` da linha ativa cujo `profile_id` é o `auth.uid()` da sessão, e somente se a RLS também devolver essa escola.
@@ -45,67 +59,106 @@ is_platform_admin()
 
 A escolha entre várias escolas fica na memória da interface e é revalidada com nova leitura de membership. Ela não é gravada em `profiles`.
 
-Logout encerra a sessão do Supabase Auth (`supabase.auth.signOut()`).
+Logout encerra a sessão do Supabase Auth (`supabase.auth.signOut()`) e limpa caches de sessão locais.
+
+---
 
 ## Platform Admin
 
-Platform Admin e usuário de escola são domínios separados (ADR-028).
+Platform Admin e usuário de escola são domínios rigorosamente separados ([ADR-028](./arquitetura/decisoes.md#adr-028-separacao-entre-platform-admin-e-dominio-operacional-de-escola)).
 
 - A autoridade de plataforma é a RPC `is_platform_admin()`, não `school_members`.
-- O fluxo de Platform Admin é `/admin/institutions`.
-- `is_platform_admin()` não concede o painel de escola.
+- O fluxo oficial de Platform Admin é `/admin/institutions`.
+- `is_platform_admin()` não concede acesso direto ao painel de escola sem impersonation.
 - Membership ativa não concede privilégio de plataforma.
 - Em `/painel`, a autoridade de plataforma é resolvida antes do contexto tenant. Se ela estiver presente, a rota vai para `/admin/institutions` e o painel de escola não é montado, mesmo que existam memberships.
+
+---
+
+## Impersonation User-Level (Suporte Técnico)
+
+A funcionalidade de **Impersonation User-Level** ("Entrar como usuário") permite que um Platform Admin acesse temporariamente a conta de um usuário-alvo em "primeira pessoa" para fins de diagnóstico e suporte técnico operacional, sem necessidade de compartilhar, solicitar ou alterar as credenciais reais do usuário ([ADR-029](./adr/0029-impersonation-user-level-jwt.md)).
+
+```text
+[Platform Admin em /admin/institutions]
+         │
+         │ 1. Seleciona usuário no catálogo (RPC list_platform_users)
+         │ 2. Preenche justificativa de suporte (mínimo 5 caracteres)
+         ▼
+[Edge Function: impersonate-user]
+         │
+         │ 3. Valida autoridade via public.is_platform_admin() (HTTP 403 / 42501 se não-admin)
+         │ 4. Cria registro em public.impersonation_audit_logs (started_at = now())
+         │ 5. Assina JWT manual HS256 com claims customizadas e expiração de +45 minutos
+         ▼
+[Frontend: Sessão de Impersonation Ativa]
+         │
+         │ 6. Salva sessão do admin em sessionStorage ("ses_admin_session_backup")
+         │ 7. Invoca supabase.auth.stopAutoRefresh() (bloqueia renovação GoTrue)
+         │ 8. Injeta token com supabase.auth.setSession() usando refresh sentinela
+         │ 9. Limpa caches locais de escolas e exibe Banner persistente com timer regressivo
+         ▼
+[Restauração / Encerramento]
+         │
+         │ 10. Admin clica em "Voltar para Super Admin" ou token expira (45 min)
+         │ 11. Edge Function end-impersonation registra ended_at = now()
+         │ 12. Frontend restaura sessão de admin e reinicia supabase.auth.startAutoRefresh()
+```
+
+### Especificação Técnica do Token e Contrato
+
+- **Autorização:** Apenas chamadores que possuem `is_platform_admin() = true`. Usuários comuns que tentarem chamar a Edge Function recebem `HTTP 403 Forbidden`.
+- **Assinatura & Algoritmo:** Token JWT manual assinado com `HS256` utilizando a secret do Supabase (`SUPABASE_JWT_SECRET`).
+- **Claims Customizadas:**
+  - `sub`: ID do usuário-alvo (`target_user_id`);
+  - `role`: `'authenticated'`;
+  - `is_impersonated`: `true`;
+  - `impersonator_id`: ID do Platform Admin;
+  - `impersonation_log_id`: UUID do registro de auditoria criado;
+  - `exp`: Timestamp Unix correspondente a 45 minutos (2700 segundos) a partir da emissão.
+- **Sentinela Anti-Refresh:** A resposta retorna `refresh_token: 'impersonation_no_refresh'`. O token é intencionalmente não renovável pelo GoTrue.
+- **Controle de SDK no Cliente:** O cliente chama compulsoriamente `supabase.auth.stopAutoRefresh()` ao entrar no modo de impersonation e `supabase.auth.startAutoRefresh()` ao restaurar a sessão do Platform Admin.
+- **Auditoria Imutável:** O início e encerramento gravam snapshots imutáveis em `public.impersonation_audit_logs` (`super_admin_id`, `target_user_id`, `target_user_email`, `target_user_name`, `reason`, `started_at`, `ended_at`).
+
+Para detalhes operacionais passo a passo, consulte o [Guia de Operação: Fluxo de Suporte Técnico via Impersonation User-Level](./impersonation-support-flow.md).
+
+---
+
+## Fluxos de Senha e Recuperação
+
+A autenticação do Smart Exit School inclui recuperação de credenciais e utilitários visuais de acessibilidade:
+
+### 1. Solicitação de Redefinição (`/forgot-password`)
+- Rota pública acessível pelo link "Esqueceu sua senha?" na tela de login.
+- O usuário insere seu e-mail e clica em enviar.
+- O serviço `authService.resetPasswordForEmail(email)` aciona o Supabase Auth com URL de redirecionamento configurada para `/update-password`.
+- **Proteção contra enumeração de usuários:** Por diretriz de segurança, a interface exibe confirmação neutra de envio independentemente de o e-mail estar ou não cadastrado no banco.
+
+### 2. Atualização de Senha (`/update-password`)
+- Rota acessada quando o usuário abre o link recebido por e-mail com token temporário de recuperação.
+- Permite informar uma nova senha (validada contra requisitos mínimos).
+- Invoca `authService.updatePassword(newPassword)`, que executa `supabase.auth.updateUser({ password })`.
+- Ao concluir com sucesso, exibe confirmação e redireciona o usuário para `/login`.
+
+### 3. Alternância de Visibilidade de Senha (`PasswordInput`)
+- Componente de formulário reutilizável que inclui botão de alternância (Eye / EyeOff) para exibir ou ocultar caracteres da senha.
+- Implementado em `/login` e `/update-password`.
+
+---
 
 ## Estado local
 
 `localStorage` não é autoridade. `@SmartExit:loggedSchool` não autoriza acesso e não escolhe o tenant.
 
-Alunos, turmas e chamadas do painel ainda podem permanecer no browser (`@SmartExit:schoolOps:{schoolId}`, `@SmartExit:called:{schoolId}`). Portões persistidos estão em `public.gates`. `@SmartExit:gates:{schoolId}` não é fonte de verdade. Esse cache não é identidade. Chamadas locais não são `public.pickup_events`.
+Alunos, turmas e chamadas do painel operam no banco Supabase (`public.students`, `public.academic_groups`, `public.pickup_events`), com `localStorage` atuando apenas como cache temporário de interface cross-tab. Portões persistidos residem em `public.gates`. Caches locais nunca sobrepõem permissões e são limpos na transição de impersonation.
+
+---
 
 ## Segurança
 
-- RLS continua sendo a autoridade no banco.
-- A Feature #49 não alterou RLS, policies nem grants.
-- Não existe impersonation.
+- RLS no PostgreSQL continua sendo a autoridade máxima e soberana do sistema.
+- Impersonation opera sob estrita auditoria, com token não renovável, TTL de 45 minutos e isolamento RLS preservado.
 - Não existe bypass de autorização por `localStorage`.
-- Não existe provisioning automático de membership.
-- Não existe uso de `service_role` para resolver o tenant.
-
-## Homologação de produção
-
-O frontend está publicado em `https://smart-exit-school.vercel.app` (Vercel). O banco de produção é o projeto Supabase `yantfnekslrzhussewdh`. As migrations de `main` já foram aplicadas nesse projeto. O arquivo `supabase/seed.sql` completo **não** foi executado em produção.
-
-- Um Platform Admin real autenticou e a aplicação o direcionou para `/admin/institutions`.
-- A primeira instituição de homologação é o Colégio Adventista de Esteio, plano `basic`, status `active`.
-- As quatro roles (`owner`, `administrator`, `secretary`, `gatekeeper`) foram inseridas isoladamente, porque `school_members.role_id` exige o catálogo. A massa de desenvolvimento do seed (escola, alunos, turmas, portões) não foi para produção.
-- Existe um usuário escolar de homologação. É conta de teste, não conta institucional definitiva. O `profile` nasceu do trigger `on_auth_user_created`. A membership ativa, com role `owner`, foi inserida por SQL privilegiado.
-- Não existe interface administrativa para criar usuário escolar nem para gravar `school_members`. Esse provisionamento continua sendo operação manual e privilegiada.
-- O login dessa conta de teste resolveu o tenant Colégio Adventista de Esteio e abriu `/painel`. O logout encerrou a sessão.
-- A resolução de tenant foi validada para uma identidade escolar. O roteamento do Platform Admin também foi validado. Isso não certifica isolamento multi-tenant: ainda não houve teste com duas escolas reais e dois usuários escolares distintos. RLS continua sendo a autoridade final.
-- Antes da comercialização em escala, o produto ainda precisa de um fluxo formal de convite ou provisionamento de usuários escolares.
-
-### Rotas observadas na homologação
-
-Um `404 NOT_FOUND` servido pelo Vercel não distingue rota inexistente, fallback de SPA ausente ou bloqueio da aplicação. Não é evidência de RLS nem de autorização.
-
-| Acesso | Resultado observado |
-|---|---|
-| Usuário escolar em `/admin/institutions` | Vercel `404 NOT_FOUND` |
-| Usuário escolar em `/painel` após o fluxo de login, com sessão possivelmente perdida | Vercel `404 NOT_FOUND`; não usar como evidência de autorização |
-| Platform Admin em `/admin/institutions` | Acesso confirmado |
-| Platform Admin em `/painel` | Vercel `404 NOT_FOUND` |
-
-O login em si direcionou o usuário escolar para `/painel` e o Platform Admin para `/admin/institutions`.
-
-## Feature #49
-
-| Item | Estado |
-|---|---|
-| Issue | #49 |
-| PR | #50, merged |
-| `main` | `bfbfdaf50d81ddbc06786b8f3bb10fbc7d8cfc1d` |
-| Implementação | concluída em `main` |
-| Publicação | frontend na Vercel; migrations aplicadas no Supabase de produção |
-
-A Feature não cria usuário, profile nem `school_members`. O `profile` de um novo usuário Auth nasce do trigger. A membership não nasce da aplicação.
+- Não existe provisioning automático de membership sem intervenção administrativa.
+- Não existe uso de `service_role` no código do cliente frontend.
+- Rota `/admin/institutions` é inacessível para operadores de escola e bloqueia tokens de impersonation via verificação de privilégio de plataforma.

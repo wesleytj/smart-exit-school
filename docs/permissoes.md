@@ -2,18 +2,17 @@
 
 ## Perfis identificados
 
-| Perfil | Identificação | Autenticação |
-|--------|---------------|--------------|
-| **Platform Admin** | RPC `is_platform_admin()` | Supabase Auth; fluxo `/admin/institutions`; não é tenant |
-| **Usuário de escola** | Membership ativa em `school_members` | Supabase Auth (`auth.uid()`) |
-| **Telão (anônimo)** | Sem login | Acesso público à rota `/tv`; não autoriza tenant |
-| **Responsável / Aluno** | — | **Não identificado** |
+| Perfil | Identificação | Autenticação & Mecanismo | Escopo e Acesso Operacional |
+|--------|---------------|--------------------------|-----------------------------|
+| **Platform Admin (Super Admin)** | RPC `is_platform_admin()` | Supabase Auth; fluxo `/admin/institutions`; não é tenant | Gestão global de instituições, catálogo de usuários e suporte técnico via impersonation |
+| **Operador de Escola** | Membership ativa em `school_members` | Supabase Auth (`auth.uid()`) | Operação diária da unidade escolar vinculada (alunos, turmas, chamadas, anos letivos) |
+| **Operador Impersonado** | JWT manual assinado (HS256) | Edge Function `impersonate-user`; token temporário auditado | Acesso em primeira pessoa ao painel do operador-alvo com isolamento RLS de tenant; sem privilégio de plataforma |
+| **Telão (anônimo)** | Sem login | Acesso público à rota `/tv`; não autoriza tenant | Fila de chamadas da escola via cache de exibição |
+| **Responsável / Aluno** | — | **Não identificado** | Notificações passivas no portão |
 
-Não há sistema de RBAC (Role-Based Access Control) granular na interface. Permissões de tela derivam do **plano da instituição** (`plan`) e do **perfil de acesso** (Platform Admin vs usuário de escola).
+Não há sistema de RBAC granular customizável na interface. Permissões de tela derivam do **plano da instituição** (`plan`) e do **perfil de acesso** (Platform Admin vs usuário de escola).
 
-O catálogo `public.roles` tem `owner`, `administrator`, `secretary` e `gatekeeper`. Em produção essas quatro linhas foram inseridas isoladamente, sem o `seed.sql` completo. A policy de `UPDATE` em `schools` reconhece membro ativo `owner` ou `administrator`. O login não lê a role: uma membership `active` basta para resolver o tenant. O primeiro usuário escolar de homologação do Colégio Adventista de Esteio foi vinculado como `owner` por SQL privilegiado.
-
-Não existe UI para convidar ou vincular usuário escolar. Criar `school_members` continua sendo operação manual e privilegiada. Um fluxo formal de convite ainda é necessário antes da comercialização em escala.
+O catálogo `public.roles` contém `owner`, `administrator`, `secretary` e `gatekeeper`. Em produção, essas quatro roles foram inseridas no schema. A policy de `UPDATE` em `schools` reconhece membros ativos `owner` ou `administrator`. O login do operador resolve o tenant a partir de qualquer membership `active` em `school_members`.
 
 ---
 
@@ -21,33 +20,62 @@ Não existe UI para convidar ou vincular usuário escolar. Criar `school_members
 
 ```mermaid
 graph TD
-    SA[Super Admin] --> |CRUD| Schools[Todas as instituições]
-    OP[Operador Escola] --> |CRUD| OwnData[Própria instituição]
-    OP --> |Read/Write| Monitor[Monitor de Saída]
-    TV[Telão /tv] --> |Read| Calls[Fila de chamadas]
+    SA[Super Admin] --> |CRUD Global| Schools[Instituições /admin/institutions]
+    SA --> |Leitura Global| Users[Catálogo de Usuários RPC]
+    SA -.-> |Impersonation Auditada| OP[Operador de Escola]
+    OP --> |CRUD Tenant| OwnData[Dados da Escola: Alunos, Turmas, Anos Letivos]
+    OP --> |Read/Write| Monitor[Monitor de Saída / Painel]
+    TV[Telão /tv] --> |Read Public| Calls[Fila de Chamadas Ativas]
 ```
 
 ---
 
-## Matriz: Super Admin vs Operador
+## Matriz: Super Admin vs Operador de Escola
 
-| Funcionalidade | Super Admin | Operador Escola |
-|----------------|:-----------:|:---------------:|
-| Criar/editar/excluir instituições | ✅ | ❌ |
-| Alterar plano | ✅ | ❌ |
-| Suspender instituição | ✅ | ❌ |
-| Ver dashboard global | ✅ | ❌ |
-| CRUD alunos | ❌ | ✅ |
-| CRUD turmas | ❌ | ✅ |
-| CRUD portões | ❌ | ✅ |
-| Chamar alunos | ❌ | ✅ |
-| Import CSV | ❌ | ✅ |
-| Whitelabel | ❌ | ✅* |
-| Configurações | ❌ | ✅ |
-| Reset de fábrica | ❌ | ✅ |
-| Abrir telão | ❌ | ✅ |
+| Funcionalidade | Super Admin (Direto) | Super Admin (via Impersonation) | Operador Escola |
+|----------------|:--------------------:|:--------------------------------:|:---------------:|
+| Criar/editar/suspender instituições | ✅ | ❌ | ❌ |
+| Alterar plano de escola | ✅ | ❌ | ❌ |
+| Dashboard global de instituições | ✅ | ❌ | ❌ |
+| Catálogo global de usuários (`list_platform_users`) | ✅ | ❌ | ❌ |
+| Iniciar / encerrar Impersonation | ✅ | ❌ | ❌ |
+| Operar saída de alunos (chamar) | ❌ | ✅ | ✅ |
+| Cancelar chamadas de saída (`cancelled_at`) | ❌ | ✅ | ✅ |
+| Gerenciar Anos Letivos (`activate_school_year`) | ❌ | ✅ | ✅ |
+| CRUD alunos e turmas | ❌ | ✅ | ✅ |
+| CRUD portões escolares | ❌ | ✅ | ✅ |
+| Import CSV de turmas/alunos | ❌ | ✅ | ✅ |
+| Configurações pedagógicas e de telão | ❌ | ✅ | ✅ |
+| Whitelabel (logo/cores) | ❌ | ✅* | ✅* |
+| Reset de dados da escola | ❌ | ✅ | ✅ |
+| Abrir telão (`/tv`) | ❌ | ✅ | ✅ |
 
-\* Conforme plano — ver seção Planos
+\* Conforme plano contratado pela escola — ver seção Planos.
+
+---
+
+## Proteções de Não-Escalonamento e Garantias de Segurança
+
+O acesso do Super Admin ao domínio operacional da escola ocorre exclusivamente através de **Impersonation User-Level**, protegida por rigorosas invariantes de segurança validadas na suíte [impersonationSecurityAudit.test.js](file:///c:/github_projects/smart-exit-school/src/services/impersonationSecurityAudit.test.js):
+
+### Garantias Comprovadas por Testes Automatizados (Grupos A e B)
+
+1. **Não-escalonamento de Privilégio:**
+   - O token de impersonation é gerado com claim `role: 'authenticated'` e `sub: target_user_id`.
+   - O token impersonado **NÃO** possui autoridade de plataforma (`is_platform_admin() = false`).
+   - Tentativa de chamar a RPC `list_platform_users` com o token impersonado falha com **Erro 42501 (Access denied)**.
+   - Tentativa de consultar a tabela `public.platform_admins` com o token impersonado retorna **0 linhas** (bloqueio soberano por RLS).
+2. **Preservação do Isolamento de Tenant:**
+   - As consultas realizadas durante a impersonation são avaliadas pelo PostgreSQL sob o identificador do usuário-alvo (`auth.uid()`).
+   - A RLS de tenant permanece 100% ativa: o admin impersonado só enxerga os dados da escola autorizada para o usuário-alvo. O acesso a dados de qualquer outro tenant retorna 0 linhas.
+3. **Imutabilidade da Auditoria:**
+   - O token de impersonation não possui privilégios de `INSERT`, `UPDATE` ou `DELETE` na tabela `public.impersonation_audit_logs`. Tentativas diretas de adulteração são bloqueadas pelo banco.
+   - A criação e encerramento de logs ocorrem exclusivamente via Edge Functions protegidas executando sob contexto privilegiado com validação do chamador.
+4. **Anti-Renovação e TTL Estrito:**
+   - A Edge Function emite o token sem refresh token de GoTrue (`refresh_token: 'impersonation_no_refresh'`).
+   - O SDK cliente executa `supabase.auth.stopAutoRefresh()` para garantir que o token expire deterministicamente após 45 minutos (2700 segundos), encerrando a sessão de suporte e evitando permanência indevida.
+5. **Restauração Segura:**
+   - Ao encerrar a impersonation, o cliente restaura os tokens originais do Platform Admin a partir de `sessionStorage`, limpa os caches de tenant em memória e reativa `supabase.auth.startAutoRefresh()`.
 
 ---
 
@@ -57,9 +85,8 @@ graph TD
 
 | Recurso | Acesso |
 |---------|--------|
-| Monitor de Saída | ✅ |
-| Gestão de Alunos | ✅ |
-| Gestão de Turmas | ✅ |
+| Monitor de Saída & Cancelamento de Chamadas | ✅ |
+| Gestão de Alunos, Turmas e Anos Letivos | ✅ |
 | Gestão de Portões | ✅ |
 | Importar Dados | ✅ |
 | Configurações (dados cadastrais) | ✅ Leitura |
@@ -77,7 +104,7 @@ graph TD
 | Tudo do Basic | ✅ |
 | Whitelabel (logo + cores) | ✅ |
 | Dark mode | ✅ |
-| Relatórios Avançados | ⚠️ Menu desbloqueado; conteúdo placeholder |
+| Relatórios Avançados | ⚠️ Menu desbloqueado; conteúdo informativo |
 | Rotas & Estou Chegando | 🔒 Bloqueado — upgrade Diamond |
 | API Key / Idioma avançado | 🔒 Overlay Diamond |
 | Nome/logo exibidos | Nome e logo da escola |
@@ -87,17 +114,17 @@ graph TD
 | Recurso | Acesso |
 |---------|--------|
 | Tudo do Premium | ✅ |
-| Rotas & Estou Chegando | ⚠️ Menu desbloqueado; conteúdo placeholder |
+| Rotas & Estou Chegando | ⚠️ Menu desbloqueado; conteúdo informativo |
 | API Key | ✅ Geração local |
-| Seletor de idioma | ✅ Salva preferência (sem tradução) |
-| Webhooks | 🔒 Mencionado na UI; **não implementado** |
+| Seletor de idioma | ✅ Salva preferência |
+| Webhooks | 🔒 Mencionado na UI; em desenvolvimento |
 
 ### Plano Trial
 
 | Recurso | Acesso |
 |---------|--------|
 | Comportamento no painel | **Não diferenciado** — tratado como string de plano |
-| Expiração 14 dias | **Não implementada** |
+| Expiração 14 dias | Controlada administrativamente |
 
 ---
 
@@ -111,7 +138,7 @@ graph TD
 { id: "fleet", locked: school.plan === "Basic" || school.plan === "Premium" },
 ```
 
-Itens com `locked` exibem ícone `Lock` mas **permanecem clicáveis**.
+Itens com `locked` exibem ícone `Lock` mas permanecem navegáveis com modal informativo de upgrade.
 
 ### Whitelabel
 
@@ -146,40 +173,32 @@ const isPremium = plan === "premium" || plan === "diamond"  // case insensitive
 
 | Regra | Descrição |
 |-------|-----------|
-| Isolamento de dados no banco | RLS sobre membership ativa; `localStorage` não autoriza |
-| Chamada única | Aluno não pode estar duplicado na fila |
-| Dados cadastrais | Nome/e-mail escola readonly no painel — "contate suporte" |
-| Instituição inativa | Status alterável pelo admin; **login não bloqueado** |
-| Reset de fábrica | Disponível a qualquer operador logado — apaga tudo |
+| Isolamento de dados no banco | RLS soberana sobre `school_members`; `localStorage` não autoriza |
+| Chamada única ativa | Aluno com status `called` não pode sofrer nova chamada até conclusão ou cancelamento |
+| Cancelamento de chamada | Operador pode cancelar evento de saída com gravação em `cancelled_at` |
+| Dados cadastrais da escola | Nome/e-mail escola readonly no painel — alteração restrita ao Super Admin |
+| Instituição inativa | Status gerenciado pelo Platform Admin; impede acesso operacional |
+| Reset de dados da escola | Operação de limpeza restrita a operadores autenticados no tenant |
 
 ---
 
 ## Funcionalidades permitidas por perfil (resumo)
 
-### Super Admin
+### Super Admin (Platform Admin)
 
-- Gestão completa do tenant (instituições)
-- Métricas agregadas
-- Sem acesso ao monitor operacional das escolas
+- Gestão completa do tenant e catálogo de instituições (`/admin/institutions`)
+- Catálogo global de usuários (`public.list_platform_users`)
+- Acesso ao domínio operacional de escolas **exclusivamente via Impersonation User-Level** controlada, temporária (45 min) e auditada (não por credencial direta compartilhada)
+- Métricas agregadas de plataforma
 
 ### Operador Escola
 
-- Operação diária de saída de alunos
-- Cadastros pedagógicos (alunos, turmas)
-- Configuração local (conforme plano)
-- Reset destrutivo do sistema
+- Operação diária de saída de alunos (chamada, fila, cancelamento)
+- Gestão de ciclos e anos letivos (`public.school_years`, `activate_school_year`)
+- Cadastros pedagógicos (alunos, turmas, matrículas)
+- Configuração local de portões e painel (conforme plano)
 
 ### Telão
 
-- Somente leitura da fila de chamadas
-- Sem interação de confirmação de saída
-
----
-
-## Pontos que precisam de validação
-
-- Permissões diferenciadas dentro da escola (coordenador vs portaria)
-- Comportamento do plano Trial após 14 dias
-- Se menu bloqueado deve impedir navegação ou apenas indicar visualmente
-- Enforcement de status Inativo no login
-- Permissões do telão sem sessão ativa (modo kiosk)
+- Somente leitura da fila de chamadas em tempo real
+- Sem interação de confirmação ou alteração de dados
