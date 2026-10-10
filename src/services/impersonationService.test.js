@@ -136,7 +136,7 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
         return { data: { session: payload }, error: null };
       };
 
-      const result = await impersonationService.enterImpersonationSession({
+      await impersonationService.enterImpersonationSession({
         token: 'minted-impersonation-token',
         target_user: { id: 'target-1', email: 'prof@escola.com' },
         impersonation_log_id: 'log-uuid-456'
