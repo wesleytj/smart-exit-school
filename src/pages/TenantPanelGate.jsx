@@ -5,6 +5,7 @@ import { useTenantSession } from '../hooks/useTenantSession';
 import { authService } from '../services/authService';
 import { resolveTenantPanelAccess } from '../services/tenantAccess';
 import InstitutionPanel from './InstitutionPanel';
+import SupportBanner from '../components/SupportBanner';
 
 export default function TenantPanelGate() {
   const navigate = useNavigate();
@@ -64,24 +65,27 @@ export default function TenantPanelGate() {
 
   if (access.view === 'selection') {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-          <h1 className="text-2xl font-bold text-slate-900">Escolha a escola</h1>
-          <p className="text-slate-500 text-sm mt-2">
-            Sua conta possui mais de um vínculo ativo. Selecione a escola antes de entrar no painel.
-          </p>
-          <div className="mt-6 space-y-3">
-            {schools.map((schoolOption) => (
-              <button
-                key={schoolOption.id}
-                type="button"
-                onClick={() => { void selectSchool(schoolOption.id); }}
-                className="w-full text-left bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-500 rounded-xl px-4 py-3 transition"
-              >
-                <span className="block font-semibold text-slate-900">{schoolOption.name}</span>
-                <span className="block text-xs text-slate-500 mt-1">{schoolOption.slug}</span>
-              </button>
-            ))}
+      <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
+        <SupportBanner />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
+            <h1 className="text-2xl font-bold text-slate-900">Escolha a escola</h1>
+            <p className="text-slate-500 text-sm mt-2">
+              Sua conta possui mais de um vínculo ativo. Selecione a escola antes de entrar no painel.
+            </p>
+            <div className="mt-6 space-y-3">
+              {schools.map((schoolOption) => (
+                <button
+                  key={schoolOption.id}
+                  type="button"
+                  onClick={() => { void selectSchool(schoolOption.id); }}
+                  className="w-full text-left bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-500 rounded-xl px-4 py-3 transition"
+                >
+                  <span className="block font-semibold text-slate-900">{schoolOption.name}</span>
+                  <span className="block text-xs text-slate-500 mt-1">{schoolOption.slug}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -92,5 +96,12 @@ export default function TenantPanelGate() {
     return null;
   }
 
-  return <InstitutionPanel />;
+  return (
+    <div className="min-h-screen flex flex-col">
+      <SupportBanner />
+      <div className="flex-1">
+        <InstitutionPanel />
+      </div>
+    </div>
+  );
 }
