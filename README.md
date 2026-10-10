@@ -1,142 +1,162 @@
-# Smart Exit School (SES)
+# Smart Exit School
+
+[![React](https://img.shields.io/badge/React-19.2.5-61DAFB?logo=react)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8.0.10-646CFF?logo=vite)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Auth%20%2B%20Edge%20Functions-3ECF8E?logo=supabase)](https://supabase.com/)
+[![Deno](https://img.shields.io/badge/Deno-2-000000?logo=deno)](https://deno.land/)
+[![Tests](https://img.shields.io/badge/Tests-147%20passing-brightgreen)](./src)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](./.github/workflows)
 
 > Sistema SaaS moderno de gestão, organização e chamada inteligente de saída de alunos para instituições de ensino.
-
-![React](https://img.shields.io/badge/React-19.2.5-61DAFB?logo=react)
-![Vite](https://img.shields.io/badge/Vite-8.0.10-646CFF?logo=vite)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)
-![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
-![Node Test Runner](https://img.shields.io/badge/Tests-Node_Test_Runner-339933?logo=node.js)
-![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=github-actions)
 
 ---
 
 ## 1. Visão Geral do Produto
 
-O **Smart Exit School** é uma solução desenvolvida pela **AllTech Solutions** voltada para otimizar, organizar e dar segurança ao fluxo logístico de saída escolar:
+O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solutions** voltada para otimizar, organizar e garantir a segurança do fluxo logístico de saída de alunos em escolas e redes de ensino:
 
-- **Elimina aglomerações e poluição sonora:** substitui o uso caótico de microfones manuais por chamadas visuais e anúncios sonoros inteligentes com voz sintetizada e chime configurável.
-- **Fila operacional digitalizada:** registro, transição e cancelamento operacional de chamadas em tempo real conectando portarias e salas.
-- **Acompanhamento no telão (TV):** permite que alunos e responsáveis acompanhem o status visual e sonoro através de monitores estrategicamente posicionados com áudio integrado.
-- **Gestão integrada:** centraliza a administração de instituições, anos letivos configuráveis, turmas, alunos e portões de saída.
+* **Elimina aglomerações e poluição sonora:** substitui o uso caótico de megafones e microfones manuais por chamadas visuais em tempo real e avisos sonoros inteligentes com chime harmônico e voz sintetizada.
+* **Fila operacional digitalizada:** registro instantâneo, transição de status e cancelamento operacional de chamadas com auditoria e controle de portões de saída.
+* **Acompanhamento no telão (TV):** permite que alunos, professores e responsáveis acompanhem o status visual da chamada através de monitores estrategicamente posicionados.
+* **Suporte operacional seguro:** capacidade nativa de suporte técnico em primeira pessoa para administradores de plataforma via personificação auditável de usuários (*user-level impersonation*).
+* **Gestão multi-tenant integrada:** centraliza a administração de instituições parceiras, anos letivos configuráveis, etapas pedagógicas, turmas, matrículas de alunos e operadores de portaria sob isolamento relacional rigoroso.
 
 ---
 
 ## 2. Principais Módulos do Sistema
 
-### 2.1. Gestão de Instituições (Platform Admin)
-- **Rota:** `/admin/institutions`
-- **Acesso:** restrito a Platform Admins (controlado via `usePlatformAdmin()` e RPC `public.is_platform_admin()`).
-- **Funcionalidades:** cadastro de instituições escolares parceiras, controle de planos de assinatura (Basic, Premium, Diamond) e gestão de ciclos de vida/status.
+### 2.1 Gestão de Instituições & Super Admin (`/admin/institutions`)
+* **Acesso:** restrito a Platform Admins (avaliado via `usePlatformAdmin()` e pela RPC `public.is_platform_admin()`).
+* **Catálogo Institucional:** cadastro de escolas parceiras, controle de planos de assinatura (Basic, Premium, Diamond) e suspensão/reativação de status.
+* **Catálogo Global de Usuários:** busca unificada e filtragem de operadores e gestores de todas as escolas cadastradas por nome, e-mail, instituição e papel.
+* **Impersonation User-Level ("Entrar como usuário"):** suporte técnico operacional em primeira pessoa. Permite que um Super Admin acesse o painel sob a ótica de qualquer usuário, com autorização estrita, registro imutável em `public.impersonation_audit_logs` e cunhagem atômica de JWT manual de 45 minutos.
 
-### 2.2. Painel Institucional da Escola
-- **Rota:** `/painel`
-- **Acesso:** protegido por `TenantPanelGate` (autenticação via Supabase Auth + membership ativa em `public.school_members`).
-- **Funcionalidades:** gestão de anos letivos configuráveis (`public.school_years`) com definição de ano ativo, níveis acadêmicos, turmas, cadastro e enturmação de alunos, matrículas e configuração de portões de saída.
+### 2.2 Painel Institucional da Escola (`/painel`)
+* **Acesso:** protegido pelo guard `TenantPanelGate` (requer Supabase Auth e membership ativa em `public.school_members`).
+* **Anos Letivos Configuráveis (`public.school_years`):** criação e alternância atômica do ano letivo ativo da escola, vinculando matrículas e agrupamentos de forma dinâmica.
+* **Gestão Acadêmica Completa:** cadastro de níveis educacionais, criação de turmas por turno (manhã, tarde, noite, integral), enturmação de alunos e matrículas por ano letivo.
+* **Portões de Saída:** configuração e ordenação de múltiplos portões físicos (`public.gates`).
 
-### 2.3. Monitor Operacional de Chamadas
-- **Funcionalidades:** acionamento de chamadas de alunos em tempo real com seleção explícita do portão de saída e suporte a cancelamento operacional de chamadas (transição para `cancelled` com auditoria e preenchimento de `cancelled_at`).
-- **Persistência:** `public.pickup_events` (Supabase PostgreSQL como Fonte da Verdade com coerência garantida via triggers).
-- **Acesso:** operadores escolares com membership ativa.
+### 2.3 Monitor Operacional de Chamadas
+* **Acionamento em Tempo Real:** operadores de pátio e portaria acionam chamadas selecionando explicitamente o portão de saída correspondente.
+* **Fonte da Verdade:** eventos persistidos diretamente em `public.pickup_events` no PostgreSQL (com prevenção de duplicidade via índice parcial único).
+* **Cancelamento Operacional de Chamadas:** suporte à anulação de chamadas indevidas com modal de confirmação, justificativa e preenchimento de `cancelled_at` sob auditoria completa.
 
-### 2.4. Monitor de Chamadas Telão (TV)
-- **Rota:** `/tv`
-- **Funcionalidade:** exibição otimizada para televisores e monitores de alta visibilidade com fila de chamadas em tempo real, indicação de turma e portão, acompanhada de anúncio sonoro inteligente (chime e síntese de voz com fila sequencial e debounce).
-- **Acesso:** público dedicado na escola.
+### 2.4 Monitor de Chamadas Telão TV (`/tv`)
+* **Exibição Dedicada:** layout de alta visibilidade e legibilidade otimizado para TVs, monitores de pátio e salas de aula.
+* **Anúncio Sonoro Inteligente:** execução sequencial de chime de alerta harmônico seguido por síntese de voz (Web Speech API) anunciando o nome do aluno, turma e portão de saída, com fila assíncrona e debounce.
 
-### 2.5. Personalização & Whitelabel
-- Suporte a temas institucionais, logos personalizados da escola parceira e Dark Mode nativo.
+### 2.5 Banner Global de Suporte Técnico (Impersonation Banner)
+* **Identificação Visual Ostensiva:** barra fixa persistente no topo da tela com cor de destaque informando quem está sendo personificado.
+* **Contador Regressivo (Countdown Timer):** temporizador regressivo de 45 minutos exibindo o tempo restante de sessão em tempo real.
+* **Encerramento Seguro:** botão de saída que aciona a Edge Function `end-impersonation`, limpa caches do tenant no navegador, restaura a sessão original do Super Admin arquivada no `sessionStorage` e reativa a renovação automática de tokens.
+
+### 2.6 Autenticação, Recuperação de Senha & Whitelabel
+* **Login Corporativo:** tela de autenticação institucional com toggle de visualização de senha (`PasswordInput`).
+* **Recuperação de Senhas:** rotas públicas `/recuperar-senha` (`ForgotPassword`) e `/redefinir-senha` (`UpdatePassword`) integradas a relay SMTP transacional (Brevo).
+* **Customização Institucional:** suporte a temas visuais claros e escuros (Dark Mode nativo) e exibição de logos institucionais nos planos elegíveis.
 
 ---
 
 ## 3. Arquitetura e Engenharia de Software
 
-### 3.1. Frontend SPA
-- Desenvolvido em **React 19**, **Vite 8** e roteamento declarativo com **React Router DOM 7**.
-- Estilização utilitária moderna com **Tailwind CSS 4**.
+### 3.1 Frontend SPA
+* Desenvolvido em **React 19**, **Vite 8** e roteamento declarativo com **React Router DOM 7**.
+* Estilização utilitária de alta performance com **Tailwind CSS 4** (utilizando o plugin oficial `@tailwindcss/vite`).
 
-### 3.2. Separação em Camadas (DAL — Data Access Layer)
-- **Repositórios (`src/repositories/`):** encapsulam as operações de leitura, escrita e relacionamentos diretos com o Supabase.
-- **Serviços (`src/services/`):** abstraem as regras de negócio, transformações e validações de dados.
-- **Camada de Apresentação (`src/components/`, `src/pages/`):** componentes puramente declarativos — **nunca** acessam o banco de dados ou o armazenamento local diretamente.
+### 3.2 Backend Serverless & Edge
+* **Supabase PostgreSQL:** banco relacional principal com PostgREST e triggers de integridade.
+* **Supabase Edge Functions (Deno 2):** endpoints serverless desacoplados responsáveis por operações privilegiadas:
+  * `impersonate-user`: valida autorização de plataforma, grava auditoria e assina token JWT manual.
+  * `end-impersonation`: encerra o ciclo de auditoria registrando o timestamp de término (`ended_at`).
 
-### 3.3. Backend & Persistência
-- **Supabase (PostgreSQL):** fonte oficial da verdade relacional.
-- **Row Level Security (RLS):** habilitado compulsoriamente em todas as tabelas de dados do schema `public`.
-- **Multi-Tenancy Endurecido:** isolamento estrito de tenants por `school_id`, garantido fim a fim via policies RLS, revogação de privilégios destrutivos (`TRUNCATE`), grants mínimos necessários para o role `authenticated` e defesa em profundidade validada na DAL e em suíte de testes dedicada.
-- **Cache Local:** `localStorage` retido exclusivamente para preferências de tema e cache operacional de interface.
+### 3.3 Separação em Camadas (DAL — Data Access Layer)
+* **Repositórios (`src/repositories/`):** encapsulam queries, mutations e filtros diretos com o Supabase.
+* **Serviços (`src/services/`):** encapsulam regras de negócio, formatação de dados, orquestração e validações de domínio.
+* **Camada de Apresentação (`src/components/`, `src/pages/`):** componentes puramente declarativos — **nunca** acessam o Supabase ou o `localStorage` diretamente.
 
-### 3.4. Autenticação & Sessão
-- Identidade corporativa gerenciada via **Supabase Auth** (`auth.uid()`).
-- Separação estrita entre autoridade de plataforma (`is_platform_admin()`) e autoridade de tenant escolar (`public.school_members`).
-- Gestão reativa de estado através de Context Providers (`PlatformAdminProvider`, `TenantSessionProvider`).
+### 3.4 Persistência & Isolamento Multi-Tenant
+* **Row Level Security (RLS) Compulsório:** todas as tabelas do schema `public` possuem RLS habilitado e políticas de isolamento baseadas em `school_id` e memberships ativas.
+* **Princípio do Menor Privilégio:** privilégios destrutivos (`TRUNCATE`) revogados do role `authenticated`, garantindo grants mínimos e imutabilidade dos logs de auditoria.
+* **Defesa em Profundidade:** validação bilateral tanto no banco de dados quanto na camada de serviços (DAL).
+
+### 3.5 Ciclo de Vida da Sessão de Impersonation
+* **JWT Manual Assinado:** cunhado na Edge Function com algoritmo HMAC-SHA256 (`HS256`) utilizando a chave `SUPABASE_AUTH_JWT_SECRET`.
+* **Claims Customizadas:** injeção direta de `impersonated: true`, `impersonated_by` e `impersonation_log_id`, consumíveis no PostgREST via `auth.jwt()`.
+* **Token Sentinela:** uso de `refresh_token: 'impersonation_no_refresh'` associado à desativação voluntária do temporizador via `supabase.auth.stopAutoRefresh()`, prevenindo falhas de refresh e poluição na tabela interna `auth.sessions`.
 
 ---
 
 ## 4. Stack Tecnológica
 
-| Categoria | Tecnologia | Versão |
+| Categoria | Tecnologia | Versão / Detalhes |
 |---|---|---|
 | **UI Framework** | React | 19.2.5 |
-| **Build Tool / Bundler** | Vite | 8.0.10 |
-| **Styling** | Tailwind CSS | 4.2.4 |
+| **Bundler & Dev Server** | Vite | 8.0.10 |
+| **Styling** | Tailwind CSS | 4.2.4 (com `@tailwindcss/vite`) |
 | **Routing** | React Router DOM | 7.17.0 |
-| **Backend / DB / Auth** | Supabase (PostgreSQL + Auth + RLS) | `@supabase/supabase-js` 2.108.2 |
+| **Backend & Banco de Dados** | Supabase (PostgreSQL 15 + RLS + PostgREST) | `@supabase/supabase-js` 2.108.2 |
+| **Serverless Edge Runtime** | Deno | 2.x (Edge Functions em TypeScript) |
 | **Iconografia** | Lucide React | 1.14.0 |
-| **Test Runner** | Node Test Runner (`node --test`) | Nativo |
-| **Code Quality** | ESLint | 10.2.1 |
-| **CI** | GitHub Actions | Lint + Build |
-| **Deploy / Hosting** | Vercel | SPA rewrite configurado (`vercel.json`) |
+| **Test Runner** | Node Test Runner (`node --test`) | Nativo (147 testes automatizados) |
+| **Análise Estática (Lint)** | ESLint | 10.2.1 |
+| **Integração Contínua** | GitHub Actions | Workflows de Lint + Build |
+| **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json` |
 
 ---
 
 ## 5. Como Executar Localmente
 
-### 5.1. Pré-requisitos
-- **Node.js:** versão 20.x ou 22.x LTS (recomendado: 22.x)
-- **Docker Desktop:** em execução (para a infraestrutura local do Supabase)
-- **Supabase CLI:** instalado localmente via `npx supabase`
+### 5.1 Pré-requisitos
+* **Node.js:** versão 20.x ou 22.x LTS (recomendado: `22.x`)
+* **Docker Desktop:** em execução (obrigatório para containers locais do Supabase)
+* **Supabase CLI:** instalado localmente (`npx supabase`) ou globalmente (`npm install -g supabase`)
 
-### 5.2. Passo a Passo
+### 5.2 Passo a Passo
 
 ```bash
 # 1. Clonar o repositório
 git clone https://github.com/wesleytj/smart-exit-school.git
 cd smart-exit-school
 
-# 2. Instalar dependências do projeto
+# 2. Instalar dependências do frontend
 npm install
 
 # 3. Configurar variáveis de ambiente
 cp .env.example .env.local
-# Atualize .env.local com as credenciais do Supabase local (ou remoto)
+# Preencha .env.local com os endpoints e chaves do Supabase local (ou remoto):
+# VITE_SUPABASE_URL=http://127.0.0.1:54321
+# VITE_SUPABASE_ANON_KEY=sua-chave-anon-local
+# SUPABASE_AUTH_JWT_SECRET=seu-jwt-secret-local
 
-# 4. Iniciar containers do Supabase local (Docker)
+# 4. Iniciar infraestrutura de containers do Supabase local
 npx supabase start
 
-# 5. Aplicar migrations e seed baseline de desenvolvimento
-npx supabase db reset
+# 5. Executar as Edge Functions locais (em terminal separado)
+npx supabase functions serve --no-verify-jwt
 
-# 6. Iniciar o servidor de desenvolvimento Vite
+# 6. Iniciar o servidor de desenvolvimento do frontend
 npm run dev
 ```
 
-### 5.3. Endereços de Acesso
+### 5.3 Endereços de Acesso
 * **Aplicação Web:** `http://localhost:5173`
 * **Supabase Studio Local:** `http://localhost:54323`
+* **Edge Functions Runtime:** `http://127.0.0.1:54321/functions/v1/`
 
 ---
 
 ## 6. Scripts e Qualidade
 
-| Comando | Descrição |
-|---|---|
-| `npm run dev` | Inicia o servidor de desenvolvimento com HMR |
-| `npm run build` | Compila o bundle otimizado de produção em `dist/` |
-| `npm run lint` | Executa a verificação estática com ESLint 10 |
-| `npm test` | Executa a suíte de testes unitários automatizados (Node Test Runner) |
-| `npm run audit:db` | Executa o Database Auditor v1 (validação do schema, policies e seed baseline) |
-| `npm run validate:rls` | Executa a validação da fundação de Row Level Security |
+| Comando | Descrição | Resultado Esperado |
+|---|---|---|
+| `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
+| `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
+| `npm run lint` | Executa a validação estática de código | 0 erros com ESLint 10 |
+| `npm test` | Executa a suíte de testes unitários e de integração | 147 testes passando (28 suítes) |
+| `npm run audit:db` | Executa o Database Auditor v1 | 93 PASS · 0 FAIL (valida schema, RLS e seed) |
+| `npm run validate:rls` | Valida as políticas e helper functions de RLS | Sucesso |
 
 ---
 
@@ -144,32 +164,44 @@ npm run dev
 
 O Smart Exit School é governado compulsoriamente pelo protocolo operacional **AADS (AllTech Agent Development Standard)**:
 
-- [AGENTS.md](./AGENTS.md): Protocolo operacional de agentes no workspace (Regra Zero, hierarquia normativa, governança de Decision Gates e Completion Model).
-- [GEMINI.md](./GEMINI.md): Contexto consolidado de arquitetura, stack tecnológica e separação de camadas.
-- [.agents/rules/](./.agents/rules/): Regras permanentes de persistência DAL, governança de dados de QA e segurança de banco de dados.
-- [.agents/skills/](./.agents/skills/): Procedimentos padronizados para auditoria de banco de dados e testes de fumaça (Smoke).
+* [AGENTS.md](./AGENTS.md): Protocolo operacional de agentes no workspace (Regra Zero, autoridade normativa, políticas Git e catálogo de Decision Gates).
+* [GEMINI.md](./GEMINI.md): Contexto consolidado de arquitetura, padrões de persistência e stack tecnológica.
+* [.agents/rules/](./.agents/rules/): Regras permanentes de persistência DAL, governança de dados de QA e segurança de banco de dados.
+* [.agents/skills/](./.agents/skills/): Procedimentos padronizados para auditoria local de banco e testes operacionais de smoke.
 
 ---
 
-## 8. Documentação Técnica & Roadmap
+## 8. Documentação Técnica & ADRs
 
-### 8.1. Manuais Técnicos Oficiais
-* [Arquitetura Geral](docs/arquitetura.md)
-* [Estrutura do Projeto](docs/estrutura-do-projeto.md)
-* [Banco de Dados & Schema](docs/banco-de-dados.md)
-* [Autenticação & Multi-Tenancy](docs/autenticacao.md)
-* [Permissões & Planos](docs/permissoes.md)
-* [Funcionalidades Mapeadas](docs/funcionalidades.md)
-* [Roadmap de Produto](docs/roadmap.md)
-* [API & Rotas](docs/api.md)
-* [Deploy & Infraestrutura](docs/deploy.md)
-* [Governança de Dados de QA](docs/qa-data-governance.md)
+### 8.1 Manuais Técnicos Oficiais
+* [Estrutura do Projeto](docs/estrutura-do-projeto.md) — Árvore de diretórios, convenções e responsabilidades de pastas.
+* [Banco de Dados & Schema](docs/banco-de-dados.md) — Schema relacional, catálogo de migrations e diagramas ER.
+* [Autenticação & Multi-Tenancy](docs/autenticacao.md) — Identidade Supabase Auth, resolução de tenant e guards de sessão.
+* [Permissões & Planos](docs/permissoes.md) — Matriz de acesso entre perfis (Super Admin vs Operador) e restrições por plano.
+* [Funcionalidades Mapeadas](docs/funcionalidades.md) — Catálogo detalhado de recursos entregues por módulo.
+* [Arquitetura Geral](docs/arquitetura.md) — Camadas da aplicação, fluxo de dados e integrações.
+* [Roadmap de Produto](docs/roadmap.md) — Histórico de entregas e backlog planejado.
+* [Stack Tecnológica](docs/tecnologias.md) — Mapeamento detalhado de versões, bibliotecas e dependências.
+* [Guia de Instalação](docs/instalacao.md) — Procedimentos para configuração do ambiente de desenvolvimento.
+* [Deploy & Infraestrutura](docs/deploy.md) — Estrutura de deploy na Vercel e Supabase Cloud.
+* [API & Rotas](docs/api.md) — Rotas de navegação client-side e contratos das Edge Functions.
+* [Troubleshooting](docs/troubleshooting.md) — Diagnóstico e resolução de erros comuns.
 
-### 8.2. Decisões Arquiteturais
-* [ADRs Consolidadas](docs/arquitetura/decisoes.md) *(Architecture Decision Records 001–028)*
+### 8.2 Guias Operacionais Específicos
+* [Guia de Suporte Técnico via Impersonation](docs/impersonation-support-flow.md) — Passo a passo do operador, banner, encerramento e consultas de auditoria.
+* [Setup de E-mail Transacional (Brevo SMTP)](docs/infra/smtp-brevo-setup.md) — Configuração do relay SMTP para fluxos de redefinição de senha.
+
+### 8.3 Decisões Arquiteturais (ADRs)
+* [ADRs Consolidadas 001–028](docs/arquitetura/decisoes.md) — Decisões estruturais permanentes da fundação do sistema.
+* [ADR-029: Impersonation User-Level com JWT Manual](docs/adr/0029-impersonation-user-level-jwt.md) — Decisão arquitetural de personificação via Edge Functions em Deno.
+
+### 8.4 Governança de QA
+* [Governança de Dados de QA](docs/qa-data-governance.md) — Princípio de reutilização de fixtures e regras de isolamento.
+* [Inventário de Fixtures de QA](docs/qa-inventory.md) — Snapshot canônico de instituições e fixtures autorizados.
+* [Roteiro de Smoke em Produção](docs/qa-production-smoke.md) — Roteiro operacional para testes de fumaça via UI.
 
 ---
 
-## 9. Licença
+## 9. Licença & Direitos
 
-Este projeto é proprietário da **AllTech Solutions**. Todos os direitos reservados.
+© 2026 **AllTech Solutions**. Todos os direitos reservados.
