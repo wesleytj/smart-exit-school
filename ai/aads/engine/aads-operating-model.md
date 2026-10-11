@@ -300,6 +300,7 @@ Declaring conversational “tarefa concluída” without stating which completio
 | G-ADR | New/changed permanent decision | Draft ADR + wait for acceptance |
 | G-MERGE | Merge/push restricted by environment/policy | Prepare PR; do not force merge |
 | G-HOTFIX | Skipping normal cycle | Document skipped steps + get authorization |
+| G-DEPLOY-PARITY | Release para produção (Frontend + DB Migrations + Edge Functions) | Exigir paridade comprovada de backend e functions antes de autorizar release |
 
 Non-gated routine work (small docs fix, localized bug fix within existing patterns) may proceed through IMPLEMENTATION after PLANNING, still subject to Validation and honest Completion reporting.
 
@@ -346,6 +347,16 @@ Allowed when:
 
 Outside default AI authority unless the project explicitly assigns release operations.  
 Tracked via project release process / `templates/release-template.md` when used.
+
+**Gate G-DEPLOY-PARITY (Transição Delivery → Release):**  
+A transição para **Release Complete** exige o cumprimento estrito do gate `G-DEPLOY-PARITY` (conforme [docs/deploy-parity.md](../../../docs/deploy-parity.md)):
+- Migrations pendentes no Supabase Cloud = 0 (`npx supabase migration list --linked`);
+- Serverless Edge Functions de `supabase/functions/` devidamente publicadas e ativas;
+- Deploy do frontend compilado e saudável na Vercel;
+- Smoke test pós-deploy aprovado na URL de produção sem erros de schema cache (`PGRST202`).
+
+A ausência de qualquer uma dessas evidências bloqueia a declaração de release, devendo ser reportada como:  
+`Delivery Complete. Release pending: <camadas pendentes>`.
 
 ### Mapping to existing checklists (interpretation)
 

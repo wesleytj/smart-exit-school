@@ -38,6 +38,7 @@ Comportamento canônico: Engine Runtime + Operating Model.
 | Host | Adapter entry | Notes |
 |---|---|---|
 | **Cursor** | `.cursor/rules/aads-*.mdc` | alwaysApply core/workflow; validation/git contextual |
+| **Google Antigravity** | `AGENTS.md`, `GEMINI.md`, `.agents/rules/*.md`, `.agents/skills/*/SKILL.md`, `.agents/hooks.json` | Rules de workspace/globais automáticas; skills sob demanda; hooks (`PreToolUse`) para gates duros (`scripts/check-deploy-parity.cjs` para `G-DEPLOY-PARITY`). |
 | **Codex / CLI agents** | `prompts/system-prompt.md` + `bootstrap.md` | Colar ou `@` files do Engine |
 | **Claude Code** | CLAUDE.md ou project instructions → apontar INDEX + Engine Runtime | Evitar copiar checklists inteiros |
 | **Copilot Agent** | Custom instructions / `.github` copilot instructions → INDEX + execution-engine | Respeitar permissões de PR |

@@ -184,6 +184,7 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 * [Stack Tecnológica](docs/tecnologias.md) — Mapeamento detalhado de versões, bibliotecas e dependências.
 * [Guia de Instalação](docs/instalacao.md) — Procedimentos para configuração do ambiente de desenvolvimento.
 * [Deploy & Infraestrutura](docs/deploy.md) — Estrutura de deploy na Vercel e Supabase Cloud.
+* [Regra de Deploy Parity](docs/deploy-parity.md) — Política compulsória de paridade entre frontend, banco e Edge Functions em produção.
 * [API & Rotas](docs/api.md) — Rotas de navegação client-side e contratos das Edge Functions.
 * [Troubleshooting](docs/troubleshooting.md) — Diagnóstico e resolução de erros comuns.
 
