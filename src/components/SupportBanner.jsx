@@ -2,10 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, LogOut, Loader2, Clock } from 'lucide-react';
 import { impersonationService } from '../services/impersonationService.js';
+import { useTenantSession } from '../hooks/useTenantSession.js';
+import { isSchoolActive } from '../services/tenantAccess.js';
 
 export default function SupportBanner() {
   const navigate = useNavigate();
   const [impersonationState] = useState(() => impersonationService.getImpersonationState());
+  const tenantSession = useTenantSession();
+  const school = tenantSession?.school;
   const [timeLeft, setTimeLeft] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -82,6 +86,11 @@ export default function SupportBanner() {
           {schoolName && (
             <span className="hidden sm:inline-block ml-2 px-2 py-0.5 rounded bg-amber-950/10 text-xs font-semibold">
               {schoolName}
+            </span>
+          )}
+          {school && !isSchoolActive(school) && (
+            <span className="inline-block ml-2 px-2 py-0.5 rounded bg-red-600 text-white text-xs font-bold shadow-sm">
+              Escola inativa (status: {school.status || 'inativo'})
             </span>
           )}
         </div>
