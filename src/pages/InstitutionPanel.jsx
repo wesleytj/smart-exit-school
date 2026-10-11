@@ -5,7 +5,7 @@ import {
   Search, Plus, Trash2, MapPin, CheckCircle, XCircle,
   Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
-  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw, Calendar
+  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw, Calendar, UserCheck
 } from "lucide-react"
 
 import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
@@ -14,6 +14,7 @@ import { schoolService } from "../services/schoolService"
 import { gateService } from "../services/gateService"
 import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
 import SchoolYearsSection from "../components/SchoolYearsSection.jsx"
+import TeamManagementSection from "../components/TeamManagementSection.jsx"
 import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
@@ -793,6 +794,7 @@ export default function InstitutionPanel() {
             { id: "import", icon: UploadCloud, label: "Importar Dados" },
             { id: "reports", icon: FileText, label: "Relatórios Avançados", locked: school.plan === "Basic" },
             { id: "fleet", icon: MapPin, label: 'Rotas & "Estou Chegando"', locked: school.plan === "Basic" || school.plan === "Premium" },
+            { id: "team", icon: UserCheck, label: "Equipe & Usuários" },
             { id: "settings", icon: Settings, label: "Configurações" }
           ].map((item) => (
             <button
@@ -1259,6 +1261,13 @@ export default function InstitutionPanel() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ------------------------------------------ */}
+        {/* ABA: EQUIPE & USUÁRIOS */}
+        {/* ------------------------------------------ */}
+        {activeTab === "team" && authorizedSchool?.id && (
+          <TeamManagementSection schoolId={authorizedSchool.id} />
         )}
 
         {/* ------------------------------------------ */}

@@ -49,8 +49,20 @@ graph TD
 | Whitelabel (logo/cores) | ❌ | ✅* | ✅* |
 | Reset de dados da escola | ❌ | ✅ | ✅ |
 | Abrir telão (`/tv`) | ❌ | ✅ | ✅ |
+| Convidar novos membros para a escola | ✅ (qualquer papel) | ❌ | ✅ (conforme papel) |
+| Revogar convites pendentes | ✅ | ❌ | ✅ (`owner`/`admin`) |
 
 \* Conforme plano contratado pela escola — ver seção Planos.
+
+### Matriz de Autoridade de Provisionamento (Ciclo B / C4)
+
+| Chamador | Escolas Permitidas | Papéis que pode Atribuir | Regra de Segurança |
+|---|---|---|---|
+| **Platform Admin** | Qualquer escola ativa | `owner`, `administrator`, `secretary`, `gatekeeper` | Acesso cross-tenant soberano |
+| **Owner (Proprietário)** | Própria escola ativa | `owner`, `administrator`, `secretary`, `gatekeeper` | Co-ownership permitido |
+| **Administrator** | Própria escola ativa | `administrator`, `secretary`, `gatekeeper` | **Anti-escalada:** Proibido convidar `owner` |
+| **Secretary / Gatekeeper** | Nenhuma | Nenhum | 403 Forbidden |
+| **Membro Inativo** | Nenhuma | Nenhum | Rejeitado (sem reativação automática) |
 
 ---
 

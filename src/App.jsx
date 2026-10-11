@@ -5,6 +5,7 @@ import UpdatePassword from "./pages/UpdatePassword"
 import InstitutionsManager from "./pages/InstitutionsManager"
 import TenantPanelGate from "./pages/TenantPanelGate"
 import TvDisplay from "./pages/TvDisplay"
+import AcceptInvite from "./pages/AcceptInvite"
 import { PlatformAdminProvider } from "./contexts/PlatformAdminProvider"
 import { TenantSessionProvider } from "./contexts/TenantSessionProvider"
 
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/admin/institutions" element={<InstitutionsManager />} />
             <Route path="/painel" element={<TenantPanelGate />} />
             <Route path="/tv" element={<TvDisplay />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
           </Routes>
         </BrowserRouter>
       </TenantSessionProvider>
