@@ -53,7 +53,9 @@ export async function verifyHs256Jwt(
       ['verify']
     );
 
-    const sigStr = atob(parts[2].replace(/-/g, '+').replace(/_/g, '/'));
+    let sigB64 = parts[2].replace(/-/g, '+').replace(/_/g, '/');
+    while (sigB64.length % 4 !== 0) sigB64 += '=';
+    const sigStr = atob(sigB64);
     const sigBytes = new Uint8Array(sigStr.length);
     for (let i = 0; i < sigStr.length; i++) {
       sigBytes[i] = sigStr.charCodeAt(i);
@@ -62,7 +64,9 @@ export async function verifyHs256Jwt(
     const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, data);
     if (!isValid) return null;
 
-    const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    let payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (payloadB64.length % 4 !== 0) payloadB64 += '=';
+    const payloadStr = atob(payloadB64);
     const payload = JSON.parse(payloadStr);
 
     const now = Math.floor(Date.now() / 1000);

@@ -32,13 +32,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerToken = authHeader.replace('Bearer ', '').trim();
-    const callerClaims = await verifyHs256Jwt(callerToken, SUPABASE_JWT_SECRET);
-    if (!callerClaims || !callerClaims.sub) {
-      return new Response(JSON.stringify({ error: 'Invalid or expired caller token' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object' || !body.impersonation_log_id) {
@@ -50,16 +43,41 @@ Deno.serve(async (req: Request) => {
 
     const { impersonation_log_id } = body;
 
-    // Autorização: o chamador deve ser Platform Admin OU a sessão de impersonation associada
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: {
         headers: { Authorization: authHeader }
       }
     });
 
+    let callerSub: string | null = null;
+    let isMatchingImpersonatedSession = false;
+
+    // 1. Tentar validação como token de suporte interno cunhado (HS256)
+    const callerClaims = await verifyHs256Jwt(callerToken, SUPABASE_JWT_SECRET);
+    if (callerClaims?.sub) {
+      callerSub = callerClaims.sub as string;
+      if (
+        callerClaims.is_impersonated === true &&
+        callerClaims.impersonation_log_id === impersonation_log_id
+      ) {
+        isMatchingImpersonatedSession = true;
+      }
+    } else {
+      // 2. Se não for HS256, validar via Supabase Auth (suporta tokens ES256 e outros do GoTrue)
+      const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser(callerToken);
+      if (!callerError && callerUser) {
+        callerSub = callerUser.id;
+      }
+    }
+
+    if (!callerSub) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired caller token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { data: isPlatformAdmin } = await callerClient.rpc('is_platform_admin');
-    const isMatchingImpersonatedSession =
-      callerClaims.is_impersonated === true && callerClaims.impersonation_log_id === impersonation_log_id;
 
     if (!isPlatformAdmin && !isMatchingImpersonatedSession) {
       return new Response(JSON.stringify({ error: 'Forbidden: unauthorized to end this impersonation session' }), {
