@@ -41,10 +41,19 @@ function activeSchoolIds(memberships) {
   return ids
 }
 
-export function resolveTenantAccess({ memberships, schools, selectedSchoolId }) {
+export function isSchoolActive(school) {
+  const status = String(school?.status || 'active').toLowerCase()
+  return status === 'active' || status === 'trial' || status === 'ativo'
+}
+
+export function resolveTenantAccess({ memberships, schools, selectedSchoolId, isImpersonating = false }) {
   const allowedIds = new Set(activeSchoolIds(memberships))
+  const candidateSchools = isImpersonating
+    ? (schools || [])
+    : (schools || []).filter(isSchoolActive)
+
   const schoolsById = new Map(
-    (schools || [])
+    candidateSchools
       .filter((school) => school?.id && allowedIds.has(school.id))
       .map((school) => [school.id, school])
   )
@@ -53,6 +62,9 @@ export function resolveTenantAccess({ memberships, schools, selectedSchoolId }) 
     .filter(Boolean)
 
   if (orderedSchools.length === 0) {
+    if (!isImpersonating && allowedIds.size > 0 && (schools || []).some((s) => allowedIds.has(s?.id))) {
+      return { status: 'inactive_school', school: null, schools: [] }
+    }
     return { status: 'none', school: null, schools: [] }
   }
 
@@ -92,6 +104,15 @@ export function resolveTenantPanelAccess({ isPlatformAdmin, tenantStatus }) {
     }
   }
 
+  if (tenantStatus === 'inactive_school') {
+    return {
+      view: 'login',
+      destination: '/login',
+      signOut: true,
+      message: 'Esta instituição de ensino está inativa no momento. Entre em contato com a administração.'
+    }
+  }
+
   if (tenantStatus === 'selection') {
     return { view: 'selection', destination: '', signOut: false, message: '' }
   }
@@ -122,6 +143,14 @@ export function decidePostLogin({ isPlatformAdmin, tenantStatus }) {
       destination: '/login',
       signOut: true,
       message: 'Esta conta não possui vínculo ativo com uma escola.'
+    }
+  }
+
+  if (tenantStatus === 'inactive_school') {
+    return {
+      destination: '/login',
+      signOut: true,
+      message: 'Esta instituição de ensino está inativa no momento. Entre em contato com a administração.'
     }
   }
 

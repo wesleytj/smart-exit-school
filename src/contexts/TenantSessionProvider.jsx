@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { tenantSessionService } from '../services/tenantSessionService';
 import { resolveTenantAccess } from '../services/tenantAccess';
+import { isImpersonating } from '../services/impersonationService';
 import { TenantSessionContext } from './tenantSessionContext';
 
 export function TenantSessionProvider({ children }) {
@@ -44,7 +45,8 @@ export function TenantSessionProvider({ children }) {
       const decision = resolveTenantAccess({
         memberships: loaded.memberships,
         schools: loaded.schools,
-        selectedSchoolId: selectedSchoolIdRef.current
+        selectedSchoolId: selectedSchoolIdRef.current,
+        isImpersonating: isImpersonating()
       });
 
       if (decision.status !== 'ready') {
