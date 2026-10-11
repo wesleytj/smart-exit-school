@@ -2,11 +2,12 @@ import { useState, useEffect } from "react"
 import { 
   Building, Plus, Search, MoreVertical, LogOut, 
   ShieldAlert, X, Edit, Trash2, Ban, CheckCircle, Users,
-  LogIn, Clock, RefreshCw, Loader2, KeyRound
+  LogIn, Clock, RefreshCw, Loader2, KeyRound, Mail
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { schoolService } from "../services/schoolService"
 import { impersonationService } from "../services/impersonationService"
+import { invitationService } from "../services/invitationService"
 import { usePlatformAdmin } from "../hooks/usePlatformAdmin"
 import { supabase } from "../lib/supabase"
 
@@ -46,6 +47,14 @@ export default function InstitutionsManager() {
   const [impersonationReason, setImpersonationReason] = useState("")
   const [impersonationLoading, setImpersonationLoading] = useState(false)
   const [impersonationError, setImpersonationError] = useState("")
+
+  // Estados do Modal de Convidar Gestor (Platform Admin)
+  const [inviteModalSchool, setInviteModalSchool] = useState(null)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState("owner")
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState("")
+  const [inviteSuccess, setInviteSuccess] = useState("")
 
   useEffect(() => {
     if (!isPlatformAdminLoading && !isPlatformAdmin) {
@@ -505,6 +514,20 @@ export default function InstitutionsManager() {
                               </button>
                               
                               <button 
+                                onClick={() => {
+                                  setDropdownOpenId(null)
+                                  setInviteModalSchool(school)
+                                  setInviteEmail("")
+                                  setInviteRole("owner")
+                                  setInviteError("")
+                                  setInviteSuccess("")
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                              >
+                                <Mail size={16} className="text-orange-500" /> Convidar Gestor
+                              </button>
+                              
+                              <button 
                                 onClick={() => handleToggleStatus(school.id)}
                                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
                               >
@@ -907,6 +930,120 @@ export default function InstitutionsManager() {
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONVIDAR GESTOR DA ESCOLA (PLATFORM ADMIN) */}
+      {inviteModalSchool && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-orange-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Convidar para Instituição</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-[220px]">{inviteModalSchool.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInviteModalSchool(null)}
+                disabled={inviteLoading}
+                className="text-slate-400 hover:text-slate-700 transition bg-white rounded-full p-1.5 shadow-sm disabled:opacity-60 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              setInviteError("")
+              setInviteSuccess("")
+              setInviteLoading(true)
+              const { data, error } = await invitationService.inviteMember({
+                schoolId: inviteModalSchool.id,
+                email: inviteEmail.trim(),
+                role: inviteRole
+              })
+              setInviteLoading(false)
+              if (error || !data?.ok) {
+                setInviteError(error?.message || data?.error || "Erro ao enviar convite.")
+                return
+              }
+              setInviteSuccess(data.message || "Convite enviado com sucesso!")
+              setTimeout(() => {
+                setInviteModalSchool(null)
+                setInviteSuccess("")
+              }, 2000)
+            }} className="p-6 space-y-4">
+              {inviteSuccess && (
+                <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-xl text-xs font-semibold border border-emerald-100 flex items-center gap-2">
+                  <CheckCircle size={16} className="shrink-0 text-emerald-600" />
+                  <span>{inviteSuccess}</span>
+                </div>
+              )}
+
+              {inviteError && (
+                <div className="bg-red-50 text-red-700 p-3.5 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2">
+                  <ShieldAlert size={16} className="shrink-0 text-red-500" />
+                  <span>{inviteError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">E-mail do Gestor / Membro</label>
+                <input
+                  required
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="gestor@escola.com.br"
+                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 text-sm outline-none focus:border-orange-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Papel Atribuído</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="w-full border border-slate-200 bg-slate-50 rounded-xl p-3 text-sm outline-none focus:border-orange-500 focus:bg-white transition text-slate-700"
+                >
+                  <option value="owner">Proprietário(a) / Gestor Geral (owner)</option>
+                  <option value="administrator">Administrador(a) Escolar (administrator)</option>
+                  <option value="secretary">Secretaria Escolar (secretary)</option>
+                  <option value="gatekeeper">Operador(a) de Portaria (gatekeeper)</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setInviteModalSchool(null)}
+                  disabled={inviteLoading}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition text-sm cursor-pointer disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviteLoading}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  {inviteLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <span>Enviar Convite</span>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
