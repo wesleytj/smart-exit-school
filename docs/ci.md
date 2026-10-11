@@ -22,4 +22,6 @@ Node.js **22.x**, alinhado a `docs/instalacao.md` (LTS 20.x ou 22.x) e ao requis
 
 - Este CI **não substitui Browser E2E** quando houver mudança funcional no produto.
 - Este CI **não** faz deploy, publicação, release nem altera ambientes.
+- Este CI **valida apenas o build estático e lint do frontend**; ele não valida nem garante a aplicação de migrations no Supabase Cloud ou a publicação de Edge Functions.
+- A paridade entre frontend, banco e Edge Functions em produção é governada compulsoriamente pela [Regra de Deploy Parity](./deploy-parity.md) e pelo hook `PreToolUse` do Google Antigravity (`.agents/hooks.json`).
 - Merge continua dependente de **revisão e autorização humana explícita**. Checks remotos não autorizam merge automático.

@@ -2,6 +2,9 @@
 
 ## Ambiente de Produção
 
+> **IMPORTANTE — REGRA DE DEPLOY PARITY:**  
+> Todo deploy em produção é governado compulsoriamente pela [Regra de Deploy Parity](./deploy-parity.md). É expressamente proibido promover o frontend para produção sem que as migrations de banco e as Edge Functions correspondentes estejam comprovadamente aplicadas e ativas no Supabase Cloud.
+
 O Smart Exit School opera em modelo arquitetural desacoplado, combinando um frontend estático de alta performance hospedado na **Vercel** com um backend escalável e Serverless Edge Functions gerenciados no **Supabase Cloud**:
 
 * **Frontend (Vercel):** `https://smart-exit-school.vercel.app`
@@ -111,17 +114,35 @@ npm run preview
 
 ---
 
-## Checklist de Deploy de Nova Versão
+## Checklist de Deploy de Nova Versão (Ordem Canônica)
 
-1. **Validação Local:**
+Em cumprimento estrito à [Regra de Deploy Parity](./deploy-parity.md), os deploys devem seguir obrigatoriamente a ordem **Backend First**:
+
+1. **Validação Local Prévia:**
    - `npm run lint` (verificação de código limpo)
    - `npm test` (147 testes automatizados passando)
    - `npm run audit:db` / `npm run validate:rls` (se houver migrações de banco)
-2. **Entrega Git:**
-   - Abertura de Pull Request para a branch `main`.
-   - Validação dos checks do GitHub Actions (CI).
-   - Aprovação humana formalizada via Decision Gate (`G-MERGE`).
-3. **Publicação Contínua:**
+2. **Deploy do Banco de Dados em Produção (Etapa 1 — Mandatória):**
+   - Se houver novas migrations, aplicar no Supabase Cloud:
+     ```bash
+     npx supabase db push
+     ```
+   - Confirmar ausência de migrations pendentes:
+     ```bash
+     npx supabase migration list --linked
+     ```
+3. **Deploy das Serverless Edge Functions em Produção (Etapa 2 — Mandatória):**
+   - Se houver alterações em `supabase/functions/`, publicar as funções impactadas:
+     ```bash
+     npx supabase functions deploy impersonate-user
+     npx supabase functions deploy end-impersonation
+     ```
+   - Validar presença das funções ativas no Supabase Cloud via `npx supabase functions list`.
+4. **Entrega Git & Deploy do Frontend na Vercel (Etapa 3):**
+   - Somente após confirmar os passos 2 e 3 no Supabase Cloud, proceder com a integração Git.
+   - Abertura e aprovação formal do Pull Request para a branch `main` via Decision Gate (`G-MERGE`).
    - Ao realizar o merge na `main`, a Vercel compila e disponibiliza a nova versão em produção automaticamente.
-   - Se houver novas migrations, aplicar via `npx supabase db push`.
-   - Se houver alterações em `supabase/functions/`, executar o deploy via `npx supabase functions deploy`.
+5. **Pós-Deploy & Verificação de Paridade:**
+   - Realizar teste de fumaça na URL de produção (`https://smart-exit-school.vercel.app`).
+   - Confirmar a ausência absoluta de erros de schema cache do PostgREST (`PGRST202`).
+   - Declarar `Release Complete` apenas com a paridade comprovada.

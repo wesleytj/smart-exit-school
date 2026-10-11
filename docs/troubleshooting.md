@@ -160,3 +160,23 @@ Guia prático para identificação, diagnóstico e resolução de problemas comu
     npm test
     ```
   - Verifique se a infraestrutura do Supabase local está em execução se os testes exigirem validação de integração.
+
+---
+
+### 5.3. Erro de Schema Cache / Descompasso de Deploy em Produção (PGRST202)
+* **Sintoma:** O frontend em produção carrega a interface normalmente, porém consultas ou chamadas RPC falham com erro na tabela/tela:  
+  `Could not find the function public.<nome_funcao>(...) in the schema cache`  
+  ou falhas 404/503 em chamadas às Edge Functions de suporte.
+* **Causa Raiz:** Descompasso de deploy (deploy parcial/invertido). O frontend na Vercel foi compilado e publicado antes da aplicação das novas migrations e Edge Functions no Supabase Cloud de produção. A aplicação client-side passou a requisitar funções e tabelas que o PostgREST de produção ainda não conhecia.
+* **Correção Imediata:**
+  1. Aplicar as migrations pendentes no Supabase Cloud:
+     ```bash
+     npx supabase db push
+     ```
+  2. Publicar as Edge Functions pendentes:
+     ```bash
+     npx supabase functions deploy <nome-da-funcao>
+     ```
+  3. Confirmar paridade remota via `npx supabase migration list --linked`.
+* **Prevenção Definitiva:** Cumprimento compulsório da [Regra de Deploy Parity](./deploy-parity.md) (Backend First: migrations → Edge Functions → Frontend) e validação programática pelo hook `PreToolUse` do Antigravity (`.agents/hooks.json`).
+

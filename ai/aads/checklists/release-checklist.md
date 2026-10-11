@@ -30,6 +30,7 @@ Usar com `workflows/release-workflow.md`.
 - [ ] Aprovação humana para publish
 - [ ] Tag/version aplicada
 - [ ] Artefatos publicados conforme processo do projeto
+- [ ] Paridade de Produção verificada: frontend + migrations + Edge Functions aplicados e testados (docs/deploy-parity.md)
 - [ ] Evidência de publish registrada
 
 ### Pós-release
