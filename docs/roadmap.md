@@ -25,7 +25,7 @@ Evoluções do Smart Exit School, consolidando entregas recentes concluídas e d
 - [x] Primeira instituição criada (Colégio Adventista de Esteio, plano `basic`, status `active`)
 - [x] Primeiro tenant escolar validado em produção (conta de teste, membership `owner` ativa, `/painel`)
 - [x] Isolamento multi-tenant e RLS endurecidos (Migration 0021)
-- [ ] Provisionamento ou convite de usuários escolares via UI
+- [x] Provisionamento ou convite de usuários escolares via UI (Ciclo B — Migration 20261011180000, Edge Functions invite-member / accept-invite, rota /accept-invite)
 - [ ] Processo de onboarding comercial self-service
 
 ---

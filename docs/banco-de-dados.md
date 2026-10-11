@@ -44,6 +44,7 @@ O banco de dados relacional é governado por **22 migrations versionadas** seque
 | 0020 | `20261003223000_school_years_configurable.sql` | Anos letivos configuráveis (`public.school_years`), amarração com turmas e matrículas, índice único de ano ativo |
 | 0021 | `20261004120000_multi_tenant_grants_hardening.sql` | Endurecimento de permissões multi-tenant (grants em `gates`, `academic_groups`, `academic_levels` e revogação geral de TRUNCATE) |
 | 0022 | `20261010140000_create_impersonation_foundation.sql` | Fundação de Impersonation (`public.impersonation_audit_logs`, RLS estrito e RPC `public.list_platform_users`) |
+| 0023 | `20261011180000_create_school_invitations.sql` | Convite de membros (`public.school_invitations`), RLS restrita, índice único parcial e RPC atômica `public.accept_school_invitation` |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -286,6 +287,35 @@ Registra de forma imutável todas as sessões de suporte técnico abertas por Pl
   * Policy `impersonation_audit_logs_select_admin`: leitura permitida exclusivamente para Platform Admins (`is_platform_admin() = true`).
   * Nenhuma policy de `INSERT`, `UPDATE` ou `DELETE` é concedida para `anon` ou `authenticated`.
   * Escrita e atualização (`INSERT`, `UPDATE`) são concedidas estritamente para `service_role` (executadas atomicamente pelas Edge Functions).
+
+---
+
+### `school_invitations` (Migration 0023 — Ciclo B)
+
+Rastreia convites pendentes e histórico de provisionamento de novos membros para instituições escolares.
+
+| Coluna | Tipo | Constraints / Detalhes |
+|---|---|---|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `school_id` | uuid | NOT NULL, FK → `public.schools(id)` ON DELETE CASCADE |
+| `email` | text | NOT NULL (armazenado em minúsculas) |
+| `role_id` | uuid | NOT NULL, FK → `public.roles(id)` ON DELETE RESTRICT |
+| `invited_by` | uuid | NOT NULL, FK → `public.profiles(id)` ON DELETE RESTRICT |
+| `token_hash` | text | NOT NULL, UNIQUE (hash SHA-256 do token criptográfico) |
+| `status` | text | NOT NULL, default `'pending'`, CHECK (`'pending'`, `'accepted'`, `'revoked'`, `'expired'`) |
+| `expires_at` | timestamptz | NOT NULL, default `now() + interval '7 days'` |
+| `accepted_at` | timestamptz | Nullable (registrado no aceite) |
+| `accepted_by` | uuid | Nullable, FK → `public.profiles(id)` ON DELETE SET NULL |
+| `created_at` | timestamptz | NOT NULL, default `now()` |
+| `updated_at` | timestamptz | NOT NULL, default `now()` |
+
+**Constraints e Índices:**
+* `idx_school_invitations_unique_pending`: UNIQUE parcial em `(school_id, lower(email)) WHERE status = 'pending'`
+* Índices: `idx_school_invitations_school_id`, `idx_school_invitations_token_hash`, `idx_school_invitations_invited_by`
+* **RLS & Grants:**
+  * RLS ativa com leitura restrita a Platform Admin e gestores escolares (`owner` ou `administrator`).
+  * Escritas exclusivas para `service_role`.
+  * Aceite atômico sob lock `FOR UPDATE` via RPC `public.accept_school_invitation(text, uuid, text)`.
 
 ---
 
