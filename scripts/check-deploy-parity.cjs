@@ -29,27 +29,29 @@ function resolveWorkspaceRoot() {
   return process.cwd();
 }
 
-function isDeployCommand(cmd) {
-  if (!cmd || typeof cmd !== 'string') return false;
+function classifyCommand(cmd) {
+  if (!cmd || typeof cmd !== 'string') return 'other';
 
   const normalized = cmd.trim();
 
-  // 1. Git push para a branch main
+  // 1. Deploy de frontend para produção:
+  // Git push para a branch main
   if (/git\s+push\b/i.test(normalized) && /\b(origin\s+main|main)\b/i.test(normalized)) {
-    return true;
+    return 'frontend_deploy';
   }
 
-  // 2. Vercel deploy para produção
+  // Vercel deploy para produção
   if (/vercel\b/i.test(normalized) && /(--prod\b|deploy\s+--prod\b)/i.test(normalized)) {
-    return true;
+    return 'frontend_deploy';
   }
 
-  // 3. Deploy de functions explicitando ambiente de produção
-  if (/supabase\s+functions\s+deploy\b/i.test(normalized) && /(--project-ref|yantfnekslrzhussewdh)/i.test(normalized)) {
-    return true;
+  // 2. Deploy de Edge Functions:
+  // supabase functions deploy (com ou sem subcomando, flags ou argumentos)
+  if (/supabase\s+functions\s+deploy\b/i.test(normalized)) {
+    return 'functions_deploy';
   }
 
-  return false;
+  return 'other';
 }
 
 function checkMigrations(workspaceRoot) {
@@ -193,40 +195,64 @@ function main() {
     }
   }
 
-  // 3. Se não for comando de deploy para produção, autorizar imediatamente
-  if (!isDeployCommand(commandToInspect)) {
+  const category = classifyCommand(commandToInspect);
+
+  // 3. Qualquer outro comando que não seja deploy: autorizar imediatamente
+  if (category === 'other') {
     respond('allow');
     return;
   }
 
-  // 4. Se for comando de deploy, executar verificação de paridade de backend
   const workspaceRoot = resolveWorkspaceRoot();
 
-  // Checagem A: Migrações
-  const migrationResult = checkMigrations(workspaceRoot);
-  if (migrationResult.status === 'deny') {
-    respond('deny', migrationResult.reason);
+  // 4. Deploy de Edge Functions (Backend First):
+  // Exige apenas que as migrations estejam OK (elimina deadlock impedindo deploy de functions)
+  if (category === 'functions_deploy') {
+    const migrationResult = checkMigrations(workspaceRoot);
+    if (migrationResult.status === 'deny') {
+      respond('deny', migrationResult.reason);
+      return;
+    }
+    if (migrationResult.status === 'ask') {
+      respond('ask', migrationResult.reason);
+      return;
+    }
+    respond('allow');
     return;
   }
 
-  // Checagem B: Edge Functions
-  const functionResult = checkEdgeFunctions(workspaceRoot);
-  if (functionResult.status === 'deny') {
-    respond('deny', functionResult.reason);
+  // 5. Deploy de frontend para produção:
+  // Exige paridade total: Migrations OK E Edge Functions publicadas
+  if (category === 'frontend_deploy') {
+    // Checagem A: Migrações
+    const migrationResult = checkMigrations(workspaceRoot);
+    if (migrationResult.status === 'deny') {
+      respond('deny', migrationResult.reason);
+      return;
+    }
+
+    // Checagem B: Edge Functions
+    const functionResult = checkEdgeFunctions(workspaceRoot);
+    if (functionResult.status === 'deny') {
+      respond('deny', functionResult.reason);
+      return;
+    }
+
+    // Se alguma checagem foi incerta
+    if (migrationResult.status === 'ask') {
+      respond('ask', migrationResult.reason);
+      return;
+    }
+    if (functionResult.status === 'ask') {
+      respond('ask', functionResult.reason);
+      return;
+    }
+
+    // Se tudo verificado e em paridade total
+    respond('allow');
     return;
   }
 
-  // Se alguma checagem foi incerta
-  if (migrationResult.status === 'ask') {
-    respond('ask', migrationResult.reason);
-    return;
-  }
-  if (functionResult.status === 'ask') {
-    respond('ask', functionResult.reason);
-    return;
-  }
-
-  // Se tudo verificado e em paridade
   respond('allow');
 }
 
