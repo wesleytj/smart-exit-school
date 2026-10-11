@@ -35,22 +35,36 @@ Deno.serve(async (req: Request) => {
 
     const callerToken = authHeader.replace('Bearer ', '').trim();
 
-    // Validar sessão do chamador com Supabase Auth
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: {
         headers: { Authorization: authHeader }
       }
     });
 
+    // Validar sessão do chamador:
+    // 1. Tenta HS256 local (compatibilidade com mocks locais e JWT_SECRET)
+    // 2. Fallback para GoTrue auth.getUser (compatibilidade com tokens assimétricos ES256 do Supabase Cloud)
+    let callerSub: string | null = null;
     const callerClaims = await verifyHs256Jwt(callerToken, SUPABASE_JWT_SECRET);
-    if (!callerClaims || !callerClaims.sub) {
+    if (callerClaims?.sub) {
+      callerSub = callerClaims.sub as string;
+    } else {
+      const {
+        data: { user: callerUser },
+        error: callerError
+      } = await callerClient.auth.getUser(callerToken);
+
+      if (!callerError && callerUser) {
+        callerSub = callerUser.id;
+      }
+    }
+
+    if (!callerSub) {
       return new Response(JSON.stringify({ error: 'Invalid or expired caller token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-
-    const callerSub = callerClaims.sub as string;
 
     // Validação de autoridade: Somente Platform Admin pode iniciar impersonation
     const { data: isPlatformAdmin, error: adminCheckError } = await callerClient.rpc('is_platform_admin');
