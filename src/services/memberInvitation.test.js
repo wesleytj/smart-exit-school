@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import { invitationService } from './invitationService.js';
 
 // Utilitário de máscara idêntico ao da Edge Function para validação de contrato C10
