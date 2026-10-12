@@ -35,4 +35,7 @@ supabase/snippets/
 supabase/backup_production_pre_pickup_20261001.sql
 supabase/backup_*.sql
 
+# Credenciais e documentação local de QA
+*.local.md
+qa-credentials.local.md
 .cursor/qa-credentials.local.md
