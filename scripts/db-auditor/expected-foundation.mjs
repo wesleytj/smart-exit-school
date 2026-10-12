@@ -35,7 +35,8 @@ export const APP_TABLES = [
   'student_enrollments',
   'student_group_assignments',
   'gates',
-  'pickup_events'
+  'pickup_events',
+  'pickup_events_archive'
 ]
 
 // ------------------------------------------------------------
@@ -115,7 +116,9 @@ export const EXPECTED_POLICIES = [
   { table: 'pickup_events', name: 'pickup_events_select_member' },
   { table: 'pickup_events', name: 'pickup_events_insert_member' },
   { table: 'pickup_events', name: 'pickup_events_update_member' },
-  { table: 'pickup_events', name: 'pickup_events_delete_member' }
+  { table: 'pickup_events', name: 'pickup_events_delete_member' },
+
+  { table: 'pickup_events_archive', name: 'pickup_events_archive_select_member' }
 ]
 
 // ------------------------------------------------------------
@@ -141,7 +144,8 @@ export const EXPECTED_TABLE_GRANTS = [
   { role: 'authenticated', table: 'student_enrollments', privileges: ['SELECT'] },
   { role: 'authenticated', table: 'student_group_assignments', privileges: ['SELECT'] },
   { role: 'authenticated', table: 'gates', privileges: ['SELECT'] },
-  { role: 'authenticated', table: 'pickup_events', privileges: ['SELECT'] }
+  { role: 'authenticated', table: 'pickup_events', privileges: ['SELECT'] },
+  { role: 'authenticated', table: 'pickup_events_archive', privileges: ['SELECT'] }
 ]
 
 /**
