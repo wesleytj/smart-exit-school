@@ -5,7 +5,8 @@ import {
   Search, Plus, Trash2, MapPin, CheckCircle, XCircle,
   Bell, Megaphone, Pencil, UploadCloud,
   FileText, Lock, TrendingUp, Palette, Image as ImageIcon,
-  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw, Calendar, UserCheck
+  Globe, Key, Building, DoorOpen, ShieldAlert, RefreshCw, Calendar, UserCheck,
+  AlertCircle, AlertTriangle, Loader2, X
 } from "lucide-react"
 
 import LogoAllTech from "../assets/logotipo_alltech_solutions_icon.png"
@@ -19,6 +20,15 @@ import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
 import { ACTIVE_CALL_POLL_MS, availableStudents, pickupService } from "../services/pickupService.js"
+import {
+  initialCancelDialogState,
+  openCancelDialog,
+  closeCancelDialog,
+  confirmCancelDialog,
+  cancelSucceeded,
+  cancelFailed,
+  dismissCancelFeedback
+} from "../services/cancelCallDialog.js"
 import { themeService } from "../services/themeService"
 import { storageClient } from "../services/core/storageClient"
 import { schoolOpsStore } from "../services/schoolOpsStore"
@@ -85,6 +95,8 @@ export default function InstitutionPanel() {
   const [activeCalls, setActiveCalls] = useState([]);
   const [selectedGateByStudent, setSelectedGateByStudent] = useState({});
   const [callsError, setCallsError] = useState("");
+  const [cancelDialogState, setCancelDialogState] = useState(initialCancelDialogState);
+  const cancelBackBtnRef = useRef(null);
   const callsRequestRef = useRef(0);
 
   // ==================================================================
@@ -276,6 +288,40 @@ export default function InstitutionPanel() {
       clearInterval(timer);
     };
   }, [school?.id]);
+
+  // 4.7 Auto-dismiss do feedback de sucesso do cancelamento
+  useEffect(() => {
+    if (!cancelDialogState.successMessage) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCancelDialogState((prev) => dismissCancelFeedback(prev));
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [cancelDialogState.successMessage]);
+
+  // 4.8 Acessibilidade do Modal de Cancelamento (foco inicial no 'Voltar' e tecla Esc)
+  useEffect(() => {
+    if (!cancelDialogState.dialog) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      cancelBackBtnRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !cancelDialogState.pending) {
+        setCancelDialogState((prev) => closeCancelDialog(prev));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cancelDialogState.dialog, cancelDialogState.pending]);
 
   // ==================================================================
   // SEÇÃO 5: BARREIRA DE PROTEÇÃO (Early Return)
@@ -739,13 +785,31 @@ export default function InstitutionPanel() {
     }
   }
 
-  async function handleCancelCall(eventId) {
-    const result = await pickupService.cancelCall(eventId, authorizedSchool?.id);
+  function handleOpenCancelModal(call) {
+    setCancelDialogState((prev) => openCancelDialog(prev, call));
+  }
+
+  function handleCloseCancelModal() {
+    setCancelDialogState((prev) => closeCancelDialog(prev));
+  }
+
+  async function handleConfirmCancelCall() {
+    const targetCall = cancelDialogState.dialog;
+    if (!targetCall || cancelDialogState.pending) {
+      return;
+    }
+
+    const nextState = confirmCancelDialog(cancelDialogState);
+    setCancelDialogState(nextState);
+
+    const result = await pickupService.cancelCall(targetCall.id, authorizedSchool?.id);
 
     await reloadActiveCalls();
 
     if (result.error) {
-      setCallsError(result.error.message || "Não foi possível cancelar a chamada.");
+      setCancelDialogState((prev) => cancelFailed(prev, result.error));
+    } else {
+      setCancelDialogState((prev) => cancelSucceeded(prev, targetCall.name));
     }
   }
 
@@ -855,6 +919,49 @@ export default function InstitutionPanel() {
               <p className="mb-4 text-sm font-medium text-amber-600">Cadastre ou ative um portão antes de chamar um aluno.</p>
             )}
 
+            {/* Feedback visual do cancelamento (Sucesso ou Erro amigável) */}
+            {cancelDialogState.successMessage && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 p-3.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 animate-in fade-in duration-150"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={18} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>{cancelDialogState.successMessage}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCancelDialogState((prev) => dismissCancelFeedback(prev))}
+                  className="text-emerald-600 dark:text-emerald-400 hover:opacity-80 p-1 cursor-pointer"
+                  aria-label="Fechar mensagem de sucesso"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            {cancelDialogState.error && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="mb-4 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800/60 p-3.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 animate-in fade-in duration-150"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={18} className="shrink-0 text-red-600 dark:text-red-400" />
+                  <span>{cancelDialogState.error}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCancelDialogState((prev) => dismissCancelFeedback(prev))}
+                  className="text-red-600 dark:text-red-400 hover:opacity-80 p-1 cursor-pointer"
+                  aria-label="Fechar mensagem de erro"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-4 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -922,7 +1029,13 @@ export default function InstitutionPanel() {
                         <button onClick={() => handleCompleteCall(call.id)} className="flex-1 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
                           <CheckCircle size={16} /> Confirmar Saída
                         </button>
-                        <button onClick={() => handleCancelCall(call.id)} className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-3 py-2 rounded-lg font-bold transition flex justify-center items-center gap-1.5 text-sm" title="Cancelar chamada">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCancelModal(call)}
+                          className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-3 py-2 rounded-lg font-bold transition flex justify-center items-center gap-1.5 text-sm cursor-pointer"
+                          title={`Cancelar chamada de ${call.name}`}
+                          aria-label={`Cancelar chamada de ${call.name}`}
+                        >
                           <XCircle size={16} /> Cancelar
                         </button>
                       </div>
@@ -931,6 +1044,102 @@ export default function InstitutionPanel() {
                 </div>
               </div>
             </div>
+
+            {/* Modal de Confirmação de Cancelamento de Chamada */}
+            {cancelDialogState.dialog && (
+              <div
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !cancelDialogState.pending) {
+                    handleCloseCancelModal();
+                  }
+                }}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="cancel-call-modal-title"
+                  aria-describedby="cancel-call-modal-description"
+                  className="bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-[#2a2a2a] animate-in fade-in zoom-in-95 duration-150"
+                >
+                  {/* Cabeçalho */}
+                  <div className="flex justify-between items-center p-6 border-b border-slate-100 dark:border-[#2a2a2a] bg-slate-50 dark:bg-[#222222]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center justify-center shadow-sm">
+                        <AlertTriangle size={20} />
+                      </div>
+                      <div>
+                        <h3 id="cancel-call-modal-title" className="text-lg font-bold text-slate-900 dark:text-white">
+                          Cancelar Chamada
+                        </h3>
+                        <p className="text-xs text-slate-500">Confirmação de operação</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCloseCancelModal}
+                      disabled={cancelDialogState.pending}
+                      className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition bg-white dark:bg-slate-800 rounded-full p-1.5 shadow-sm disabled:opacity-60 cursor-pointer"
+                      aria-label="Fechar diálogo de confirmação"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  {/* Conteúdo */}
+                  <div className="p-6 space-y-4">
+                    {/* Contexto do Aluno e Portão */}
+                    <div className="bg-slate-50 dark:bg-[#222222] border border-slate-200/80 dark:border-[#2f2f2f] rounded-2xl p-4 space-y-1">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Aluno(a)</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                        {cancelDialogState.dialog.name}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {cancelDialogState.dialog.grade ? `${cancelDialogState.dialog.grade} • ` : ""}
+                        Portão: <span className="font-semibold text-primary">{cancelDialogState.dialog.gateName || "Não especificado"}</span>
+                      </p>
+                    </div>
+
+                    {/* Mensagem de alerta claro */}
+                    <p id="cancel-call-modal-description" className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Tem certeza de que deseja cancelar esta chamada? O aluno será <strong>removido do telão imediatamente</strong>.
+                    </p>
+
+                    {/* Ações */}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        ref={cancelBackBtnRef}
+                        type="button"
+                        onClick={handleCloseCancelModal}
+                        disabled={cancelDialogState.pending}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 py-3 rounded-xl font-bold transition text-sm cursor-pointer disabled:opacity-60"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmCancelCall}
+                        disabled={cancelDialogState.pending}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2 shadow-sm shadow-red-600/30 cursor-pointer disabled:opacity-60"
+                      >
+                        {cancelDialogState.pending ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Cancelando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle size={16} />
+                            <span>Cancelar chamada</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
