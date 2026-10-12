@@ -21,6 +21,18 @@ import { academicGroupService } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
 import { ACTIVE_CALL_POLL_MS, availableStudents, pickupService } from "../services/pickupService.js"
 import {
+  defaultFilters,
+  hasActiveFilters,
+  applyFilters,
+  applySort,
+  getAvailableGates,
+  getAvailableClasses,
+  loadFilters,
+  saveFilters,
+  clearFilters,
+  SORT_OPTIONS
+} from "../services/pickupCallFilter.js"
+import {
   initialCancelDialogState,
   openCancelDialog,
   closeCancelDialog,
@@ -98,6 +110,9 @@ export default function InstitutionPanel() {
   const [cancelDialogState, setCancelDialogState] = useState(initialCancelDialogState);
   const cancelBackBtnRef = useRef(null);
   const callsRequestRef = useRef(0);
+  const [queueFilters, setQueueFilters] = useState(defaultFilters);
+  const queueSearchInputRef = useRef(null);
+  const filtersLoadedRef = useRef(false);
 
   // ==================================================================
   // SEÇÃO 4: EFEITOS DE CICLO DE VIDA (useEffect)
@@ -323,6 +338,39 @@ export default function InstitutionPanel() {
     };
   }, [cancelDialogState.dialog, cancelDialogState.pending]);
 
+  // 4.9 Carrega preferências de filtros da fila de chamadas
+  useEffect(() => {
+    const schoolId = school?.id;
+    if (!schoolId) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const saved = loadFilters(schoolId);
+      if (!cancelled) {
+        setQueueFilters(saved);
+        filtersLoadedRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [school?.id]);
+
+  // 4.10 Persiste alterações nos filtros da fila (debounce de 300ms)
+  useEffect(() => {
+    const schoolId = school?.id;
+    if (!schoolId || !filtersLoadedRef.current) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      saveFilters(schoolId, queueFilters);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [school?.id, queueFilters]);
+
   // ==================================================================
   // SEÇÃO 5: BARREIRA DE PROTEÇÃO (Early Return)
   // ATENÇÃO: NENHUM hook (useState, useEffect, useRef) pode existir abaixo desta linha!
@@ -342,6 +390,25 @@ export default function InstitutionPanel() {
       id: editingStudent.academicGroupId,
       name: editingStudent.grade || "Turma atual"
     });
+  }
+
+  const availableGatesForQueue = getAvailableGates(activeCalls);
+  const availableClassesForQueue = getAvailableClasses(activeCalls);
+  const gateOptions = Array.from(
+    new Set([...(queueFilters.gate ? [queueFilters.gate] : []), ...availableGatesForQueue])
+  );
+  const classOptions = Array.from(
+    new Set([...(queueFilters.classGroup ? [queueFilters.classGroup] : []), ...availableClassesForQueue])
+  );
+  const filteredCalls = applyFilters(activeCalls, queueFilters);
+  const processedCalls = applySort(filteredCalls, queueFilters.sortBy);
+  const isQueueFiltered = hasActiveFilters(queueFilters);
+
+  function handleClearQueueFilters() {
+    if (!school?.id) return;
+    const reset = clearFilters(school.id);
+    setQueueFilters(reset);
+    queueSearchInputRef.current?.focus();
   }
 
   async function reloadGates() {
@@ -1013,34 +1080,176 @@ export default function InstitutionPanel() {
                   <h3 className="font-bold text-white flex items-center gap-2">
                     <Bell className="text-primary" size={20} /> Fila de Chamada
                   </h3>
-                  <span className="bg-primary text-white px-2 py-0.5 rounded-md text-xs font-bold shadow-sm">{activeCalls.length}</span>
+                  <span
+                    className="bg-primary text-white px-2 py-0.5 rounded-md text-xs font-bold shadow-sm"
+                    aria-label={`Total na fila: ${activeCalls.length}`}
+                  >
+                    {isQueueFiltered ? `${processedCalls.length} / ${activeCalls.length}` : activeCalls.length}
+                  </span>
                 </div>
-                <div className="p-4 overflow-y-auto flex-1 space-y-3">
-                  {activeCalls.map(call => (
-                    <div key={call.id} className="bg-slate-800/50 dark:bg-[#1a1a1a] border border-slate-700 dark:border-[#2a2a2a] p-4 rounded-xl animate-pulse">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-white text-lg leading-tight">{call.name}</p>
-                          <p className="text-slate-400 text-sm">{call.grade} • <span className="text-primary">{call.gateName}</span></p>
-                        </div>
-                        <span className="text-xs text-slate-500 bg-slate-900 dark:bg-black px-2 py-1 rounded-md">{call.time}</span>
+
+                {/* Barra de Controles de Ordenação e Filtros */}
+                <div className="p-4 border-b border-slate-800 dark:border-[#2a2a2a] bg-slate-900/60 dark:bg-[#0c0c0c] space-y-3">
+                  {/* Busca por nome do aluno */}
+                  <div className="relative">
+                    <label htmlFor="queue-student-search" className="sr-only">
+                      Buscar aluno por nome
+                    </label>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    <input
+                      ref={queueSearchInputRef}
+                      id="queue-student-search"
+                      type="search"
+                      aria-label="Buscar aluno por nome"
+                      placeholder="Buscar por nome do aluno..."
+                      value={queueFilters.search}
+                      onChange={(e) => setQueueFilters((prev) => ({ ...prev, search: e.target.value }))}
+                      className="w-full bg-slate-950 dark:bg-black border border-slate-800 dark:border-[#222222] text-white text-xs rounded-xl py-2 pl-9 pr-8 outline-none focus:border-primary transition"
+                    />
+                    {queueFilters.search && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQueueFilters((prev) => ({ ...prev, search: "" }));
+                          queueSearchInputRef.current?.focus();
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                        aria-label="Limpar texto de busca"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filtros em linha: Portão e Turma */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor="queue-gate-filter" className="block text-[11px] text-slate-400 font-medium mb-1">
+                        Portão
+                      </label>
+                      <select
+                        id="queue-gate-filter"
+                        aria-label="Filtrar por portão"
+                        value={queueFilters.gate}
+                        onChange={(e) => setQueueFilters((prev) => ({ ...prev, gate: e.target.value }))}
+                        className="w-full bg-slate-950 dark:bg-black border border-slate-800 dark:border-[#222222] text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-primary transition truncate"
+                      >
+                        <option value="">Todos</option>
+                        {gateOptions.map((gateName) => (
+                          <option key={gateName} value={gateName}>
+                            {gateName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="queue-class-filter" className="block text-[11px] text-slate-400 font-medium mb-1">
+                        Turma
+                      </label>
+                      <select
+                        id="queue-class-filter"
+                        aria-label="Filtrar por turma"
+                        value={queueFilters.classGroup}
+                        onChange={(e) => setQueueFilters((prev) => ({ ...prev, classGroup: e.target.value }))}
+                        className="w-full bg-slate-950 dark:bg-black border border-slate-800 dark:border-[#222222] text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-primary transition truncate"
+                      >
+                        <option value="">Todas</option>
+                        {classOptions.map((className) => (
+                          <option key={className} value={className}>
+                            {className}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Ordenação e Botão Limpar Filtros */}
+                  <div>
+                    <label htmlFor="queue-sort-by" className="block text-[11px] text-slate-400 font-medium mb-1">
+                      Ordenação
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <select
+                          id="queue-sort-by"
+                          aria-label="Ordenar fila de chamada"
+                          value={queueFilters.sortBy}
+                          onChange={(e) => setQueueFilters((prev) => ({ ...prev, sortBy: e.target.value }))}
+                          className="w-full bg-slate-950 dark:bg-black border border-slate-800 dark:border-[#222222] text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-primary transition"
+                        >
+                          {SORT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => handleCompleteCall(call.id)} className="flex-1 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
-                          <CheckCircle size={16} /> Confirmar Saída
-                        </button>
+
+                      {isQueueFiltered && (
                         <button
                           type="button"
-                          onClick={() => handleOpenCancelModal(call)}
-                          className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-3 py-2 rounded-lg font-bold transition flex justify-center items-center gap-1.5 text-sm cursor-pointer"
-                          title={`Cancelar chamada de ${call.name}`}
-                          aria-label={`Cancelar chamada de ${call.name}`}
+                          onClick={handleClearQueueFilters}
+                          className="text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 bg-slate-800/80 hover:bg-slate-800 transition flex items-center gap-1 shrink-0 font-medium"
+                          title="Limpar todos os filtros"
+                          aria-label="Limpar filtros"
                         >
-                          <XCircle size={16} /> Cancelar
+                          <X size={12} /> Limpar
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Contador de resultados em região aria-live polite */}
+                  <div
+                    aria-live="polite"
+                    className="text-[11px] text-slate-400 flex justify-between items-center px-0.5 pt-0.5"
+                  >
+                    <span>
+                      {isQueueFiltered
+                        ? `${processedCalls.length} de ${activeCalls.length} ${activeCalls.length === 1 ? "chamada" : "chamadas"}`
+                        : `${activeCalls.length} ${activeCalls.length === 1 ? "chamada" : "chamadas"}`}
+                    </span>
+                    {isQueueFiltered && processedCalls.length === 0 && (
+                      <span className="text-amber-400 font-medium">Nenhum resultado</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 space-y-3">
+                  {processedCalls.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-sm">
+                      {isQueueFiltered
+                        ? "Nenhuma chamada encontrada com os filtros selecionados."
+                        : "Nenhuma chamada ativa no momento."}
+                    </div>
+                  ) : (
+                    processedCalls.map(call => (
+                      <div key={call.id} className="bg-slate-800/50 dark:bg-[#1a1a1a] border border-slate-700 dark:border-[#2a2a2a] p-4 rounded-xl animate-pulse">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-white text-lg leading-tight">{call.name}</p>
+                            <p className="text-slate-400 text-sm">{call.grade} • <span className="text-primary">{call.gateName}</span></p>
+                          </div>
+                          <span className="text-xs text-slate-500 bg-slate-900 dark:bg-black px-2 py-1 rounded-md">{call.time}</span>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => handleCompleteCall(call.id)} className="flex-1 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/20 py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm">
+                            <CheckCircle size={16} /> Confirmar Saída
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCancelModal(call)}
+                            className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-3 py-2 rounded-lg font-bold transition flex justify-center items-center gap-1.5 text-sm cursor-pointer"
+                            title={`Cancelar chamada de ${call.name}`}
+                            aria-label={`Cancelar chamada de ${call.name}`}
+                          >
+                            <XCircle size={16} /> Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
