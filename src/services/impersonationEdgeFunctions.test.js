@@ -143,6 +143,8 @@ describe('Impersonation Edge Functions — JWT Minting & Session Control (Branch
       const data = await response.json();
 
       assert.ok(data.token, 'Must return signed token');
+      assert.ok(data.access_token, 'Must return access_token alias');
+      assert.ok(data.refresh_token, 'Must return signed refresh_token');
       assert.ok(data.expires_at, 'Must return expires_at timestamp');
       assert.ok(data.impersonation_log_id, 'Must return impersonation_log_id');
       assert.equal(data.target_user?.id, PLATFORM_ADMIN_ID);
@@ -163,6 +165,17 @@ describe('Impersonation Edge Functions — JWT Minting & Session Control (Branch
       // Validar assinatura criptográfica com o secret
       const verified = jwt.verify(data.token, JWT_SECRET);
       assert.equal(verified.sub, PLATFORM_ADMIN_ID);
+
+      // Decodificar e validar claims do refresh token
+      const decodedRefresh = jwt.decode(data.refresh_token);
+      assert.equal(decodedRefresh.sub, PLATFORM_ADMIN_ID);
+      assert.equal(decodedRefresh.role, 'authenticated');
+      assert.equal(decodedRefresh.token_type, 'refresh');
+      assert.equal(decodedRefresh.is_impersonated, true);
+      assert.equal(decodedRefresh.impersonation_log_id, data.impersonation_log_id);
+
+      const verifiedRefresh = jwt.verify(data.refresh_token, JWT_SECRET);
+      assert.equal(verifiedRefresh.token_type, 'refresh');
 
       // Validar que o token cunhado é aceito pelo PostgREST
       const postgrestRes = await fetch(`${SUPABASE_URL}/rest/v1/schools?select=id,name`, {

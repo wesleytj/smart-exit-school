@@ -156,7 +156,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Cunhar JWT de impersonation assinado (Opção B)
+    // Cunhar JWT de impersonation assinado (Opção A)
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + IMPERSONATION_TTL_SECONDS;
 
@@ -175,9 +175,26 @@ Deno.serve(async (req: Request) => {
 
     const token = await signHs256Jwt(impersonationPayload, SUPABASE_JWT_SECRET);
 
+    const refreshPayload = {
+      iss: 'supabase',
+      aud: 'authenticated',
+      sub: target_user_id,
+      role: 'authenticated',
+      exp: expiresAt,
+      iat: now,
+      token_type: 'refresh',
+      is_impersonated: true,
+      impersonator_id: callerSub,
+      impersonation_log_id: auditLog.id
+    };
+
+    const refreshToken = await signHs256Jwt(refreshPayload, SUPABASE_JWT_SECRET);
+
     return new Response(
       JSON.stringify({
         token,
+        access_token: token,
+        refresh_token: refreshToken,
         expires_at: expiresAt,
         impersonation_log_id: auditLog.id,
         target_user: {

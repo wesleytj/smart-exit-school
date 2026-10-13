@@ -116,7 +116,7 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
   });
 
   describe('enterImpersonationSession & exitImpersonationSession lifecycle', () => {
-    it('enterImpersonationSession saves admin backup, sets state, stops auto-refresh, and configures sentinel token', async () => {
+    it('enterImpersonationSession saves admin backup, sets state, stops auto-refresh, and configures short-lived refresh token', async () => {
       // Setup fake initial admin session
       const originalAdminSession = { access_token: 'admin-jwt-token', refresh_token: 'admin-refresh-token' };
       let stopAutoRefreshCalled = false;
@@ -138,6 +138,7 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
 
       await impersonationService.enterImpersonationSession({
         token: 'minted-impersonation-token',
+        refresh_token: 'minted-refresh-token',
         target_user: { id: 'target-1', email: 'prof@escola.com' },
         impersonation_log_id: 'log-uuid-456'
       });
@@ -145,7 +146,7 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
       assert.strictEqual(stopAutoRefreshCalled, true);
       assert.ok(setSessionPayload);
       assert.strictEqual(setSessionPayload.access_token, 'minted-impersonation-token');
-      assert.strictEqual(setSessionPayload.refresh_token, 'impersonation_no_refresh');
+      assert.strictEqual(setSessionPayload.refresh_token, 'minted-refresh-token');
 
       // Verifica backup gravado
       const backup = getAdminSessionBackup();
@@ -156,6 +157,23 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
       assert.strictEqual(state.impersonation_log_id, 'log-uuid-456');
       assert.strictEqual(state.target_user.email, 'prof@escola.com');
       assert.strictEqual(isImpersonating(), true);
+    });
+
+    it('enterImpersonationSession falls back to access token when refresh_token is not provided', async () => {
+      let setSessionPayload = null;
+      supabase.auth.setSession = async (payload) => {
+        setSessionPayload = payload;
+        return { data: { session: payload }, error: null };
+      };
+
+      await impersonationService.enterImpersonationSession({
+        token: 'fallback-token',
+        target_user: { id: 'target-1', email: 'prof@escola.com' },
+        impersonation_log_id: 'log-uuid-789'
+      });
+
+      assert.strictEqual(setSessionPayload.access_token, 'fallback-token');
+      assert.strictEqual(setSessionPayload.refresh_token, 'fallback-token');
     });
 
     it('exitImpersonationSession restores admin session, restarts auto-refresh and clears support state', async () => {

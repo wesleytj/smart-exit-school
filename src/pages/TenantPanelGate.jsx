@@ -4,6 +4,7 @@ import { usePlatformAdmin } from '../hooks/usePlatformAdmin';
 import { useTenantSession } from '../hooks/useTenantSession';
 import { authService } from '../services/authService';
 import { resolveTenantPanelAccess } from '../services/tenantAccess';
+import { isImpersonating } from '../services/impersonationService';
 import InstitutionPanel from './InstitutionPanel';
 import SupportBanner from '../components/SupportBanner';
 
@@ -39,6 +40,14 @@ export default function TenantPanelGate() {
     }
 
     if (decision.signOut) {
+      if (isImpersonating()) {
+        navigate('/admin/institutions', {
+          replace: true,
+          state: decision.message ? { authMessage: decision.message } : undefined
+        });
+        return;
+      }
+
       if (signedOutRef.current) {
         return;
       }

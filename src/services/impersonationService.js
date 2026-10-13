@@ -204,9 +204,9 @@ export const impersonationService = {
    * 2. Armazena o estado da sessão de suporte
    * 3. Limpa caches de escola anteriores
    * 4. Desativa auto-refresh
-   * 5. Seta a sessão no GoTrue com o refresh_token sentinela
+   * 5. Seta a sessão no GoTrue com o refresh_token assinado de curta duração
    */
-  async enterImpersonationSession({ token, target_user, impersonation_log_id, expires_at }) {
+  async enterImpersonationSession({ token, refresh_token, target_user, impersonation_log_id, expires_at }) {
     const storage = getSessionStorage();
     if (storage) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -214,10 +214,15 @@ export const impersonationService = {
         storage.setItem(SESSION_BACKUP_KEY, JSON.stringify(sessionData.session));
       }
 
+      const rawExpires = expires_at;
+      const normalizedExpires = typeof rawExpires === 'number'
+        ? (rawExpires < 1e11 ? new Date(rawExpires * 1000).toISOString() : new Date(rawExpires).toISOString())
+        : (rawExpires || new Date(Date.now() + 45 * 60 * 1000).toISOString());
+
       const state = {
         impersonation_log_id,
         target_user,
-        expires_at: expires_at || new Date(Date.now() + 45 * 60 * 1000).toISOString()
+        expires_at: normalizedExpires
       };
       storage.setItem(IMPERSONATION_STATE_KEY, JSON.stringify(state));
     }
@@ -228,9 +233,11 @@ export const impersonationService = {
       supabase.auth.stopAutoRefresh();
     }
 
+    const resolvedRefreshToken = refresh_token || token;
+
     return await supabase.auth.setSession({
       access_token: token,
-      refresh_token: 'impersonation_no_refresh'
+      refresh_token: resolvedRefreshToken
     });
   },
 

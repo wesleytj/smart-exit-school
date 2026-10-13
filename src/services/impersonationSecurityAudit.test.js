@@ -255,7 +255,7 @@ describe('Impersonation Security Audit Suite — ADR-029 (Branch 4)', () => {
       assert.strictEqual(isDenied, true, 'Role anon não tem privilégio de platform_admins');
     });
 
-    it('A12: Token de impersonation NÃO contém refresh_token real (sentinela não renovável)', async () => {
+    it('A12: Token de suporte possui refresh_token de curta duração alinhado ao TTL (não renovável indefinidamente)', async () => {
       // Inicia impersonation real via Edge Function para validar contrato
       const response = await fetch(`${SUPABASE_URL}/functions/v1/impersonate-user`, {
         method: 'POST',
@@ -265,7 +265,7 @@ describe('Impersonation Security Audit Suite — ADR-029 (Branch 4)', () => {
         },
         body: JSON.stringify({
           target_user_id: PLATFORM_ADMIN_ID,
-          reason: 'Validação de ausência de refresh token renovável (A12)'
+          reason: 'Validação de refresh token de curta duração (A12)'
         })
       });
 
@@ -274,7 +274,12 @@ describe('Impersonation Security Audit Suite — ADR-029 (Branch 4)', () => {
       createdAuditLogIds.push(data.impersonation_log_id);
 
       assert.ok(data.token, 'Token de acesso gerado');
-      assert.strictEqual(data.refresh_token, undefined, 'A Edge Function NUNCA deve retornar refresh_token do GoTrue');
+      assert.ok(data.refresh_token, 'Refresh token de curta duração gerado para GoTrue client');
+
+      const decodedRefresh = jwt.decode(data.refresh_token);
+      assert.strictEqual(decodedRefresh.token_type, 'refresh');
+      assert.strictEqual(decodedRefresh.is_impersonated, true);
+      assert.strictEqual(decodedRefresh.exp, data.expires_at, 'Refresh token deve ter expiração estritamente alinhada ao TTL');
     });
   });
 

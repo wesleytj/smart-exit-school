@@ -34,7 +34,12 @@ export default function SupportBanner() {
       return;
     }
 
-    const targetTime = new Date(impersonationState.expires_at).getTime();
+    const rawExpires = impersonationState.expires_at;
+    const targetTime = typeof rawExpires === 'number'
+      ? (rawExpires < 1e11 ? rawExpires * 1000 : rawExpires)
+      : new Date(rawExpires).getTime();
+
+    let timerInterval = null;
 
     const updateTimer = () => {
       const now = Date.now();
@@ -42,15 +47,17 @@ export default function SupportBanner() {
       setTimeLeft(diffSeconds);
 
       if (diffSeconds <= 0) {
-        clearInterval(timerInterval);
+        if (timerInterval) clearInterval(timerInterval);
         void handleExit(true);
       }
     };
 
     updateTimer();
-    const timerInterval = setInterval(updateTimer, 1000);
+    timerInterval = setInterval(updateTimer, 1000);
 
-    return () => clearInterval(timerInterval);
+    return () => {
+      if (timerInterval) clearInterval(timerInterval);
+    };
   }, [handleExit, impersonationState?.expires_at]);
 
   if (!impersonationState) {

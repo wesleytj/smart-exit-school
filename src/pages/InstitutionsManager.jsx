@@ -9,11 +9,13 @@ import { schoolService } from "../services/schoolService"
 import { impersonationService } from "../services/impersonationService"
 import { invitationService } from "../services/invitationService"
 import { usePlatformAdmin } from "../hooks/usePlatformAdmin"
+import { useTenantSession } from "../hooks/useTenantSession"
 import { supabase } from "../lib/supabase"
 
 export default function InstitutionsManager() {
   const navigate = useNavigate()
-  const { isPlatformAdmin, isLoading: isPlatformAdminLoading } = usePlatformAdmin()
+  const { isPlatformAdmin, isLoading: isPlatformAdminLoading, refresh: refreshPlatformAdmin } = usePlatformAdmin()
+  const { refresh: refreshTenantSession } = useTenantSession()
   
   // Controle de Abas Super Admin ('institutions' | 'users')
   const [activeTab, setActiveTab] = useState("institutions")
@@ -296,7 +298,8 @@ export default function InstitutionsManager() {
       }
 
       const sessionResult = await impersonationService.enterImpersonationSession({
-        token: data.access_token,
+        token: data.access_token || data.token,
+        refresh_token: data.refresh_token,
         target_user: data.target_user || {
           id: impersonationTarget.user_id,
           email: impersonationTarget.email,
@@ -312,6 +315,13 @@ export default function InstitutionsManager() {
         setImpersonationError(`Falha ao ativar sessão de suporte local: ${sessionResult.error.message}`)
         setImpersonationLoading(false)
         return
+      }
+
+      if (refreshTenantSession) {
+        await refreshTenantSession()
+      }
+      if (refreshPlatformAdmin) {
+        await refreshPlatformAdmin()
       }
 
       setImpersonationTarget(null)
