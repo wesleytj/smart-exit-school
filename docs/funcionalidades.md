@@ -66,7 +66,8 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Ano letivo configurável | ✅ Cada tenant possui tabela `public.school_years` com alternância do ano letivo ativo via `schoolYearService` assegurada por índice parcial único no banco (`school_years_one_active_per_school`) |
+| Ano letivo configurável | ✅ Cada tenant possui tabela `public.school_years` com gestão de datas e status |
+| Ativação atômica de ano letivo | ✅ Transação atômica executada pela RPC `public.activate_school_year` (Migration 0026) sob lock `FOR UPDATE`, desativando o ano anterior e ativando o novo sem lacunas de rede e assegurada pelo índice parcial único `school_years_one_active_per_school` |
 | Gestão de datas | ✅ Validação de intervalo (`starts_at`, `ends_at`) e restrição de sobreposição |
 | Vinculação de matrículas | ✅ Matrículas e turmas acadêmicas associadas explicitamente ao ano letivo ativo |
 
@@ -205,6 +206,20 @@ Não há portal do responsável, app mobile ou autorização de retirada ativa.
 **Não identificado como perfil autenticado.**
 
 Alunos existem apenas como registros de dados gerenciados pelo operador da escola (persistidos em `public.students` e `public.student_enrollments` via DAL). Não há login ou interface para alunos.
+
+---
+
+## Isolamento Multi-Tenant e Segurança RLS ✅
+
+A arquitetura do Smart Exit School assegura isolamento lógico e relacional estrito entre escolas contratantes:
+
+| Capacidade | Status | Descrição |
+|---|---|---|
+| Segregação hermética por Tenant | ✅ | Políticas de Row Level Security (RLS) filtram estritamente consultas e mutações pelo `school_id` vinculado à membership ativa do usuário autenticado em `public.school_members`. |
+| Alinhamento de privilégios de escrita | ✅ | Privilege grants (`INSERT`, `UPDATE`, `DELETE`) alinhados para o role `authenticated` em alunos, matrículas, portões e turmas (Migrations 0021 e 0027), governados pelas policies RLS. |
+| Prevenção de Cross-Tenant Leak | ✅ | Usuários de uma instituição não conseguem ler, alterar ou injetar dados pertencentes a outra instituição, verificado por testes automatizados em runtime (`npm run validate:rls` e suíte E2E). |
+| Retenção Histórica Segregada | ✅ | Histórico de chamadas expurgadas em `public.pickup_events_archive` mantém isolamento por escola e leitura restrita aos membros do respectivo tenant. |
+| Revogação de TRUNCATE | ✅ | Comando `TRUNCATE` revogado compulsoriamente para roles não-administrativos em todas as tabelas do schema `public`. |
 
 ---
 
