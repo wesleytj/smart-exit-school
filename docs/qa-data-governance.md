@@ -110,6 +110,22 @@ Regras normativas deste fixture:
 - `TEST-001` e os demais alunos já existentes nessa instituição não fazem parte deste procedimento e permanecem intocados.
 - Este procedimento não cria turma, não altera schema e não altera RLS.
 
+## Fixtures Multi-Tenant de Teste RLS em Runtime (Local / CI)
+
+Para validação estrita de isolamento multi-tenant via Row Level Security (RLS) e execução de `npm run validate:rls` e `npm run test:integration`, são mantidas fixtures dedicadas em `supabase/seed-multi-tenant.sql`.
+
+Essas fixtures são independentes do seed baseline (`smart-exit-dev-school`) e cobrem dois tenants com dados mínimos:
+
+| Fixture / Identificador | Tenant | ID da Escola | Usuário Auth / Perfil | Dados Operacionais Mínimos |
+|---|---|---|---|---|
+| `Tenant Alpha School` | Alpha | `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` | `alpha-user@smart-exit.local`<br>(`11111111-1111-1111-1111-111111111111`) | Portão Alpha, Nível Fundamental, Turma Alpha 1, Aluno `ALPHA-001`, Matrícula 2026, Chamada ativa |
+| `Tenant Beta School` | Beta | `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` | `beta-user@smart-exit.local`<br>(`22222222-2222-2222-2222-222222222222`) | Portão Beta, Nível Fundamental, Turma Beta 1, Aluno `BETA-001`, Matrícula 2026, Chamada ativa |
+
+**Regras de Governança das Fixtures Multi-Tenant:**
+- Destinadas exclusivamente para execução local e integração dos testes RLS (`src/services/multiTenantIsolationRuntime.test.js`) e script oficial (`scripts/validate-rls-foundation.mjs`).
+- Nunca carregar ou rodar estas fixtures em ambiente de Produção.
+- Preservar o isolamento contra mutações destrutivas acidentais.
+
 ## Relatos obrigatórios
 
 Todo Completion Report de ciclo que toque instituições deve declarar:
