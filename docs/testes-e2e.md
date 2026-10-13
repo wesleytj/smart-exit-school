@@ -102,4 +102,34 @@ Para garantir execução determinística e repetível:
   npm run validate:rls
   npm run audit:db
   npm run test:e2e
+  npx playwright test
   ```
+
+---
+
+## 8. Testes com Navegador Real (Playwright)
+
+Além dos testes E2E em nível de DAL/Protocolo (`src/e2e/`), o Smart Exit School possui uma suíte E2E em navegador real utilizando **Playwright** (`tests/e2e/`):
+
+- **Objetivo:** Simular interações humanas reais (abertura de navegador Chromium, preenchimento de formulários de login, navegação por abas e botões).
+- **Segurança e Governança:** É expressamente proibido o uso de `service_role` nos testes de navegador. A autenticação ocorre 100% via formulários da interface ou GoTrue comum (`signInWithPassword`).
+- **Configuração:** Gerenciada por `playwright.config.ts`, suportando execução headless e webServer integrado apontando para `npm run dev`.
+- **Credenciais de Teste:** Definidas em `.env.e2e` (baseado no template `.env.e2e.example`). O arquivo `.env.e2e` é estritamente ignorado no `.gitignore` para prevenir qualquer exposição acidental de credenciais.
+
+### Comandos de Execução Playwright
+```bash
+# Execução da suíte completa em Chromium headless
+npx playwright test
+
+# Execução com navegador visível (modo depuração)
+npx playwright test --headed
+
+# Exibir relatório interativo de execução
+npx playwright show-report
+```
+
+### Diagnóstico de Governança — Edge Runtime
+Os testes de Edge Functions (`impersonationEdgeFunctions.test.js` e `impersonationSecurityAudit.test.js`) dependem da execução do container `supabase_edge_runtime_smart-exit-school`.
+- Caso o container esteja parado (`Exited (137)`), deve ser iniciado com `docker start supabase_edge_runtime_smart-exit-school`.
+- Com o container ativo, a suíte de integração alcança 100% de sucesso (57 testes PASS).
+
