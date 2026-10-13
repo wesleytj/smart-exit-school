@@ -47,6 +47,7 @@ O banco de dados relacional é governado por **25 migrations versionadas** seque
 | 0023 | `20261011180000_create_school_invitations.sql` | Convite de membros (`public.school_invitations`), RLS restrita, índice único parcial e RPC atômica `public.accept_school_invitation` |
 | 0024 | `20261012144500_grant_execute_rpcs.sql` | Concessão de `EXECUTE` na RPC `accept_school_invitation` para `authenticated`, `anon` e `service_role` |
 | 0025 | `20261012173000_create_pickup_events_archive.sql` | Arquivamento histórico (`public.pickup_events_archive`), índices temporais parciais e RPC de lote `archive_old_pickup_events` |
+| 0026 | `20261013140000_create_activate_school_year_rpc.sql` | RPC transacional atômica `public.activate_school_year(p_year_id, p_school_id)` para alternância de ano letivo ativo sem lacuna operacional |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -388,9 +389,8 @@ Tabela segregada para retenção histórica de eventos operacionais finalizados 
 | `public.list_platform_users(p_search, p_school_id, p_limit, p_offset)` | SECURITY DEFINER (Restrita) | Retorna o catálogo consolidado de usuários da plataforma com dados de perfil, escola e status de membership. Dispara erro SQL `42501` se o chamador não for Platform Admin. |
 | `public.accept_school_invitation(p_token text, p_user_id uuid, p_user_name text)` | SECURITY DEFINER | Processa atomicamente o aceite de convite de novos membros em `school_invitations`, associando o usuário à escola e papel em `school_members`. EXECUTE concedido a `authenticated`, `anon` e `service_role` (Migration 0024). |
 | `public.archive_old_pickup_events(p_older_than interval, p_batch_limit integer, p_school_id uuid)` | SECURITY DEFINER (Restrita) | Transfere eventos `completed` ou `cancelled` mais antigos que o intervalo informado de `pickup_events` para `pickup_events_archive` em lotes delimitados via CTE com `FOR UPDATE SKIP LOCKED`. Nunca arquiva chamadas com status `called`. EXECUTE restrito exclusivamente a `service_role` e `postgres` (Migration 0025). |
+| `public.activate_school_year(p_year_id uuid, p_school_id uuid)` | SECURITY DEFINER | Alterna transacionalmente o ano letivo ativo da escola em uma única operação atômica, desativando o ano anterior e ativando o novo sob lock `FOR UPDATE`. EXECUTE concedido a `authenticated` e `service_role` (Migration 0026). |
 | `public.enforce_pickup_event_coherence()` | SECURITY DEFINER (Trigger) | Garante a integridade e ciclo de vida de status em `public.pickup_events`. |
-
-> **Nota de Divergência Documental:** A função `activate_school_year(p_school_id, p_school_year_id)` citada em versões preliminares da documentação **não existe no banco de dados**. A alternância de ano ativo é realizada no cliente através de updates em `schoolYearRepository.activate`, respaldada pelo índice parcial único `school_years_one_active_per_school`.
 
 ---
 

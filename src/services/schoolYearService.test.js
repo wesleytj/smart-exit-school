@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { supabase } from '../lib/supabase.js';
 import { schoolYearRepository } from '../repositories/schoolYearRepository.js';
 import { schoolYearService, mapSchoolYearError } from './schoolYearService.js';
 import { studentRepository } from '../repositories/studentRepository.js';
@@ -314,4 +316,102 @@ describe('operational filters with active school year', { concurrency: 1 }, () =
     assert.equal(result.error, null);
     assert.equal(result.data.status, 'called');
   });
+
+  it('delegates repository activation to activate_school_year RPC', async () => {
+    let rpcArgs = null;
+    const originalRpc = supabase.rpc;
+    supabase.rpc = async (fn, params) => {
+      rpcArgs = { fn, params };
+      return {
+        data: { id: 'year-2027', school_id: SCHOOL_ID, year: 2027, is_active: true },
+        error: null
+      };
+    };
+
+    try {
+      const result = await schoolYearRepository.activate('year-2027', SCHOOL_ID);
+      assert.equal(result.error, null);
+      assert.equal(result.data.is_active, true);
+      assert.deepEqual(rpcArgs, {
+        fn: 'activate_school_year',
+        params: {
+          p_year_id: 'year-2027',
+          p_school_id: SCHOOL_ID
+        }
+      });
+    } finally {
+      supabase.rpc = originalRpc;
+    }
+  });
+
+  it('returns error when activating a year from another school or not found', async () => {
+    const restore = stub(schoolYearRepository, {
+      activate: async () => ({
+        data: null,
+        error: { message: 'Ano letivo não encontrado para esta escola.', code: 'P0002' }
+      })
+    });
+
+    const result = await schoolYearService.activateYear(SCHOOL_ID, 'other-year');
+    restore();
+
+    assert.equal(result.data, null);
+    assert.match(result.error.message, /não encontrado para esta escola/);
+  });
+
+  it('returns error when attempting to activate a year that is already active', async () => {
+    const restore = stub(schoolYearRepository, {
+      activate: async () => ({
+        data: null,
+        error: { message: 'Este ano letivo já está ativo.', code: '23505' }
+      })
+    });
+
+    const result = await schoolYearService.activateYear(SCHOOL_ID, 'year-2026');
+    restore();
+
+    assert.equal(result.data, null);
+    assert.match(result.error.message, /já está ativo/);
+  });
 });
+
+describe('D-06: activate_school_year RPC migration SQL contract', () => {
+  const migrationSql = readFileSync(
+    new URL('../../supabase/migrations/20261013140000_create_activate_school_year_rpc.sql', import.meta.url),
+    'utf8'
+  );
+
+  it('defines activate_school_year with SECURITY DEFINER and search_path = public', () => {
+    assert.match(migrationSql, /create or replace function public\.activate_school_year/i);
+    assert.match(migrationSql, /security definer/i);
+    assert.match(migrationSql, /set search_path = public/i);
+    assert.match(migrationSql, /returns public\.school_years/i);
+  });
+
+  it('enforces row-level lock and school boundary checks', () => {
+    assert.match(migrationSql, /for update/i);
+    assert.match(migrationSql, /p_school_id/i);
+    assert.match(migrationSql, /is_active_school_member/i);
+  });
+
+  it('executes atomic deactivation and activation updates', () => {
+    assert.match(migrationSql, /set is_active = false/i);
+    assert.match(migrationSql, /set is_active = true/i);
+  });
+
+  it('grants EXECUTE exclusively to authenticated and service_role', () => {
+    assert.match(
+      migrationSql,
+      /grant execute on function public\.activate_school_year\(uuid, uuid\) to authenticated;/i
+    );
+    assert.match(
+      migrationSql,
+      /grant execute on function public\.activate_school_year\(uuid, uuid\) to service_role;/i
+    );
+    assert.match(
+      migrationSql,
+      /revoke all on function public\.activate_school_year\(uuid, uuid\) from public, anon;/i
+    );
+  });
+});
+

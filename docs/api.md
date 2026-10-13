@@ -141,8 +141,7 @@ Funções armazenadas em banco acessíveis via SDK do Supabase (`supabase.rpc('n
 | `public.list_platform_users` | `p_search text`<br>`p_school_id uuid`<br>`p_limit integer`<br>`p_offset integer` | Platform Admin exclusivo (`is_platform_admin() = true`) | `Table`: Listagem agregada de usuários da plataforma (id, email, full_name, escola, role, status). Rejeitado com erro SQL `42501` se invocado por usuário comum. |
 | `public.accept_school_invitation` | `p_token text`<br>`p_user_id uuid`<br>`p_user_name text` | `authenticated`, `anon`, `service_role` | `Table`: Valida sob lock `FOR UPDATE` o hash do token em `school_invitations`, cria o vínculo ativo em `school_members` e marca o convite como `accepted`. |
 | `public.archive_old_pickup_events` | `p_older_than interval` (default `30 days`)<br>`p_batch_limit integer` (default 5000)<br>`p_school_id uuid` (opcional) | **Restrita exclusivamente a `service_role` e `postgres`** | `Table (archived_count integer)`: Transfere atomicamente eventos `completed` ou `cancelled` mais antigos que o intervalo de retenção de `pickup_events` para `pickup_events_archive` via CTE com `FOR UPDATE SKIP LOCKED`. Chamadas ativas `called` nunca são afetadas. |
-
-> **Nota de Divergência Documental:** A função `activate_school_year(p_school_id, p_school_year_id)` citada em versões anteriores **não existe no banco de dados**. A alternância de ano ativo ocorre no cliente através de updates em `schoolYearRepository.activate` com integridade assegurada pelo índice parcial único `school_years_one_active_per_school`.
+| `public.activate_school_year` | `p_year_id uuid`<br>`p_school_id uuid` | `authenticated`, `service_role` | `public.school_years`: Executa transação atômica que desativa o ano letivo ativo vigente e ativa o ano especificado sob lock `FOR UPDATE`. Elimina o risco de estados intermediários com zero anos ativos. |
 
 ---
 
@@ -183,4 +182,4 @@ Toda a interação com o Supabase é encapsulada na Camada de Acesso a Dados (`s
 * `schoolYearService.listYears(schoolId)`: recupera todos os anos letivos cadastrados para a escola.
 * `schoolYearService.getActiveYear(schoolId)`: recupera o ano letivo ativo atual do tenant.
 * `schoolYearService.createYear(schoolId, params)`: cadastra novo ano letivo com validação defensiva de intervalo (`starts_at <= ends_at`).
-* `schoolYearService.activateYear(schoolId, id)`: desativa o ano ativo atual e ativa o ano selecionado via `schoolYearRepository.activate`.
+* `schoolYearService.activateYear(schoolId, id)`: aciona atomicamente a RPC `public.activate_school_year` via `schoolYearRepository.activate`, garantindo transição transacional sem lacuna de anos ativos.
