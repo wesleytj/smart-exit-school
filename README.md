@@ -160,8 +160,8 @@ npm run dev
 | `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
 | `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
 | `npm run lint` | Executa a validação estática de código | 0 erros com ESLint 10 |
-| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 199 PASS · 0 FAIL (100% determinístico, sem Docker) |
-| `npm run test:integration` | Executa testes de integração de Edge Functions e segurança | 36 testes (depende de runtime local de Edge Functions) |
+| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 191 PASS · 0 FAIL (100% determinístico, sem Docker) |
+| `npm run test:integration` | Executa testes de integração de PostgREST local, Edge Functions e segurança | 44 testes (depende de containers locais Docker/Supabase) |
 | `npm test` | Executa a suíte completa de testes (unitários + integração) | 235 testes |
 | `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed) |
 | `npm run validate:rls` | Valida as políticas e helper functions de RLS | Sucesso |

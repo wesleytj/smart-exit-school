@@ -23,8 +23,8 @@ Node.js **22.x**, alinhado a `docs/instalacao.md` (LTS 20.x ou 22.x) e ao requis
 
 A suíte de testes é segregada para garantir determinismo e isolamento de runtime:
 
-- **Suíte Unitária (`npm run test:unit`):** Executada no CI. Compreende 199 testes puros, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
-- **Suíte de Integração (`npm run test:integration`):** Compreende 36 testes (`impersonationEdgeFunctions.test.js` e `impersonationSecurityAudit.test.js`) que exercitam endpoints das Edge Functions e políticas de segurança locais. Não é executada no GitHub Actions padrão por depender de containers locais (`supabase_edge_runtime`).
+- **Suíte Unitária (`npm run test:unit`):** Executada no CI. Compreende 191 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
+- **Suíte de Integração (`npm run test:integration`):** Compreende 44 testes em 3 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js` e `impersonationSecurityAudit.test.js`) que exercitam PostgREST local, RPCs de plataforma e endpoints das Edge Functions. Não é executada no GitHub Actions padrão por depender de infraestrutura local (Docker / PostgREST / `supabase_edge_runtime`).
 - **Suíte Completa (`npm test`):** Executa todos os 235 testes.
 
 ## Limitações
