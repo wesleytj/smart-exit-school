@@ -10,7 +10,8 @@
     "test": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js src/services/platformAdminResolution.test.js src/services/academicStructure.test.js src/services/studentFlow.test.js src/services/pickupService.test.js src/services/schoolYearService.test.js src/services/multiTenantIsolation.test.js src/services/authPasswordFlows.test.js src/services/impersonationFoundation.test.js src/services/impersonationEdgeFunctions.test.js src/services/impersonationService.test.js src/services/impersonationSecurityAudit.test.js src/services/memberInvitation.test.js src/services/cancelCallDialog.test.js src/services/pickupCallFilter.test.js src/services/pickupArchive.test.js src/services/multiTenantIsolationRuntime.test.js",
     "test:unit": "node --test src/services/tenantAccess.test.js src/services/gateService.test.js src/services/platformAdminResolution.test.js src/services/academicStructure.test.js src/services/studentFlow.test.js src/services/pickupService.test.js src/services/schoolYearService.test.js src/services/multiTenantIsolation.test.js src/services/authPasswordFlows.test.js src/services/impersonationService.test.js src/services/memberInvitation.test.js src/services/cancelCallDialog.test.js src/services/pickupCallFilter.test.js src/services/pickupArchive.test.js",
     "test:integration": "node --test src/services/impersonationFoundation.test.js src/services/impersonationEdgeFunctions.test.js src/services/impersonationSecurityAudit.test.js src/services/multiTenantIsolationRuntime.test.js",
-    "test:e2e": "node --test src/e2e/**/*.e2e.test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview",
     "validate:rls": "node scripts/validate-rls-foundation.mjs",
     "audit:db": "node scripts/db-auditor/index.mjs"
