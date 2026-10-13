@@ -18,14 +18,14 @@ A persistência do Smart Exit School está consolidada no Supabase PostgreSQL at
 
 ## PostgreSQL — Schema implementado
 
-O banco de dados relacional é governado por **22 migrations versionadas** sequenciais em `supabase/migrations/`:
+O banco de dados relacional é governado por **25 migrations versionadas** sequenciais em `supabase/migrations/`:
 
 | Migration | Arquivo | Domínio / Descrição |
 |-----------|---------|---------------------|
 | 0001 | `20260628155403_create_authentication_core.sql` | Authentication Core (`schools`, `roles`, `profiles`, `school_members`) |
 | 0002 | `20260701014657_create_academic_core.sql` | Academic Core (`academic_levels`, `academic_shifts`, `academic_groups`, `students`, `student_enrollments`) |
 | 0003 | `20260702204601_create_student_group_assignments.sql` | Academic Enrollment Assignment (`student_group_assignments`) |
-| 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core Foundation (`gates`, `guardians`, `pickup_authorizations`, `pickup_events`) |
+| 0004 | `20260703154000_create_pickup_core_foundation.sql` | Pickup Core Foundation (`gates`, `pickup_events`) |
 | 0005 | `20260706180031_enable-rls-foundation.sql` | RLS Foundation (Políticas e funções auxiliares de isolamento multi-tenant) |
 | 0006 | `20260727150000_create_platform_admins.sql` | Platform Admins Core (`public.platform_admins`) |
 | 0007 | `20260727160000_extend_schools_policies_for_platform_admin.sql` | Extend Schools Policies for Platform Admin (`SELECT`, `UPDATE`) |
@@ -45,6 +45,8 @@ O banco de dados relacional é governado por **22 migrations versionadas** seque
 | 0021 | `20261004120000_multi_tenant_grants_hardening.sql` | Endurecimento de permissões multi-tenant (grants em `gates`, `academic_groups`, `academic_levels` e revogação geral de TRUNCATE) |
 | 0022 | `20261010140000_create_impersonation_foundation.sql` | Fundação de Impersonation (`public.impersonation_audit_logs`, RLS estrito e RPC `public.list_platform_users`) |
 | 0023 | `20261011180000_create_school_invitations.sql` | Convite de membros (`public.school_invitations`), RLS restrita, índice único parcial e RPC atômica `public.accept_school_invitation` |
+| 0024 | `20261012144500_grant_execute_rpcs.sql` | Concessão de `EXECUTE` na RPC `accept_school_invitation` para `authenticated`, `anon` e `service_role` |
+| 0025 | `20261012173000_create_pickup_events_archive.sql` | Arquivamento histórico (`public.pickup_events_archive`), índices temporais parciais e RPC de lote `archive_old_pickup_events` |
 
 **Seed idempotente:** `supabase/seed.sql`
 
@@ -345,14 +347,50 @@ Fila operacional de chamadas do Monitor e do Telão da TV:
 
 ---
 
+### `pickup_events_archive` (Migration 0025 — Ciclo C)
+
+Tabela segregada para retenção histórica de eventos operacionais finalizados ou cancelados, aliviando a tabela quente `pickup_events` de chamadas ativas:
+
+| Coluna | Tipo | Constraints / Detalhes |
+|---|---|---|
+| `id` | uuid | PK (preserva o UUID original do evento) |
+| `school_id` | uuid | NOT NULL, FK → `public.schools(id)` ON DELETE CASCADE |
+| `student_enrollment_id` | uuid | NOT NULL, FK → `public.student_enrollments(id)` ON DELETE CASCADE |
+| `gate_id` | uuid | NOT NULL, FK → `public.gates(id)` ON DELETE RESTRICT |
+| `status` | text | NOT NULL, CHECK (`status in ('completed', 'cancelled')`) |
+| `called_at` | timestamptz | NOT NULL |
+| `completed_at` | timestamptz | Nullable |
+| `cancelled_at` | timestamptz | Nullable |
+| `created_at` | timestamptz | NOT NULL |
+| `updated_at` | timestamptz | NOT NULL |
+| `archived_at` | timestamptz | NOT NULL, default `now()` |
+
+**Constraints e Índices:**
+* `pickup_events_archive_status_check`: CHECK (`status in ('completed', 'cancelled')`)
+* `pickup_events_archive_status_timestamps_check`: valida que `completed` tem `completed_at` preenchido e `cancelled` tem `cancelled_at` preenchido.
+* Índices: `idx_pickup_events_archive_school_id`, `idx_pickup_events_archive_archived_at`, `idx_pickup_events_archive_student_enrollment_id`, `idx_pickup_events_archive_gate_id`.
+* Índices temporais parciais em `pickup_events`:
+  * `idx_pickup_events_status_completed_at` em `(status, completed_at) WHERE status = 'completed'`
+  * `idx_pickup_events_status_cancelled_at` em `(status, cancelled_at) WHERE status = 'cancelled'`
+* **RLS & Grants:**
+  * `alter table public.pickup_events_archive enable row level security;`
+  * Policy `pickup_events_archive_select_member`: leitura permitida para membros da escola (`is_active_school_member(school_id)`).
+  * Concedido `SELECT` para `authenticated`.
+  * Revogados `INSERT`, `UPDATE`, `DELETE` e `TRUNCATE` de `public`, `anon` e `authenticated`. Escrita exclusiva via `service_role`.
+
+---
+
 ## Remote Procedure Calls (RPCs no PostgreSQL)
 
 | RPC | Segurança | Finalidade |
 |---|---|---|
 | `public.is_platform_admin()` | SECURITY DEFINER | Retorna booleano confirmando se o chamador autenticado (`auth.uid()`) é Platform Admin. |
 | `public.list_platform_users(p_search, p_school_id, p_limit, p_offset)` | SECURITY DEFINER (Restrita) | Retorna o catálogo consolidado de usuários da plataforma com dados de perfil, escola e status de membership. Dispara erro SQL `42501` se o chamador não for Platform Admin. |
-| `public.activate_school_year(p_school_id, p_school_year_id)` | SECURITY DEFINER | Alterna atomicamente o ano letivo ativo de uma escola, desativando os anos anteriores. |
+| `public.accept_school_invitation(p_token text, p_user_id uuid, p_user_name text)` | SECURITY DEFINER | Processa atomicamente o aceite de convite de novos membros em `school_invitations`, associando o usuário à escola e papel em `school_members`. EXECUTE concedido a `authenticated`, `anon` e `service_role` (Migration 0024). |
+| `public.archive_old_pickup_events(p_older_than interval, p_batch_limit integer, p_school_id uuid)` | SECURITY DEFINER (Restrita) | Transfere eventos `completed` ou `cancelled` mais antigos que o intervalo informado de `pickup_events` para `pickup_events_archive` em lotes delimitados via CTE com `FOR UPDATE SKIP LOCKED`. Nunca arquiva chamadas com status `called`. EXECUTE restrito exclusivamente a `service_role` e `postgres` (Migration 0025). |
 | `public.enforce_pickup_event_coherence()` | SECURITY DEFINER (Trigger) | Garante a integridade e ciclo de vida de status em `public.pickup_events`. |
+
+> **Nota de Divergência Documental:** A função `activate_school_year(p_school_id, p_school_year_id)` citada em versões preliminares da documentação **não existe no banco de dados**. A alternância de ano ativo é realizada no cliente através de updates em `schoolYearRepository.activate`, respaldada pelo índice parcial único `school_years_one_active_per_school`.
 
 ---
 
@@ -367,6 +405,6 @@ A migration `20261004120000_multi_tenant_grants_hardening.sql` estabeleceu salva
 ## Database Auditor v1
 
 O script proprietário em `scripts/db-auditor/index.mjs` valida compulsoriamente as invariantes do banco local (`npm run audit:db`):
-- Tabelas esperadas presentes com RLS ativo;
+- Tabelas esperadas presentes com RLS ativo (incluindo `pickup_events_archive`);
 - Policies e helper functions de RLS em vigor;
-- Invariantes de baseline do `seed.sql` atendidas (resultado canônico atual: **93 PASS · 0 FAIL**).
+- Invariantes de baseline do `seed.sql` atendidas (resultado canônico atual: **97 PASS · 0 FAIL · 5 WARN** em 102 testes).

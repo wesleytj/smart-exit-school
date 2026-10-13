@@ -128,9 +128,10 @@ Regras introduzidas na Migration 0020 e no serviço `schoolYearService`:
 - Uma escola pode ter múltiplos anos letivos cadastrados (históricos ou futuros), mas **exatamente um ano pode estar ativo** por vez (`is_active = true`).
 - A unicidade é garantida a nível de banco por índice parcial exclusivo (`school_years_one_active_per_school`).
 
-### 4.3 Alternância Atômica
-- A ativação de um ano letivo ocorre exclusivamente via RPC `public.activate_school_year(p_school_year_id)`.
-- A RPC desativa atômica e transacionalmente o ano letivo anterior e ativa o novo ano selecionado na mesma operação, prevenindo concorrência.
+### 4.3 Alternância de Ano Letivo Ativo
+- A ativação de um ano letivo ocorre na camada de serviço (`schoolYearService` / `schoolYearRepository`), desativando o ano ativo anterior do tenant e marcando o novo ano como `is_active = true`.
+- A unicidade e a integridade concorrencial são garantidas a nível de banco pelo índice parcial exclusivo `school_years_one_active_per_school`.
+- *Nota de governança:* A ativação é realizada via DAL/repositório; não existe RPC `public.activate_school_year` no banco de dados.
 
 ### 4.4 Vinculação Acadêmica
 - Turmas (`academic_groups`) e matrículas de alunos (`student_enrollments`) são vinculadas formalmente ao `school_year_id`.
@@ -154,11 +155,11 @@ A fonte soberana da fila operacional é `public.pickup_events`.
 
 ### 5.3 Cancelamento Operacional de Chamadas
 - O operador pode cancelar uma chamada acionada por engano através do botão de cancelamento na fila.
-- A ação abre modal exigindo confirmação e motivo.
+- A ação abre o modal de diálogo de confirmação (`cancelCallDialog.js`), que solicita confirmação explícita e justificativa do operador na interface.
 - O serviço `pickupService.cancelCall` atualiza atômica e permanentemente o evento:
   - `status`: de `'called'` para `'cancelled'`;
-  - `cancelled_at`: gravado com o timestamp atual;
-  - `cancellation_reason`: motivo informado pelo operador.
+  - `cancelled_at`: gravado com o timestamp atual (`now()`).
+- **Divergência factual identificada:** A justificativa informada pelo operador é validada na interface modal, porém **não é persistida no banco de dados** (a tabela `public.pickup_events` possui apenas a coluna `cancelled_at timestamptz`; a coluna `cancellation_reason` não existe no schema atual).
 - **Transição irreversível:** Um evento cancelado não pode ser reaberto.
 - O aluno é imediatamente liberado na lista de disponíveis para nova chamada se necessário.
 
@@ -174,6 +175,14 @@ A fonte soberana da fila operacional é `public.pickup_events`.
   - Ao identificar nova chamada na fila, o telão dispara um Chime melódico harmônico em duas frequências (Web Audio API).
   - Em seguida, executa síntese de voz nativa (Web Speech API) vocalizando o nome do aluno e o portão de destino.
   - Controle de fila sequencial e debounce garantem que chamadas simultâneas não colidam seus áudios.
+
+### 5.6 Retenção e Arquivamento Histórico de Chamadas
+- Eventos de saída concluídos (`completed`) ou cancelados (`cancelled`) que ultrapassam a janela operacional ativa são elegíveis para arquivamento histórico na tabela `public.pickup_events_archive` (Migration 0025).
+- **Expurgo e Arquivamento via RPC:** A função `public.archive_old_pickup_events(p_cutoff_date, p_batch_size)` copia os registros elegíveis para a tabela de arquivo e os remove da tabela operacional `pickup_events`.
+- **Proteção de Chamadas Ativas:** Chamadas em andamento (`status = 'called'`) **nunca** são arquivadas ou expurgadas, independentemente da data.
+- **Processamento em Lote:** O arquivamento ocorre em lotes configuráveis (`p_batch_size`, padrão 500) para prevenir contenção de locks na tabela operacional.
+- **Permissão de Execução:** A execução da RPC é restrita compulsoriamente à role `service_role` (crons e tarefas de manutenção de infraestrutura).
+- **Consulta ao Histórico Arquivado:** Usuários autenticados da escola possuem acesso somente-leitura (`SELECT`) aos dados arquivados do seu próprio tenant via RLS e serviço `pickupArchiveService.js`.
 
 ---
 

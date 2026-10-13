@@ -5,7 +5,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Auth%20%2B%20Edge%20Functions-3ECF8E?logo=supabase)](https://supabase.com/)
 [![Deno](https://img.shields.io/badge/Deno-2-000000?logo=deno)](https://deno.land/)
-[![Tests](https://img.shields.io/badge/Tests-147%20passing-brightgreen)](./src)
+[![Tests](https://img.shields.io/badge/Tests-217%20passing%20%7C%2018%20env--dependent-yellow)](./src)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](./.github/workflows)
 
 > Sistema SaaS moderno de gestão, organização e chamada inteligente de saída de alunos para instituições de ensino.
@@ -34,14 +34,17 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 
 ### 2.2 Painel Institucional da Escola (`/painel`)
 * **Acesso:** protegido pelo guard `TenantPanelGate` (requer Supabase Auth e membership ativa em `public.school_members`).
-* **Anos Letivos Configuráveis (`public.school_years`):** criação e alternância atômica do ano letivo ativo da escola, vinculando matrículas e agrupamentos de forma dinâmica.
+* **Anos Letivos Configuráveis (`public.school_years`):** criação e alternância do ano letivo ativo da escola, vinculando matrículas e agrupamentos de forma dinâmica.
 * **Gestão Acadêmica Completa:** cadastro de níveis educacionais, criação de turmas por turno (manhã, tarde, noite, integral), enturmação de alunos e matrículas por ano letivo.
 * **Portões de Saída:** configuração e ordenação de múltiplos portões físicos (`public.gates`).
+* **Gestão de Equipe & Convites (`TeamManagementSection`):** listagem de membros institucionais e envio de convites de onboarding por e-mail com token criptográfico de 7 dias.
 
-### 2.3 Monitor Operacional de Chamadas
+### 2.3 Monitor Operacional de Chamadas (Ciclo C)
 * **Acionamento em Tempo Real:** operadores de pátio e portaria acionam chamadas selecionando explicitamente o portão de saída correspondente.
 * **Fonte da Verdade:** eventos persistidos diretamente em `public.pickup_events` no PostgreSQL (com prevenção de duplicidade via índice parcial único).
-* **Cancelamento Operacional de Chamadas:** suporte à anulação de chamadas indevidas com modal de confirmação, justificativa e preenchimento de `cancelled_at` sob auditoria completa.
+* **Cancelamento com Diálogo de Confirmação (C1):** anulação operacional de chamadas com modal de confirmação (`cancelCallDialog.js`), feedback visual imediato e registro atômico de `cancelled_at`.
+* **Filtros e Ordenação Dinâmica da Fila (C2):** controles flexíveis de visualização da fila de chamadas (`pickupCallFilter.js`) por portão, turma e busca de alunos.
+* **Retenção e Arquivamento Histórico (C3):** tabela segregada `public.pickup_events_archive` com índices temporais parciais e RPC em lote `public.archive_old_pickup_events` restrita à role `service_role`.
 
 ### 2.4 Monitor de Chamadas Telão TV (`/tv`)
 * **Exibição Dedicada:** layout de alta visibilidade e legibilidade otimizado para TVs, monitores de pátio e salas de aula.
@@ -52,9 +55,10 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 * **Contador Regressivo (Countdown Timer):** temporizador regressivo de 45 minutos exibindo o tempo restante de sessão em tempo real.
 * **Encerramento Seguro:** botão de saída que aciona a Edge Function `end-impersonation`, limpa caches do tenant no navegador, restaura a sessão original do Super Admin arquivada no `sessionStorage` e reativa a renovação automática de tokens.
 
-### 2.6 Autenticação, Recuperação de Senha & Whitelabel
-* **Login Corporativo:** tela de autenticação institucional com toggle de visualização de senha (`PasswordInput`).
-* **Recuperação de Senhas:** rotas públicas `/recuperar-senha` (`ForgotPassword`) e `/redefinir-senha` (`UpdatePassword`) integradas a relay SMTP transacional (Brevo).
+### 2.6 Autenticação, Recuperação de Senha & Onboarding
+* **Login Corporativo:** tela de autenticação institucional com toggle de visualização de senha (`PasswordInput`) e bloqueio para escolas inativas.
+* **Recuperação de Senhas:** rotas `/forgot-password` e `/update-password` integradas a relay SMTP transacional (Brevo).
+* **Onboarding de Convidados (`/accept-invite`):** página de validação de convite institucional e criação de senha para novos membros da escola.
 * **Customização Institucional:** suporte a temas visuais claros e escuros (Dark Mode nativo) e exibição de logos institucionais nos planos elegíveis.
 
 ---
@@ -70,6 +74,8 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 * **Supabase Edge Functions (Deno 2):** endpoints serverless desacoplados responsáveis por operações privilegiadas:
   * `impersonate-user`: valida autorização de plataforma, grava auditoria e assina token JWT manual.
   * `end-impersonation`: encerra o ciclo de auditoria registrando o timestamp de término (`ended_at`).
+  * `invite-member`: gera token criptográfico seguro, grava em `school_invitations` e despacha e-mail via Brevo.
+  * `accept-invite`: valida tokens de convite e provisiona novos membros escolares.
 
 ### 3.3 Separação em Camadas (DAL — Data Access Layer)
 * **Repositórios (`src/repositories/`):** encapsulam queries, mutations e filtros diretos com o Supabase.
@@ -77,8 +83,8 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 * **Camada de Apresentação (`src/components/`, `src/pages/`):** componentes puramente declarativos — **nunca** acessam o Supabase ou o `localStorage` diretamente.
 
 ### 3.4 Persistência & Isolamento Multi-Tenant
-* **Row Level Security (RLS) Compulsório:** todas as tabelas do schema `public` possuem RLS habilitado e políticas de isolamento baseadas em `school_id` e memberships ativas.
-* **Princípio do Menor Privilégio:** privilégios destrutivos (`TRUNCATE`) revogados do role `authenticated`, garantindo grants mínimos e imutabilidade dos logs de auditoria.
+* **Row Level Security (RLS) Compulsório:** todas as 17 tabelas do schema `public` possuem RLS habilitado e políticas de isolamento baseadas em `school_id` e memberships ativas.
+* **Princípio do Menor Privilégio:** privilégios destrutivos (`TRUNCATE`) revogados de todas as tabelas públicas para `anon` e `authenticated`, garantindo grants mínimos e imutabilidade dos logs de auditoria e arquivos.
 * **Defesa em Profundidade:** validação bilateral tanto no banco de dados quanto na camada de serviços (DAL).
 
 ### 3.5 Ciclo de Vida da Sessão de Impersonation
@@ -96,10 +102,10 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 | **Bundler & Dev Server** | Vite | 8.0.10 |
 | **Styling** | Tailwind CSS | 4.2.4 (com `@tailwindcss/vite`) |
 | **Routing** | React Router DOM | 7.17.0 |
-| **Backend & Banco de Dados** | Supabase (PostgreSQL 15 + RLS + PostgREST) | `@supabase/supabase-js` 2.108.2 |
+| **Backend & Banco de Dados** | Supabase (PostgreSQL 17 + RLS + PostgREST) | `@supabase/supabase-js` 2.108.2 |
 | **Serverless Edge Runtime** | Deno | 2.x (Edge Functions em TypeScript) |
 | **Iconografia** | Lucide React | 1.14.0 |
-| **Test Runner** | Node Test Runner (`node --test`) | Nativo (147 testes automatizados) |
+| **Test Runner** | Node Test Runner (`node --test`) | Nativo (235 testes: 217 passando, 18 dependentes de Edge runtime) |
 | **Análise Estática (Lint)** | ESLint | 10.2.1 |
 | **Integração Contínua** | GitHub Actions | Workflows de Lint + Build |
 | **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json` |
@@ -154,8 +160,8 @@ npm run dev
 | `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
 | `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
 | `npm run lint` | Executa a validação estática de código | 0 erros com ESLint 10 |
-| `npm test` | Executa a suíte de testes unitários e de integração | 147 testes passando (28 suítes) |
-| `npm run audit:db` | Executa o Database Auditor v1 | 93 PASS · 0 FAIL (valida schema, RLS e seed) |
+| `npm test` | Executa a suíte de testes unitários e de integração | 235 testes (217 PASS, 18 dependentes de `supabase functions serve`) |
+| `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed) |
 | `npm run validate:rls` | Valida as políticas e helper functions de RLS | Sucesso |
 
 ---

@@ -4,14 +4,19 @@ Evoluções do Smart Exit School, consolidando entregas recentes concluídas e d
 
 ---
 
-## Entregas Recentes Concluídas (Fases 2 e 3)
+## Entregas Recentes Concluídas (Ciclos A, B e C)
 
 | Entrega | PR / Commit | Escopo & Descrição |
 |---|---|---|
-| **Impersonation User-Level** | PRs #69, #70, #71, #73 | Suporte operacional em primeira pessoa para Platform Admins via Edge Function (`impersonate-user`), JWT manual HS256, sentinela `impersonation_no_refresh`, TTL 45min, `SupportBanner` e auditoria imutável em `public.impersonation_audit_logs`. |
+| **C3 — Arquivamento de Chamadas de Saída** | PR #86 (Migration 0025) | Tabela `public.pickup_events_archive` para retenção histórica de eventos `completed` e `cancelled`, índices temporais parciais em `pickup_events`, RPC de purga em lote `public.archive_old_pickup_events` restrita a `service_role` e serviço `pickupArchiveService.js`. |
+| **C2 — Ordenação e Filtros da Fila** | PR #85 | Controles operacionais flexíveis de ordenação e filtros dinâmicos na fila de chamadas do Monitor (`pickupCallFilter.js`) por portão, turma e busca de aluno. |
+| **C1 — Cancelamento com Confirmação** | PR #84 | Diálogo modal de confirmação de cancelamento operacional (`cancelCallDialog.js`), feedback visual imediato e transição atômica de `called` → `cancelled` com timestamp `cancelled_at`. |
+| **Ciclo B — Convite e Onboarding de Membros** | PR #82, PR #83 (Migrations 0023, 0024) | Tabela `public.school_invitations`, Edge Functions `invite-member` / `accept-invite`, tela `/accept-invite` e componente `TeamManagementSection` para envio de convites com token de 7 dias via Brevo SMTP. |
+| **Bloqueio de Login para Escola Inativa** | PR #80 | Enforce do status `is_active` / `inactive` no momento da resolução de tenant pós-login (`tenantAccess.js`), impedindo acesso administrativo a escolas suspensas. |
+| **Impersonation User-Level** | PRs #69, #70, #71, #73, #81 | Suporte operacional em primeira pessoa para Platform Admins via Edge Function (`impersonate-user`), JWT manual HS256, suporte a ES256 cloud, sentinela `impersonation_no_refresh`, TTL 45min, `SupportBanner` e auditoria imutável em `public.impersonation_audit_logs`. |
 | **Isolamento Multi-Tenant & Hardening** | PR #65 (Migration 0021) | Reforço de RLS, grants mínimos restritos a `authenticated`, revogação de `TRUNCATE` em todas as tabelas públicas e testes de isolamento multi-tenant cruzados. |
-| **Ano Letivo Configurável** | PR #63 (Migration 0020) | Tabela `public.school_years`, vínculo formal de turmas e matrículas ao ano letivo ativo, alternância atômica via RPC `activate_school_year`. |
-| **Cancelamento de Chamadas de Saída** | PR #62 (Migration 0019) | Transição operacional de status `called` → `cancelled`, registro de timestamp `cancelled_at` e modal de cancelamento com justificativa. |
+| **Ano Letivo Configurável** | PR #63 (Migration 0020) | Tabela `public.school_years`, vínculo formal de turmas e matrículas ao ano letivo ativo, alternância de ano ativo via `schoolYearService` assegurada por índice parcial único no banco. |
+| **Cancelamento Operacional de Chamadas** | PR #62 (Migration 0019) | Transição operacional de status `called` → `cancelled`, registro de timestamp `cancelled_at` e liberação do aluno para nova chamada. |
 | **Áudio no Telão de Saída** | PR #61 | Anúncio sonoro automático de chamadas na TV (`/tv`) combinando Chime harmônico (Web Audio API) e síntese de voz (Web Speech API) com fila sequencial e debounce. |
 | **Fluxos de Senha e DX** | PR #67, PR #68, PR #72 | Telas `/forgot-password` e `/update-password` integradas ao relay SMTP Brevo, toggle de visualização `PasswordInput`, tipagens Deno e Node. |
 
@@ -19,13 +24,14 @@ Evoluções do Smart Exit School, consolidando entregas recentes concluídas e d
 
 ## Bootstrap de produção
 
-- [x] Produção Supabase criada e migrations aplicadas (0001 a 0022)
+- [x] Produção Supabase criada e migrations aplicadas (0001 a 0025)
 - [x] Frontend publicado na Vercel (`https://smart-exit-school.vercel.app`)
 - [x] Platform Admin real validado (`/admin/institutions`)
 - [x] Primeira instituição criada (Colégio Adventista de Esteio, plano `basic`, status `active`)
 - [x] Primeiro tenant escolar validado em produção (conta de teste, membership `owner` ativa, `/painel`)
 - [x] Isolamento multi-tenant e RLS endurecidos (Migration 0021)
-- [x] Provisionamento ou convite de usuários escolares via UI (Ciclo B — Migration 20261011180000, Edge Functions invite-member / accept-invite, rota /accept-invite)
+- [x] Provisionamento ou convite de usuários escolares via UI (Ciclo B — Migration 0023/0024, Edge Functions invite-member / accept-invite, rota /accept-invite)
+- [x] Cancelamento, filtros e arquivamento de chamadas operacionais (Ciclo C — PRs #84, #85, #86)
 - [ ] Processo de onboarding comercial self-service
 
 ---
@@ -36,11 +42,10 @@ Itens mapeados para evolução técnica imediata e melhoria operacional:
 
 | Item | Evidência / Escopo | Prioridade sugerida |
 |------|--------------------|---------------------|
-| **Provisionamento de usuário escolar via UI** | Fluxo de onboarding/convite de novos membros escolares via interface (eliminando inserção manual por SQL privilegiado) | Alta |
 | **Relatórios e visualizador de auditoria para Super Admin** | Interface em `/admin/institutions` para visualização e filtro dos registros de `public.impersonation_audit_logs` | Média |
-| **Histórico e relatórios de saídas** | Consulta e exportação de eventos operacionais `completed` e `cancelled` para coordenação escolar | Média |
+| **Histórico e relatórios de saídas** | Consulta e exportação de eventos operacionais `completed`, `cancelled` e arquivados (`pickup_events_archive`) para coordenação escolar | Média |
+| **Automação do expurgo de chamadas antigas** | Agendador ou cron job externo para execução periódica da RPC `archive_old_pickup_events` (já que `pg_cron` não está ativo) | Média |
 | **Referência Turma → Portão por `gate_id`** | Substituir o campo textual `defaultExit` no cache por chave estrangeira formal em `public.academic_groups` | Média |
-| **Bloquear login de instituição Inativa** | Enforce do status `is_active` / `Inativo` da escola no momento da resolução de tenant no login | Alta |
 | **UI bulk edit para turmas** | Expor interface para alteração em lote de turmas (handlers já existem na DAL) | Baixa |
 | **Sincronização em tempo real (Supabase Realtime)** | Substituir polling de 5s no Monitor e Telão por subscrição websocket Postgres Changes em `pickup_events` | Média |
 
