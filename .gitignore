@@ -27,6 +27,12 @@ dist-ssr
 .env
 .env.local
 .env.production
+.env.e2e
+.env.e2e.local
+
+# Playwright artifacts
+test-results/
+playwright-report/
 
 # Supabase Studio local query snippets
 supabase/snippets/
