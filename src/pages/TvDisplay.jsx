@@ -28,22 +28,39 @@ export default function TvDisplay() {
   }, [])
 
   useEffect(() => {
+    let active = true
+
+    async function syncSchoolMetadata() {
+      if (status !== "ready" || !school?.id) {
+        setSchoolInfo(null)
+        return
+      }
+
+      const storedOps = await schoolOpsStore.get(school.id)
+      if (!active) return
+
+      setSchoolInfo(toPanelSchool(school, storedOps, ""))
+    }
+
+    void syncSchoolMetadata()
+
+    return () => {
+      active = false
+    }
+  }, [school, status])
+
+  useEffect(() => {
     let stopped = false
     let requestSeq = 0
     let timer = null
 
     async function init() {
       if (status !== "ready" || !schoolId) {
-        setSchoolInfo(null)
         setActiveCalls([])
         return
       }
 
       const requestId = ++requestSeq
-      const storedOps = await schoolOpsStore.get(schoolId)
-      if (stopped || requestId !== requestSeq) return
-
-      setSchoolInfo(toPanelSchool(school, storedOps, ""))
       const result = await pickupService.getActiveCallsBySchool(schoolId)
       if (stopped || requestId !== requestSeq) return
 
