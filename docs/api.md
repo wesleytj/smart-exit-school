@@ -97,15 +97,52 @@ Atualiza o registro de auditoria gravando o timestamp de encerramento (`ended_at
 
 ---
 
+---
+
+### 1.3. Convidar Membro Escolar (`invite-member`)
+
+Gera convite criptográfico com TTL de 7 dias e despacha e-mail transacional via Brevo.
+
+* **Rota:** `POST /functions/v1/invite-member`
+* **Autenticação:** Obrigatória via cabeçalho `Authorization: Bearer <token>` de Platform Admin ou gestor da escola (`owner` / `administrator`).
+* **Payload da Requisição:**
+  ```json
+  {
+    "school_id": "11111111-1111-1111-1111-111111111111",
+    "email": "professor@escola.com.br",
+    "role_id": "33333333-3333-3333-3333-333333333333"
+  }
+  ```
+* **Respostas:**
+  * `200 OK`: `{"success": true, "invitation_id": "uuid"}`
+  * `400 Bad Request`: `Invalid email` ou `Role not found`.
+  * `403 Forbidden`: Chamador não tem autoridade sobre o tenant.
+
+---
+
+### 1.4. Validar e Confirmar Convite (`accept-invite`)
+
+Valida metadados do token na abertura de `/accept-invite` e efetiva o aceite do novo membro.
+
+* **Rota:** `POST /functions/v1/accept-invite`
+* **Ações suportadas no body:**
+  * `{"action": "validate", "token": "<raw_token>"}`: Valida token e retorna escola e e-mail mascarado sem mutação.
+  * `{"action": "confirm", "token": "<raw_token>", "password": "<nova_senha>", "full_name": "<nome>"}`: Cadastra ou vincula credencial e executa RPC `accept_school_invitation`.
+
+---
+
 ## 2. Remote Procedure Calls (RPCs no PostgREST)
 
 Funções armazenadas em banco acessíveis via SDK do Supabase (`supabase.rpc('nome_funcao', params)`):
 
 | RPC | Parâmetros | Autorização | Retorno / Finalidade |
 |---|---|---|---|
-| `public.is_platform_admin()` | Nenhum | `authenticated` | `boolean`: Retorna `true` se o `auth.uid()` constar na tabela `public.platform_admins`. |
-| `public.list_platform_users` | `search_term text`<br>`school_filter uuid`<br>`role_filter text` | Platform Admin exclusivo (`is_platform_admin() = true`) | `Table`: Listagem agregada de usuários da plataforma (id, email, full_name, escola, role, status). Rejeitado com erro SQL `42501` se invocado por usuário comum. |
-| `public.activate_school_year` | `p_school_id uuid`<br>`p_school_year_id uuid` | Membro da escola com permissão | `void`: Desativa atomicamente os demais anos letivos da escola e marca o ano indicado como `is_active = true`. |
+| `public.is_platform_admin()` | Nenhum | `authenticated`, `anon` | `boolean`: Retorna `true` se o `auth.uid()` constar na tabela `public.platform_admins`. |
+| `public.list_platform_users` | `p_search text`<br>`p_school_id uuid`<br>`p_limit integer`<br>`p_offset integer` | Platform Admin exclusivo (`is_platform_admin() = true`) | `Table`: Listagem agregada de usuários da plataforma (id, email, full_name, escola, role, status). Rejeitado com erro SQL `42501` se invocado por usuário comum. |
+| `public.accept_school_invitation` | `p_token text`<br>`p_user_id uuid`<br>`p_user_name text` | `authenticated`, `anon`, `service_role` | `Table`: Valida sob lock `FOR UPDATE` o hash do token em `school_invitations`, cria o vínculo ativo em `school_members` e marca o convite como `accepted`. |
+| `public.archive_old_pickup_events` | `p_older_than interval` (default `30 days`)<br>`p_batch_limit integer` (default 5000)<br>`p_school_id uuid` (opcional) | **Restrita exclusivamente a `service_role` e `postgres`** | `Table (archived_count integer)`: Transfere atomicamente eventos `completed` ou `cancelled` mais antigos que o intervalo de retenção de `pickup_events` para `pickup_events_archive` via CTE com `FOR UPDATE SKIP LOCKED`. Chamadas ativas `called` nunca são afetadas. |
+
+> **Nota de Divergência Documental:** A função `activate_school_year(p_school_id, p_school_year_id)` citada em versões anteriores **não existe no banco de dados**. A alternância de ano ativo ocorre no cliente através de updates em `schoolYearRepository.activate` com integridade assegurada pelo índice parcial único `school_years_one_active_per_school`.
 
 ---
 
@@ -116,12 +153,13 @@ Rotas declarativas gerenciadas no client-side com rewrite de fallback no [vercel
 | Rota | Componente | Proteção / Autoridade | Descrição |
 |------|------------|-----------------------|-----------|
 | `/` | `Navigate` | Pública | Redirecionamento automático para `/login` |
-| `/login` | `Login.jsx` | Pública | Tela de autenticação com toggle de visualização de senha |
-| `/recuperar-senha` | `ForgotPassword.jsx` | Pública | Solicitação de e-mail de recuperação de senha via Brevo SMTP |
-| `/redefinir-senha` | `UpdatePassword.jsx` | Pública (com token) | Redefinição de senha do usuário autenticado por link de recuperação |
+| `/login` | `Login.jsx` | Pública | Tela de autenticação institucional com toggle de visualização e bloqueio de escolas inativas |
+| `/forgot-password` | `ForgotPassword.jsx` | Pública | Solicitação de e-mail de recuperação de senha via Brevo SMTP |
+| `/update-password` | `UpdatePassword.jsx` | Pública (com token GoTrue) | Redefinição de senha do usuário autenticado por link de recuperação |
 | `/admin/institutions` | `InstitutionsManager.jsx` | **Protegida por `usePlatformAdmin()`** | Painel do Super Admin com catálogo global e impersonation |
 | `/painel` | `TenantPanelGate.jsx` | **Protegida por `TenantPanelGate`** | Painel da escola (requer membership ativa em `school_members`) |
 | `/tv` | `TvDisplay.jsx` | Pública dedicada | Telão de chamadas em tempo real com anúncios visuais e sonoros |
+| `/accept-invite` | `AcceptInvite.jsx` | Pública (com token na URL) | Página de validação de convite e onboarding para novos membros da escola |
 
 ---
 
@@ -129,16 +167,20 @@ Rotas declarativas gerenciadas no client-side com rewrite de fallback no [vercel
 
 Toda a interação com o Supabase é encapsulada na Camada de Acesso a Dados (`src/services/` e `src/repositories/`):
 
-### 4.1. Fila Operacional de Saída (`public.pickup_events`)
+### 4.1. Fila Operacional de Saída & Arquivamento (`pickupService` / `pickupArchiveService`)
 
 | Operação | Método do DAL | Efeito no Banco |
 |---|---|---|
 | **Buscar Chamadas Ativas** | `pickupService.getActiveCallsBySchool(schoolId)` | Consulta registros com `status = 'called'` ordenados por `called_at DESC` com joins de aluno, turma e portão. |
 | **Acionar Aluno** | `pickupService.callStudent({ schoolId, studentEnrollmentId, gateId })` | Insere evento com status inicial `called`. Protegido contra duplicidade por índice parcial único. |
-| **Cancelar Chamada** | `pickupService.cancelCall(eventId, reason)` | Transiciona o status de `called` para `cancelled`, preenchendo o timestamp `cancelled_at` para auditoria. |
-| **Concluir Saída** | `pickupService.completeCall(eventId)` | Atualiza o evento para `completed` e preenche `completed_at`. |
+| **Cancelar Chamada (C1)** | `pickupService.cancelCall(eventId, schoolId)` | Transiciona o status de `called` para `cancelled`, preenchendo o timestamp `cancelled_at` para auditoria. |
+| **Filtrar e Ordenar Fila (C2)** | `pickupCallFilter.filterAndSortCalls(calls, filters)` | Módulo determinístico client-side para filtragem multidimensional por portão, turma e busca de aluno. |
+| **Concluir Saída** | `pickupService.completeCall(eventId, schoolId)` | Atualiza o evento para `completed` e preenche `completed_at`. |
+| **Expurgo e Arquivamento (C3)** | `pickupArchiveService.archiveOldEvents(options)` | Invoca a RPC `public.archive_old_pickup_events` para mover registros antigos para `pickup_events_archive` (uso administrativo). |
 
-### 4.2. Gestão de Anos Letivos (`public.school_years`)
+### 4.2. Gestão de Anos Letivos (`schoolYearService`)
 
-* `schoolYearService.listSchoolYears(schoolId)`: recupera todos os anos letivos cadastrados para a escola.
-* `schoolYearService.activateSchoolYear(schoolId, schoolYearId)`: invoca a RPC `activate_school_year` garantindo unicidade do ano ativo por escola.
+* `schoolYearService.listYears(schoolId)`: recupera todos os anos letivos cadastrados para a escola.
+* `schoolYearService.getActiveYear(schoolId)`: recupera o ano letivo ativo atual do tenant.
+* `schoolYearService.createYear(schoolId, params)`: cadastra novo ano letivo com validação defensiva de intervalo (`starts_at <= ends_at`).
+* `schoolYearService.activateYear(schoolId, id)`: desativa o ano ativo atual e ativa o ano selecionado via `schoolYearRepository.activate`.
