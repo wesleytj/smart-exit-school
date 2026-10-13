@@ -155,11 +155,11 @@ A fonte soberana da fila operacional é `public.pickup_events`.
 
 ### 5.3 Cancelamento Operacional de Chamadas
 - O operador pode cancelar uma chamada acionada por engano através do botão de cancelamento na fila.
-- A ação abre o modal de diálogo de confirmação (`cancelCallDialog.js`), que solicita confirmação explícita e justificativa do operador na interface.
+- A ação abre um diálogo modal de confirmação binária rápida (`cancelCallDialog.js`), que exige confirmação explícita em um clique pelo operador antes da execução para evitar toques acidentais, sem necessidade de digitação de justificativa textual.
 - O serviço `pickupService.cancelCall` atualiza atômica e permanentemente o evento:
   - `status`: de `'called'` para `'cancelled'`;
   - `cancelled_at`: gravado com o timestamp atual (`now()`).
-- **Divergência factual identificada:** A justificativa informada pelo operador é validada na interface modal, porém **não é persistida no banco de dados** (a tabela `public.pickup_events` possui apenas a coluna `cancelled_at timestamptz`; a coluna `cancellation_reason` não existe no schema atual).
+- **Modelo Operacional Rápido:** O cancelamento registra exclusivamente a transição de estado e o timestamp `cancelled_at` para fins de auditoria temporal. Não há campo nem persistência de justificativa textual (`cancellation_reason` não existe no schema nem na interface), priorizando agilidade e rapidez no fluxo diário de portão.
 - **Transição irreversível:** Um evento cancelado não pode ser reaberto.
 - O aluno é imediatamente liberado na lista de disponíveis para nova chamada se necessário.
 
