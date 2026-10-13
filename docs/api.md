@@ -145,6 +145,122 @@ Funções armazenadas em banco acessíveis via SDK do Supabase (`supabase.rpc('n
 
 ---
 
+### 2.1. RPC: Ativação Atômica de Ano Letivo (`activate_school_year`)
+
+Alterna atomicamente o ano letivo ativo de uma escola em uma única transação PostgreSQL. Garante que nunca ocorra a condição de corrida em que uma escola fique temporariamente sem nenhum ano ativo caso uma falha de rede ocorra entre o update de desativação e o de ativação.
+
+* **Endpoint PostgREST:** `POST /rest/v1/rpc/activate_school_year`
+* **Assinatura SQL:** `activate_school_year(p_year_id uuid, p_school_id uuid) RETURNS public.school_years`
+* **Permissões:** Concedido `EXECUTE` para `authenticated` e `service_role`. Protegido por RLS em `school_years` (o chamador deve ser membro ativo do tenant).
+* **Parâmetros:**
+  * `p_year_id` (uuid, obrigatório): ID do ano letivo a ser ativado.
+  * `p_school_id` (uuid, obrigatório): ID da escola detentora do ano letivo.
+* **Comportamento Transacional:**
+  1. Adquire bloqueio exclusivo de linha via `SELECT ... FOR UPDATE` sobre o registro do ano alvo em `public.school_years`.
+  2. Valida se o ano pertence à escola indicada (dispara exceção caso não exista).
+  3. Desativa atomicamente qualquer outro ano ativo existente para aquela escola: `UPDATE public.school_years SET is_active = false WHERE school_id = p_school_id AND id <> p_year_id AND is_active = true`.
+  4. Ativa o ano alvo: `UPDATE public.school_years SET is_active = true WHERE id = p_year_id AND school_id = p_school_id RETURNING *`.
+* **Chamada via Supabase JS Client:**
+  ```javascript
+  const { data, error } = await supabase.rpc('activate_school_year', {
+    p_year_id: 'e2a7b1c3-4d5e-6f7a-8b9c-0d1e2f3a4b5c',
+    p_school_id: '76f29d9f-c6fd-4561-89f8-403fef0ccb40'
+  });
+  ```
+* **Exemplo de Request HTTP:**
+  ```http
+  POST /rest/v1/rpc/activate_school_year HTTP/1.1
+  Host: <supabase-host>
+  Authorization: Bearer <user_jwt>
+  apikey: <anon_or_service_key>
+  Content-Type: application/json
+
+  {
+    "p_year_id": "e2a7b1c3-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+    "p_school_id": "76f29d9f-c6fd-4561-89f8-403fef0ccb40"
+  }
+  ```
+* **Exemplo de Resposta de Sucesso (`200 OK`):**
+  ```json
+  {
+    "id": "e2a7b1c3-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+    "school_id": "76f29d9f-c6fd-4561-89f8-403fef0ccb40",
+    "name": "2026",
+    "starts_at": "2026-02-01",
+    "ends_at": "2026-12-15",
+    "is_active": true,
+    "created_at": "2026-01-10T12:00:00Z",
+    "updated_at": "2026-10-13T14:30:00Z"
+  }
+  ```
+* **Exemplo de Resposta de Erro (`404 Not Found / 400 Bad Request`):**
+  ```json
+  {
+    "code": "P0002",
+    "details": null,
+    "hint": null,
+    "message": "School year e2a7b1c3-4d5e-6f7a-8b9c-0d1e2f3a4b5c not found for school 76f29d9f-c6fd-4561-89f8-403fef0ccb40"
+  }
+  ```
+
+---
+
+### 2.2. RPC: Arquivamento de Chamadas Históricas (`archive_old_pickup_events`)
+
+Expurga e move eventos operacionais concluídos (`completed`) ou cancelados (`cancelled`) da tabela quente `pickup_events` para a tabela fria de auditoria `pickup_events_archive` em lotes controlados com concorrência segura.
+
+* **Endpoint PostgREST:** `POST /rest/v1/rpc/archive_old_pickup_events`
+* **Assinatura SQL:** `archive_old_pickup_events(p_older_than interval DEFAULT '30 days'::interval, p_batch_limit integer DEFAULT 5000, p_school_id uuid DEFAULT NULL::uuid) RETURNS TABLE(archived_count integer)`
+* **Permissões:** **Restrita exclusivamente a `service_role` e `postgres`**. Usuários `anon` ou `authenticated` recebem erro SQL `42501` (permissão negada).
+* **Parâmetros:**
+  * `p_older_than` (interval, padrão `'30 days'`): Janela temporal de retenção. Registros com `called_at < now() - p_older_than` são selecionados.
+  * `p_batch_limit` (integer, padrão `5000`): Limite máximo de registros movimentados em uma única execução para evitar locks prolongados e exaustão de memória.
+  * `p_school_id` (uuid, opcional, padrão `null`): Quando informado, restringe o arquivamento apenas aos eventos daquela instituição. Se nulo, processa globalmente todas as escolas.
+* **Salvaguardas de Integridade:**
+  * Eventos com status `called` (chamadas ativas em andamento) **nunca** são elegíveis para arquivamento sob nenhuma circunstância.
+  * Utiliza CTE com `DELETE ... FROM pickup_events ... RETURNING *` e cláusula `FOR UPDATE SKIP LOCKED` para evitar deadlocks com a operação em tempo real.
+* **Chamada via Supabase JS Client (Service Role):**
+  ```javascript
+  const { data, error } = await supabaseAdmin.rpc('archive_old_pickup_events', {
+    p_older_than: '30 days',
+    p_batch_limit: 1000,
+    p_school_id: '76f29d9f-c6fd-4561-89f8-403fef0ccb40'
+  });
+  ```
+* **Exemplo de Request HTTP:**
+  ```http
+  POST /rest/v1/rpc/archive_old_pickup_events HTTP/1.1
+  Host: <supabase-host>
+  Authorization: Bearer <service_role_key>
+  apikey: <service_role_key>
+  Content-Type: application/json
+
+  {
+    "p_older_than": "30 days",
+    "p_batch_limit": 5000,
+    "p_school_id": null
+  }
+  ```
+* **Exemplo de Resposta de Sucesso (`200 OK`):**
+  ```json
+  [
+    {
+      "archived_count": 142
+    }
+  ]
+  ```
+* **Exemplo de Resposta de Não Autorizado (`403 Forbidden` / `42501` via JWT comum):**
+  ```json
+  {
+    "code": "42501",
+    "details": null,
+    "hint": null,
+    "message": "permission denied for function archive_old_pickup_events"
+  }
+  ```
+
+---
+
 ## 3. Rotas HTTP de Navegação Frontend (React Router DOM)
 
 Rotas declarativas gerenciadas no client-side com rewrite de fallback no [vercel.json](../vercel.json):
