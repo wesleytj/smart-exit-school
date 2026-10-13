@@ -21,4 +21,12 @@ test('E2E-05: ativar novo ano letivo atomicamente', async ({ authenticatedPage: 
     await activateButton.click();
     await expect(page.locator('body')).toContainText(new RegExp(`Ano letivo ${testYear} ativado com sucesso`, 'i'));
   }
+
+  // Restaura o ano letivo canônico 2026 como ativo para preservar o baseline das fixtures
+  const year2026Card = page.locator('div').filter({ hasText: 'Ano Letivo 2026' }).last();
+  const reactivate2026Button = year2026Card.locator('button:has-text("Definir como Ativo")');
+  if (await reactivate2026Button.isVisible()) {
+    await reactivate2026Button.click();
+    await expect(page.locator('body')).toContainText(/Ano letivo 2026 ativado com sucesso/i);
+  }
 });
