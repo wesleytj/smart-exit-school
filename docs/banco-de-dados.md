@@ -67,6 +67,9 @@ Atualmente o seed cobre:
 
 O seed atual **não cria** `auth.users`, `profiles`, `school_members`, `pickup_events` nem `impersonation_audit_logs`. Essa ausência é lacuna conhecida do baseline de desenvolvimento, não violação do contrato do `seed.sql`.
 
+### Fixtures Multi-Tenant de Teste (`supabase/seed-multi-tenant.sql`)
+> **Nota de Escopo:** O arquivo `supabase/seed-multi-tenant.sql` **não é uma migration de schema relacional nem substituto do seed baseline**, mas uma fixture dedicada de dados sintéticos controlados utilizada para a validação estrita de isolamento multi-tenant via RLS em runtime (`npm run validate:rls`), execução de testes de integração (`npm run test:integration`) e suíte E2E (`npm run test:e2e`). Ele provisiona dois tenants independentes (`Tenant Alpha` e `Tenant Beta`) com usuários autenticados, memberships ativas e dados mínimos operacionais, sem alterar as invariantes de desenvolvimento da escola `smart-exit-dev-school`.
+
 ---
 
 ### Diagrama ER (PostgreSQL)
