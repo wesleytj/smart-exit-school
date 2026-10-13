@@ -71,8 +71,9 @@ smart-exit-school/
     │   ├── AcademicStructureSection.jsx
     │   ├── PasswordInput.jsx         # Input de senha com toggle mostrar/ocultar
     │   ├── SchoolYearsSection.jsx    # Gestão de anos letivos configuráveis
-    │   ├── StudentCard.jsx           # Legado
-    │   └── SupportBanner.jsx         # Banner global persistente de impersonation
+    │   ├── StudentCard.jsx           # Card com dados e foto do aluno
+    │   ├── SupportBanner.jsx         # Banner global persistente de impersonation
+    │   └── TeamManagementSection.jsx # Gestão de equipe e convite de novos membros
     │
     ├── contexts/                     # Context Providers de Estado Reativo
     │   ├── PlatformAdminProvider.jsx
@@ -88,13 +89,14 @@ smart-exit-school/
     │   └── supabase.js               # Client Supabase
     │
     ├── pages/
-    │   ├── ForgotPassword.jsx        # Rota /recuperar-senha (Recuperação de senha)
+    │   ├── AcceptInvite.jsx          # Rota /accept-invite (Onboarding e aceite de convite)
+    │   ├── ForgotPassword.jsx        # Rota /forgot-password (Recuperação de senha)
     │   ├── InstitutionPanel.jsx      # Painel operacional institucional
     │   ├── InstitutionsManager.jsx   # Rota /admin/institutions (Platform Admin)
     │   ├── Login.jsx                 # Rota /login (Pública)
     │   ├── TenantPanelGate.jsx       # Rota /painel (Guarda de sessão do tenant)
     │   ├── TvDisplay.jsx             # Rota /tv (Monitor público telão)
-    │   └── UpdatePassword.jsx        # Rota /redefinir-senha (Redefinição de senha)
+    │   └── UpdatePassword.jsx        # Rota /update-password (Redefinição de senha)
     │
     ├── repositories/                 # Camada de Acesso a Dados (DAL - Repositories)
     │   ├── academicGroupRepository.js
@@ -103,6 +105,7 @@ smart-exit-school/
     │   ├── gateRepository.js
     │   ├── pickupEventRepository.js
     │   ├── platformAdminRepository.js
+    │   ├── schoolInvitationRepository.js
     │   ├── schoolMemberRepository.js
     │   ├── schoolRepository.js
     │   ├── schoolYearRepository.js
@@ -114,28 +117,44 @@ smart-exit-school/
         ├── academicGroupService.js
         ├── academicLevelService.js
         ├── academicShiftLabels.js
+        ├── academicStructure.test.js
         ├── academicYear.js
         ├── authPasswordFlows.test.js
         ├── authService.js
         ├── authValidation.js
+        ├── cancelCallDialog.js       # Máquina de estados do diálogo de cancelamento
+        ├── cancelCallDialog.test.js
         ├── gateOrder.js
         ├── gateService.js
+        ├── gateService.test.js
         ├── impersonationEdgeFunctions.test.js
         ├── impersonationFoundation.test.js
         ├── impersonationSecurityAudit.test.js
         ├── impersonationService.js
+        ├── impersonationService.test.js
+        ├── invitationService.js      # Validação e confirmação de convites institucionais
+        ├── memberInvitation.test.js
         ├── multiTenantIsolation.test.js
         ├── passwordVisibility.js
+        ├── pickupArchive.test.js
+        ├── pickupArchiveService.js   # Invocação da RPC archive_old_pickup_events
+        ├── pickupCallFilter.js       # Ordenação e filtros da fila de chamadas
+        ├── pickupCallFilter.test.js
         ├── pickupService.js
+        ├── pickupService.test.js
         ├── platformAdminResolution.js
+        ├── platformAdminResolution.test.js
         ├── platformAdminService.js
         ├── schoolOpsStore.js
         ├── schoolService.js
         ├── schoolYearService.js
+        ├── schoolYearService.test.js
         ├── studentEnrollmentService.js
+        ├── studentFlow.test.js
         ├── studentGroupAssignmentService.js
         ├── studentService.js
         ├── tenantAccess.js
+        ├── tenantAccess.test.js
         ├── tenantSessionService.js
         ├── themeService.js
         └── core/
@@ -154,8 +173,8 @@ Infraestrutura de banco PostgreSQL e Serverless Edge Functions gerenciada via Su
 
 | Item | Responsabilidade |
 |------|------------------|
-| `functions/` | Supabase Edge Functions executadas sob runtime **Deno 2**. Contém `impersonate-user` (validação de privilégios de plataforma, registro em auditoria e assinatura HMAC do JWT manual), `end-impersonation` (atualização atômica de `ended_at`) e `_shared/` (`cors.ts`, `jwt.ts`). |
-| `migrations/` | 22 migrations SQL versionadas cobrindo Authentication Core, Academic Core, Student Enrollments, Pickup Core, RLS Foundation, Platform Admins, Unicidade, Permissões Operacionais, Cancelamento de Chamadas (`pickup_events_allow_cancellation`), Anos Letivos Configuráveis (`school_years_configurable`), Endurecimento de Grants Multi-Tenant (`multi_tenant_grants_hardening`) e Fundação de Impersonation (`create_impersonation_foundation`). |
+| `functions/` | Supabase Edge Functions executadas sob runtime **Deno 2**. Contém `impersonate-user`, `end-impersonation`, `invite-member`, `accept-invite` e `_shared/` (`brevo.ts`, `cors.ts`, `jwt.ts`). |
+| `migrations/` | 25 migrations SQL versionadas cobrindo Authentication Core, Academic Core, Student Enrollments, Pickup Core, RLS Foundation, Platform Admins, Unicidade, Permissões Operacionais, Cancelamento de Chamadas (`pickup_events_allow_cancellation`), Anos Letivos Configuráveis (`school_years_configurable`), Endurecimento de Grants Multi-Tenant (`multi_tenant_grants_hardening`), Fundação de Impersonation (`create_impersonation_foundation`), Convites de Membros (`create_school_invitations`), Grants RPC (`grant_execute_rpcs`) e Arquivamento de Chamadas (`create_pickup_events_archive`). |
 | `seed.sql` | Dados iniciais idempotentes (roles, academic_shifts, escola e massa dev acadêmica/portões). |
 | `config.toml` | Configuração do ambiente local Supabase. |
 
