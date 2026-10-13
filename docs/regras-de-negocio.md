@@ -129,9 +129,9 @@ Regras introduzidas na Migration 0020 e no serviço `schoolYearService`:
 - A unicidade é garantida a nível de banco por índice parcial exclusivo (`school_years_one_active_per_school`).
 
 ### 4.3 Alternância de Ano Letivo Ativo
-- A ativação de um ano letivo ocorre na camada de serviço (`schoolYearService` / `schoolYearRepository`), desativando o ano ativo anterior do tenant e marcando o novo ano como `is_active = true`.
-- A unicidade e a integridade concorrencial são garantidas a nível de banco pelo índice parcial exclusivo `school_years_one_active_per_school`.
-- *Nota de governança:* A ativação é realizada via DAL/repositório; não existe RPC `public.activate_school_year` no banco de dados.
+- A ativação de um ano letivo ocorre de forma transacional e atômica através da RPC `public.activate_school_year(p_year_id, p_school_id)` (Migration 0026), invocada pela DAL (`schoolYearRepository.activate`).
+- A RPC desativa o ano vigente e ativa o novo ano dentro de uma única transação no PostgreSQL com lock `FOR UPDATE`, eliminando qualquer risco de estado intermediário onde a instituição ficaria com 0 anos ativos em caso de falha de rede.
+- A unicidade e a integridade concorrencial continuam garantidas a nível de banco pelo índice parcial exclusivo `school_years_one_active_per_school`.
 
 ### 4.4 Vinculação Acadêmica
 - Turmas (`academic_groups`) e matrículas de alunos (`student_enrollments`) são vinculadas formalmente ao `school_year_id`.
