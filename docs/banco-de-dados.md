@@ -48,6 +48,7 @@ O banco de dados relacional é governado por **25 migrations versionadas** seque
 | 0024 | `20261012144500_grant_execute_rpcs.sql` | Concessão de `EXECUTE` na RPC `accept_school_invitation` para `authenticated`, `anon` e `service_role` |
 | 0025 | `20261012173000_create_pickup_events_archive.sql` | Arquivamento histórico (`public.pickup_events_archive`), índices temporais parciais e RPC de lote `archive_old_pickup_events` |
 | 0026 | `20261013140000_create_activate_school_year_rpc.sql` | RPC transacional atômica `public.activate_school_year(p_year_id, p_school_id)` para alternância de ano letivo ativo sem lacuna operacional |
+| 0027 | `20261013150000_align_student_grants_for_authenticated.sql` | Alinhamento de permissões de escrita (`INSERT`, `UPDATE`, `DELETE`) em `students`, `student_enrollments` e `student_group_assignments` para o role `authenticated` |
 
 **Seed idempotente:** `supabase/seed.sql`
 
