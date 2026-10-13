@@ -57,24 +57,9 @@ export const schoolYearRepository = {
 
   async activate(id, schoolId) {
     const supabase = await db();
-
-    const deactivateResult = await supabase
-      .from('school_years')
-      .update({ is_active: false })
-      .eq('school_id', schoolId)
-      .neq('id', id)
-      .eq('is_active', true);
-
-    if (deactivateResult.error) {
-      return { data: null, error: deactivateResult.error };
-    }
-
-    return await supabase
-      .from('school_years')
-      .update({ is_active: true })
-      .eq('id', id)
-      .eq('school_id', schoolId)
-      .select(YEAR_COLUMNS)
-      .single();
+    return await supabase.rpc('activate_school_year', {
+      p_year_id: id,
+      p_school_id: schoolId
+    });
   }
 };
