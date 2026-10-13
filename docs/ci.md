@@ -23,14 +23,35 @@ Node.js **22.x**, alinhado a `docs/instalacao.md` (LTS 20.x ou 22.x) e ao requis
 
 A suíte de testes é segregada para garantir determinismo e isolamento de runtime:
 
-- **Suíte Unitária (`npm run test:unit`):** Executada no CI. Compreende 191 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
-- **Suíte de Integração (`npm run test:integration`):** Compreende 44 testes em 3 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js` e `impersonationSecurityAudit.test.js`) que exercitam PostgREST local, RPCs de plataforma e endpoints das Edge Functions. Não é executada no GitHub Actions padrão por depender de infraestrutura local (Docker / PostgREST / `supabase_edge_runtime`).
-- **Suíte Completa (`npm test`):** Executa todos os 235 testes.
+- **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 198 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
+- **Suíte de Integração (`npm run test:integration`):** Compreende testes em 4 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js`, `impersonationSecurityAudit.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma, isolamento RLS multi-tenant real e endpoints das Edge Functions.
+- **Suíte E2E (`npm run test:e2e`):** Exercita os fluxos completos do sistema autenticado (matrículas, chamadas, cancelamento, anos letivos, isolamento e auditoria).
+- **Suíte Completa (`npm test`):** Executa todos os testes unitários e de integração locais.
+
+### Por que Integração e E2E não rodam no CI Remoto?
+As suítes de integração e E2E requerem o ecossistema completo de containers Docker do Supabase (PostgreSQL 17 relacional com RLS ativo, PostgREST, Auth e Edge Runtime). Para manter o CI remoto ágil (execução em ~15s), determinístico e sem custos de infraestrutura pesada em runners do GitHub Actions, esses testes são executados localmente antes da abertura de Pull Requests.
+
+### Instruções para Execução Local Pré-PR
+Antes de abrir qualquer Pull Request com destino a `main`:
+
+```bash
+# 1. Certifique-se de que os containers do Supabase local estão ativos
+npx supabase start
+
+# 2. Carregar fixtures multi-tenant no banco local (se ainda não carregadas)
+Get-Content supabase/seed-multi-tenant.sql -Raw | docker exec -i supabase_db_smart-exit-school psql -U postgres -d postgres
+
+# 3. Executar verificações de RLS e qualidade
+npm run validate:rls
+npm run audit:db
+
+# 4. Executar suítes de integração e E2E
+npm run test:integration
+npm run test:e2e
+```
 
 ## Limitações
 
-- Este CI **não substitui Browser E2E** quando houver mudança funcional no produto.
-- Este CI **não** faz deploy, publicação, release nem altera ambientes.
-- Este CI **valida lint, testes unitários e build estático do frontend**; ele não valida nem garante a aplicação de migrations no Supabase Cloud ou a publicação de Edge Functions.
+- Este CI remoto **valida lint, testes unitários e build estático do frontend**; ele não valida nem garante a aplicação de migrations no Supabase Cloud ou a publicação de Edge Functions.
 - A paridade entre frontend, banco e Edge Functions em produção é governada compulsoriamente pela [Regra de Deploy Parity](./deploy-parity.md) e pelo hook `PreToolUse` do Google Antigravity (`.agents/hooks.json`).
 - Merge continua dependente de **revisão e autorização humana explícita**. Checks remotos não autorizam merge automático.
