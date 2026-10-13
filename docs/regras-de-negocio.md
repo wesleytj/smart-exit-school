@@ -178,9 +178,9 @@ A fonte soberana da fila operacional é `public.pickup_events`.
 
 ### 5.6 Retenção e Arquivamento Histórico de Chamadas
 - Eventos de saída concluídos (`completed`) ou cancelados (`cancelled`) que ultrapassam a janela operacional ativa são elegíveis para arquivamento histórico na tabela `public.pickup_events_archive` (Migration 0025).
-- **Expurgo e Arquivamento via RPC:** A função `public.archive_old_pickup_events(p_cutoff_date, p_batch_size)` copia os registros elegíveis para a tabela de arquivo e os remove da tabela operacional `pickup_events`.
+- **Expurgo e Arquivamento via RPC:** A função `public.archive_old_pickup_events(p_older_than, p_batch_limit, p_school_id)` move os registros elegíveis para a tabela de arquivo e os remove da tabela operacional `pickup_events` via CTE com `FOR UPDATE SKIP LOCKED`.
 - **Proteção de Chamadas Ativas:** Chamadas em andamento (`status = 'called'`) **nunca** são arquivadas ou expurgadas, independentemente da data.
-- **Processamento em Lote:** O arquivamento ocorre em lotes configuráveis (`p_batch_size`, padrão 500) para prevenir contenção de locks na tabela operacional.
+- **Processamento em Lote:** O arquivamento ocorre em lotes configuráveis (`p_batch_limit`, padrão 5000) para prevenir contenção de locks na tabela operacional.
 - **Permissão de Execução:** A execução da RPC é restrita compulsoriamente à role `service_role` (crons e tarefas de manutenção de infraestrutura).
 - **Consulta ao Histórico Arquivado:** Usuários autenticados da escola possuem acesso somente-leitura (`SELECT`) aos dados arquivados do seu próprio tenant via RLS e serviço `pickupArchiveService.js`.
 
