@@ -105,10 +105,10 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 | **Backend & Banco de Dados** | Supabase (PostgreSQL 17 + RLS + PostgREST) | `@supabase/supabase-js` 2.108.2 |
 | **Serverless Edge Runtime** | Deno | 2.x (Edge Functions em TypeScript) |
 | **Iconografia** | Lucide React | 1.14.0 |
-| **Test Runner** | Node Test Runner (`node --test`) | Nativo (235 testes: 217 passando, 18 dependentes de Edge runtime) |
-| **Análise Estática (Lint)** | ESLint | 10.2.1 |
-| **Integração Contínua** | GitHub Actions | Workflows de Lint + Build |
-| **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json` |
+| **Test Runner** | Node Test Runner (`node --test`) | Nativo (198 unitários determinísticos no CI, 44 de integração locais) |
+| **Análise Estática (Lint)** | ESLint | 10.2.1 (0 erros, 0 warnings) |
+| **Integração Contínua** | GitHub Actions | Workflows de Lint + Build + Testes Unitários (`npm run test:unit`) |
+| **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json`; Deploy Parity via `npx supabase db push` |
 
 ---
 
@@ -116,7 +116,7 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 
 ### 5.1 Pré-requisitos
 * **Node.js:** versão 20.x ou 22.x LTS (recomendado: `22.x`)
-* **Docker Desktop:** em execução (obrigatório para containers locais do Supabase)
+* **Docker Desktop:** em execução (obrigatório para containers locais do Supabase, testes de integração e E2E)
 * **Supabase CLI:** instalado localmente (`npx supabase`) ou globalmente (`npm install -g supabase`)
 
 ### 5.2 Passo a Passo
@@ -134,15 +134,19 @@ cp .env.example .env.local
 # Preencha .env.local com os endpoints e chaves do Supabase local (ou remoto):
 # VITE_SUPABASE_URL=http://127.0.0.1:54321
 # VITE_SUPABASE_ANON_KEY=sua-chave-anon-local
-# SUPABASE_AUTH_JWT_SECRET=seu-jwt-secret-local
+# SUPABASE_LOCAL_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+# SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-local
 
-# 4. Iniciar infraestrutura de containers do Supabase local
+# 4. Iniciar infraestrutura de containers do Supabase local (necessário para integração e E2E)
 npx supabase start
 
-# 5. Executar as Edge Functions locais (em terminal separado)
+# 5. Aplicar fixtures multi-tenant (opcional / para validações completas de RLS)
+Get-Content supabase/seed-multi-tenant.sql -Raw | docker exec -i supabase_db_smart-exit-school psql -U postgres -d postgres
+
+# 6. Executar as Edge Functions locais (em terminal separado)
 npx supabase functions serve --no-verify-jwt
 
-# 6. Iniciar o servidor de desenvolvimento do frontend
+# 7. Iniciar o servidor de desenvolvimento do frontend
 npm run dev
 ```
 
@@ -159,12 +163,12 @@ npm run dev
 |---|---|---|
 | `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
 | `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
-| `npm run lint` | Executa a validação estática de código | 0 erros com ESLint 10 |
-| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 191 PASS · 0 FAIL (100% determinístico, sem Docker) |
-| `npm run test:integration` | Executa testes de integração de PostgREST local, Edge Functions e segurança | 44 testes (depende de containers locais Docker/Supabase) |
-| `npm test` | Executa a suíte completa de testes (unitários + integração) | 235 testes |
-| `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed) |
-| `npm run validate:rls` | Valida as políticas e helper functions de RLS | Sucesso |
+| `npm run lint` | Executa a validação estática de código | 0 erros, 0 warnings com ESLint 10 |
+| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 198 PASS · 0 FAIL (100% determinístico, sem Docker) |
+| `npm run test:integration` | Executa testes de integração (PostgREST local, RLS runtime e impersonation) | 44 testes (requer containers locais Docker/Supabase) |
+| `npm test` | Executa a suíte completa de testes (unitários + integração) | 198 unitários PASS + testes locais de integração |
+| `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed invariants) |
+| `npm run validate:rls` | Valida as políticas de RLS e isolamento multi-tenant em runtime | 9 testes PASS · 0 avisos de validação parcial |
 
 ---
 
