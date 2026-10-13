@@ -15,7 +15,7 @@ test('E2E-05: ativar novo ano letivo atomicamente', async ({ authenticatedPage: 
   await expect(page.locator('body')).toContainText(new RegExp(`Ano letivo ${testYear} cadastrado`, 'i'));
 
   // Localiza o card do ano recém criado e clica para ativar
-  const yearCard = page.locator(`div:has-text("Ano Letivo ${testYear}")`).first();
+  const yearCard = page.locator('div').filter({ hasText: `Ano Letivo ${testYear}` }).last();
   const activateButton = yearCard.locator('button:has-text("Definir como Ativo")');
   if (await activateButton.isVisible()) {
     await activateButton.click();
