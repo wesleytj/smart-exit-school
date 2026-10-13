@@ -54,7 +54,9 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Buscar por nome ou turma | ✅ |
 | Selecionar portão por aluno | ✅ Seleção gravada diretamente em `public.pickup_events` (`gate_id`) |
 | Chamar aluno | ✅ Insere `pickup_events` com status `called` |
-| Cancelamento de chamadas | ✅ Operador pode cancelar chamada acionada, preenchendo `cancelled_at` e registrando justificativa via modal (`pickupService.cancelCall`) |
+| Cancelamento com confirmação (C1) | ✅ Operador anula chamada acionada via diálogo modal de confirmação (`cancelCallDialog.js`), gravando `cancelled_at` e liberando o aluno para nova chamada (`pickupService.cancelCall`) |
+| Ordenação e filtros da fila (C2) | ✅ Controles na interface (`pickupCallFilter.js`) para ordenar por horário/nome e filtrar por portão, turma ou busca dinâmica de alunos |
+| Retenção e arquivamento histórico (C3) | ✅ Segregação em `public.pickup_events_archive` e RPC em lote `public.archive_old_pickup_events` restrita a `service_role` (`pickupArchiveService.js`) para expurgo de eventos `completed`/`cancelled` |
 | Fila de chamada com horário | ✅ `called_at`, mais recente primeiro, lido de `public.pickup_events` |
 | Confirmar saída | ✅ Atualiza para `completed` em `public.pickup_events`; o registro histórico permanece |
 | Abrir telão em nova aba | ✅ |
@@ -64,8 +66,8 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 
 | Funcionalidade | Status |
 |----------------|--------|
-| Ano letivo configurável | ✅ Cada tenant possui tabela `public.school_years` com alternância atômica do ano letivo ativo via RPC `activate_school_year` |
-| Gestão de datas | ✅ Validação de intervalo (`start_date`, `end_date`) e restrição de sobreposição |
+| Ano letivo configurável | ✅ Cada tenant possui tabela `public.school_years` com alternância do ano letivo ativo via `schoolYearService` assegurada por índice parcial único no banco (`school_years_one_active_per_school`) |
+| Gestão de datas | ✅ Validação de intervalo (`starts_at`, `ends_at`) e restrição de sobreposição |
 | Vinculação de matrículas | ✅ Matrículas e turmas acadêmicas associadas explicitamente ao ano letivo ativo |
 
 ### Aba: Gestão de Alunos ✅
@@ -114,6 +116,15 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Criação automática de turmas | ✅ |
 | Detecção de duplicatas | ✅ |
 | Encoding windows-1252 | ✅ |
+
+### Aba: Gestão de Equipe (Convites) ✅
+
+| Funcionalidade | Status |
+|----------------|--------|
+| Listar membros da escola | ✅ Membros ativos exibidos com papéis vinculados (`TeamManagementSection`) |
+| Convidar novo membro por e-mail | ✅ Disparo via Edge Function `invite-member` com token seguro e Brevo SMTP |
+| Validação e aceite de convite | ✅ Fluxo na rota `/accept-invite` e RPC atômica `accept_school_invitation` |
+| Revogação de convite pendente | ✅ Inativação do token no banco via DAL |
 
 ### Aba: Relatórios Avançados 🔒 / 🚧
 
