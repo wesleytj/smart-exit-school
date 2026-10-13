@@ -41,7 +41,8 @@ graph TD
 | Iniciar / encerrar Impersonation | ✅ | ❌ | ❌ |
 | Operar saída de alunos (chamar) | ❌ | ✅ | ✅ |
 | Cancelar chamadas de saída (`cancelled_at`) | ❌ | ✅ | ✅ |
-| Gerenciar Anos Letivos (`activate_school_year`) | ❌ | ✅ | ✅ |
+| Consultar arquivo de chamadas (`pickup_events_archive`) | ❌ | ✅ | ✅ |
+| Gerenciar Anos Letivos (`public.school_years`) | ❌ | ✅ | ✅ |
 | CRUD alunos e turmas | ❌ | ✅ | ✅ |
 | CRUD portões escolares | ❌ | ✅ | ✅ |
 | Import CSV de turmas/alunos | ❌ | ✅ | ✅ |
@@ -187,7 +188,9 @@ const isPremium = plan === "premium" || plan === "diamond"  // case insensitive
 |-------|-----------|
 | Isolamento de dados no banco | RLS soberana sobre `school_members`; `localStorage` não autoriza |
 | Chamada única ativa | Aluno com status `called` não pode sofrer nova chamada até conclusão ou cancelamento |
-| Cancelamento de chamada | Operador pode cancelar evento de saída com gravação em `cancelled_at` |
+| Cancelamento de chamada | Operador pode cancelar evento de saída com gravação atômica em `cancelled_at` |
+| Arquivo histórico de eventos | Tabela `pickup_events_archive` é estritamente somente-leitura para `authenticated` (`SELECT`); mutações são exclusivas de `service_role` |
+| Expurgo e retenção | RPC `archive_old_pickup_events` é restrita exclusivamente a `service_role` e `postgres` |
 | Dados cadastrais da escola | Nome/e-mail escola readonly no painel — alteração restrita ao Super Admin |
 | Instituição inativa | Status gerenciado pelo Platform Admin; impede acesso operacional |
 | Reset de dados da escola | Operação de limpeza restrita a operadores autenticados no tenant |
@@ -205,8 +208,8 @@ const isPremium = plan === "premium" || plan === "diamond"  // case insensitive
 
 ### Operador Escola
 
-- Operação diária de saída de alunos (chamada, fila, cancelamento)
-- Gestão de ciclos e anos letivos (`public.school_years`, `activate_school_year`)
+- Operação diária de saída de alunos (chamada, fila, cancelamento e consulta histórica)
+- Gestão de ciclos e anos letivos (`public.school_years`)
 - Cadastros pedagógicos (alunos, turmas, matrículas)
 - Configuração local de portões e painel (conforme plano)
 
