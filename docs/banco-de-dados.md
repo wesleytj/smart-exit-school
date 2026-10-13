@@ -18,7 +18,7 @@ A persistência do Smart Exit School está consolidada no Supabase PostgreSQL at
 
 ## PostgreSQL — Schema implementado
 
-O banco de dados relacional é governado por **25 migrations versionadas** sequenciais em `supabase/migrations/`:
+O banco de dados relacional é governado por **27 migrations versionadas** sequenciais em `supabase/migrations/`:
 
 | Migration | Arquivo | Domínio / Descrição |
 |-----------|---------|---------------------|
