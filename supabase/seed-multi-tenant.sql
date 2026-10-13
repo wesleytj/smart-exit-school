@@ -17,6 +17,11 @@ insert into auth.users (
     encrypted_password,
     email_confirmed_at,
     raw_user_meta_data,
+    raw_app_meta_data,
+    confirmation_token,
+    recovery_token,
+    email_change_token_new,
+    email_change,
     created_at,
     updated_at
 )
@@ -30,6 +35,11 @@ values
     crypt('SenhaForte123!', gen_salt('bf')),
     now(),
     '{"full_name": "Operador Tenant Alpha"}'::jsonb,
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '',
+    '',
+    '',
+    '',
     now(),
     now()
 ),
@@ -42,6 +52,11 @@ values
     crypt('SenhaForte123!', gen_salt('bf')),
     now(),
     '{"full_name": "Operador Tenant Beta"}'::jsonb,
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '',
+    '',
+    '',
+    '',
     now(),
     now()
 )
