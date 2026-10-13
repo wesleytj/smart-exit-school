@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { 
   Building, Plus, Search, MoreVertical, LogOut, 
   ShieldAlert, X, Edit, Trash2, Ban, CheckCircle, Users,
@@ -75,15 +75,7 @@ export default function InstitutionsManager() {
     setInstitutions(savedSchools)
   }
 
-  useEffect(() => {
-    if (!isPlatformAdmin || activeTab !== "users") {
-      return
-    }
-
-    void loadUsers(usersSearch, usersSchoolFilter)
-  }, [activeTab, isPlatformAdmin, usersSchoolFilter, usersSearch])
-
-  async function loadUsers(search = usersSearch, schoolFilter = usersSchoolFilter) {
+  const loadUsers = useCallback(async (search = "", schoolFilter = "") => {
     try {
       const { data, error } = await impersonationService.listPlatformUsers({
         search: search.trim() || null,
@@ -103,7 +95,19 @@ export default function InstitutionsManager() {
     } finally {
       setUsersLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!isPlatformAdmin || activeTab !== "users") {
+      return
+    }
+
+    async function fetchUsers() {
+      await loadUsers(usersSearch, usersSchoolFilter)
+    }
+
+    void fetchUsers()
+  }, [activeTab, isPlatformAdmin, loadUsers, usersSchoolFilter, usersSearch])
 
   // Métricas do Dashboard de Instituições
   const totalInstitutions = institutions.length
