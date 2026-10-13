@@ -31,6 +31,29 @@ function optionalIdentifier(studentIdentifier) {
   return trimmed || null;
 }
 
+export function requireBirthDate(birthDate, now = new Date()) {
+  const trimmed = String(birthDate ?? '').trim();
+
+  if (!trimmed) {
+    return { birthDate: '', error: new Error('Informe a data de nascimento do aluno.') };
+  }
+
+  const dateObj = new Date(trimmed.length === 10 ? `${trimmed}T00:00:00` : trimmed);
+  if (isNaN(dateObj.getTime())) {
+    return { birthDate: '', error: new Error('Data de nascimento inválida.') };
+  }
+
+  const isoDate = trimmed.slice(0, 10);
+  const clock = now instanceof Date ? now : new Date();
+  const todayIso = clock.toISOString().slice(0, 10);
+
+  if (isoDate > todayIso) {
+    return { birthDate: '', error: new Error('A data de nascimento não pode ser futura.') };
+  }
+
+  return { birthDate: isoDate, error: null };
+}
+
 export function mapStudentError(error) {
   if (!error) {
     return null;
@@ -55,6 +78,7 @@ function toView(student, enrollment, assignment, group) {
     fullName: student.full_name,
     name: student.full_name,
     studentIdentifier: student.student_identifier,
+    birthDate: student.birth_date,
     status: student.status,
     enrollmentId: enrollment?.id ?? null,
     schoolYearId: enrollment?.school_year_id ?? null,
@@ -160,7 +184,7 @@ export const studentService = {
     };
   },
 
-  async registerStudent(schoolId, { fullName, studentIdentifier, academicGroupId, schoolYearId }, now = new Date()) {
+  async registerStudent(schoolId, { fullName, birthDate, studentIdentifier, academicGroupId, schoolYearId }, now = new Date()) {
     const schoolError = requireSchoolId(schoolId);
 
     if (schoolError) {
@@ -173,9 +197,16 @@ export const studentService = {
       return { data: null, error: named.error };
     }
 
+    const birth = requireBirthDate(birthDate, now);
+
+    if (birth.error) {
+      return { data: null, error: birth.error };
+    }
+
     const createdStudent = await studentRepository.create({
       school_id: schoolId,
       full_name: named.fullName,
+      birth_date: birth.birthDate,
       student_identifier: optionalIdentifier(studentIdentifier),
       status: 'active'
     });
@@ -224,7 +255,7 @@ export const studentService = {
     };
   },
 
-  async updateStudent(schoolId, id, { fullName, studentIdentifier, academicGroupId, currentAcademicGroupId, enrollmentId, assignmentId }) {
+  async updateStudent(schoolId, id, { fullName, birthDate, studentIdentifier, academicGroupId, currentAcademicGroupId, enrollmentId, assignmentId }, now = new Date()) {
     const schoolError = requireSchoolId(schoolId);
 
     if (schoolError || !id) {
@@ -237,10 +268,20 @@ export const studentService = {
       return { data: null, error: named.error };
     }
 
-    const updated = await studentRepository.update(id, schoolId, {
+    const changes = {
       full_name: named.fullName,
       student_identifier: optionalIdentifier(studentIdentifier)
-    });
+    };
+
+    if (birthDate !== undefined) {
+      const birth = requireBirthDate(birthDate, now);
+      if (birth.error) {
+        return { data: null, error: birth.error };
+      }
+      changes.birth_date = birth.birthDate;
+    }
+
+    const updated = await studentRepository.update(id, schoolId, changes);
 
     if (updated.error || !updated.data) {
       return { data: null, error: mapStudentError(updated.error) };

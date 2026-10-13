@@ -88,6 +88,7 @@ export default function InstitutionPanel() {
 
   // --- 3.3 Gestão de Alunos ---
   const [studentFormName, setStudentFormName] = useState("");
+  const [studentFormBirthDate, setStudentFormBirthDate] = useState("");
   const [studentFormIdentifier, setStudentFormIdentifier] = useState("");
   const [studentFormGroupId, setStudentFormGroupId] = useState("");
   const [studentFormYearId, setStudentFormYearId] = useState("");
@@ -631,7 +632,7 @@ export default function InstitutionPanel() {
 
   async function handleSubmitStudent(e) {
     e.preventDefault();
-    if (!studentFormName.trim() || !studentFormGroupId) return;
+    if (!studentFormName.trim() || !studentFormGroupId || !studentFormBirthDate) return;
 
     setStudentsSaving(true);
     setStudentsError("");
@@ -639,6 +640,7 @@ export default function InstitutionPanel() {
     const result = editingStudentId
       ? await studentService.updateStudent(authorizedSchool.id, editingStudentId, {
         fullName: studentFormName,
+        birthDate: studentFormBirthDate,
         studentIdentifier: studentFormIdentifier,
         academicGroupId: studentFormGroupId,
         currentAcademicGroupId: current?.academicGroupId,
@@ -647,6 +649,7 @@ export default function InstitutionPanel() {
       })
       : await studentService.registerStudent(authorizedSchool.id, {
         fullName: studentFormName,
+        birthDate: studentFormBirthDate,
         studentIdentifier: studentFormIdentifier,
         academicGroupId: studentFormGroupId,
         schoolYearId: studentFormYearId || activeSchoolYear?.id || null
@@ -664,6 +667,7 @@ export default function InstitutionPanel() {
 
   function handleEditStudentClick(student) {
     setStudentFormName(student.name);
+    setStudentFormBirthDate(student.birthDate ? String(student.birthDate).slice(0, 10) : "");
     setStudentFormIdentifier(student.studentIdentifier || "");
     setStudentFormGroupId(student.academicGroupId || "");
     setStudentFormYearId(student.schoolYearId || activeSchoolYear?.id || "");
@@ -673,6 +677,7 @@ export default function InstitutionPanel() {
 
   function handleCancelStudentEdit() {
     setStudentFormName("");
+    setStudentFormBirthDate("");
     setStudentFormIdentifier("");
     setStudentFormGroupId("");
     setStudentFormYearId(activeSchoolYear?.id || "");
@@ -1398,7 +1403,20 @@ export default function InstitutionPanel() {
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Nome completo</label>
                   <input type="text" required value={studentFormName} onChange={e => setStudentFormName(e.target.value)} className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
                 </div>
-                <div className="w-40">
+                <div className="w-44">
+                  <label htmlFor="student-birth-date" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Data de Nascimento</label>
+                  <input
+                    id="student-birth-date"
+                    type="date"
+                    name="birth_date"
+                    required
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={studentFormBirthDate}
+                    onChange={e => setStudentFormBirthDate(e.target.value)}
+                    className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white"
+                  />
+                </div>
+                <div className="w-36">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Matrícula</label>
                   <input type="text" value={studentFormIdentifier} onChange={e => setStudentFormIdentifier(e.target.value)} placeholder="Opcional" className="w-full border border-slate-200 dark:border-[#2a2a2a] rounded-xl p-3 outline-none focus:border-primary bg-white dark:bg-[#1a1a1a] dark:text-white" />
                 </div>

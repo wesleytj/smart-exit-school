@@ -8,8 +8,9 @@ test('E2E-02: cadastrar aluno, matricular e vincular a turma', async ({ authenti
   const studentName = `Aluno E2E Playwright ${Date.now()}`;
   const studentIdentifier = `E2E-${Date.now()}`;
 
-  // Preenche formulário de novo aluno
+  // Preenche formulário de novo aluno com birth_date
   await page.locator('form input[type="text"]').first().fill(studentName);
+  await page.locator('form input[name="birth_date"]').fill('2015-05-10');
   await page.locator('form input[placeholder="Opcional"]').fill(studentIdentifier);
 
   // Seleciona turma (se houver turmas ativas cadastradas)

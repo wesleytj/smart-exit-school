@@ -5,7 +5,7 @@ import { studentRepository } from '../repositories/studentRepository.js'
 import { studentEnrollmentRepository } from '../repositories/studentEnrollmentRepository.js'
 import { studentGroupAssignmentRepository } from '../repositories/studentGroupAssignmentRepository.js'
 import { currentAcademicYear } from './academicYear.js'
-import { studentService, mapStudentError } from './studentService.js'
+import { studentService, mapStudentError, requireBirthDate } from './studentService.js'
 import { studentGroupAssignmentService } from './studentGroupAssignmentService.js'
 
 const SCHOOL_ID = '76f29d9f-c6fd-4561-89f8-403fef0ccb40'
@@ -77,6 +77,7 @@ describe('studentService', { concurrency: 1 }, () => {
 
     const result = await studentService.registerStudent(SCHOOL_ID, {
       fullName: '  Ana Souza  ',
+      birthDate: '2015-05-10',
       studentIdentifier: '   ',
       academicGroupId: 'group-1',
       school_id: OTHER_SCHOOL_ID
@@ -122,6 +123,7 @@ describe('studentService', { concurrency: 1 }, () => {
 
     const result = await studentService.registerStudent(SCHOOL_ID, {
       fullName: 'Bruno',
+      birthDate: '2015-05-10',
       studentIdentifier: ' MAT-10 ',
       academicGroupId: 'group-1'
     }, NOW)
@@ -158,6 +160,7 @@ describe('studentService', { concurrency: 1 }, () => {
 
     const result = await studentService.registerStudent(SCHOOL_ID, {
       fullName: 'Diana',
+      birthDate: '2015-05-10',
       academicGroupId: 'group-1'
     }, NOW)
 
@@ -187,6 +190,7 @@ describe('studentService', { concurrency: 1 }, () => {
 
     const result = await studentService.registerStudent(SCHOOL_ID, {
       fullName: 'Bruno',
+      birthDate: '2015-05-10',
       studentIdentifier: 'MAT-10',
       academicGroupId: 'group-1'
     }, NOW)
@@ -229,6 +233,7 @@ describe('studentService', { concurrency: 1 }, () => {
 
     const result = await studentService.registerStudent(SCHOOL_ID, {
       fullName: 'Carla',
+      birthDate: '2015-05-10',
       academicGroupId: 'foreign-group',
       school_id: OTHER_SCHOOL_ID
     }, NOW)
@@ -331,6 +336,43 @@ describe('studentService', { concurrency: 1 }, () => {
     assert.equal(result.data[0].grade, '5º Ano A')
     assert.equal(result.data[0].assignmentId, 'assignment-1')
     assert.equal(result.data[0].schoolId, SCHOOL_ID)
+  })
+
+  it('rejects student creation without a birth date', async () => {
+    const result = await studentService.registerStudent(SCHOOL_ID, {
+      fullName: 'Lucas',
+      academicGroupId: 'group-1'
+    }, NOW)
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'Informe a data de nascimento do aluno.')
+  })
+
+  it('rejects student creation with future birth date', async () => {
+    const result = await studentService.registerStudent(SCHOOL_ID, {
+      fullName: 'Lucas',
+      birthDate: '2027-01-01',
+      academicGroupId: 'group-1'
+    }, NOW)
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'A data de nascimento não pode ser futura.')
+  })
+
+  it('rejects student creation with invalid date string', async () => {
+    const result = await studentService.registerStudent(SCHOOL_ID, {
+      fullName: 'Lucas',
+      birthDate: 'data-invalida',
+      academicGroupId: 'group-1'
+    }, NOW)
+    assert.equal(result.data, null)
+    assert.equal(result.error.message, 'Data de nascimento inválida.')
+  })
+
+  it('requireBirthDate helper validates format and boundaries', () => {
+    assert.equal(requireBirthDate('2015-05-10', NOW).error, null)
+    assert.equal(requireBirthDate('2015-05-10', NOW).birthDate, '2015-05-10')
+    assert.ok(requireBirthDate('', NOW).error)
+    assert.ok(requireBirthDate('2027-01-01', NOW).error)
+    assert.ok(requireBirthDate('not-a-date', NOW).error)
   })
 })
 
