@@ -268,6 +268,27 @@ Gerencia a parametrização de períodos letivos por escola, permitindo múltipl
 
 ---
 
+### `students` (Migrations 0002, 0013, 0027)
+
+Armazena os dados cadastrais dos alunos pertencentes a cada instituição de ensino:
+
+| Coluna | Tipo | Constraints / Detalhes |
+|---|---|---|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `school_id` | uuid | NOT NULL, FK → `public.schools(id)` ON DELETE CASCADE |
+| `student_identifier` | text | Nullable (matrícula opcional; UNIQUE por escola via `students_school_identifier_unique`) |
+| `full_name` | text | NOT NULL, CHECK (`length(trim(full_name)) > 0`) |
+| `birth_date` | date | NOT NULL (data de nascimento obrigatória no schema; validada na UI e DAL) |
+| `status` | text | NOT NULL, default `'active'`, CHECK (`status in ('active', 'inactive')`) |
+| `created_at` | timestamptz | NOT NULL, default `now()` |
+| `updated_at` | timestamptz | NOT NULL, default `now()` |
+
+**Constraints e Índices:**
+* `students_school_identifier_unique`: UNIQUE (`school_id, student_identifier`) WHERE (`student_identifier IS NOT NULL`)
+* **RLS & Grants:** RLS habilitada; grants de `SELECT`, `INSERT`, `UPDATE` e `DELETE` alinhados para `authenticated` (Migration 0027).
+
+---
+
 ### `impersonation_audit_logs` (Migration 0022 / ADR-029)
 
 Registra de forma imutável todas as sessões de suporte técnico abertas por Platform Admins em nome de usuários de escolas parceiras.
