@@ -136,3 +136,17 @@ Se qualquer uma das evidências acima estiver pendente, o estado deve permanecer
   e a lista de usuários permanecia vazia, impedindo o uso da funcionalidade de suporte.  
 * **Causa Raiz:** O deploy do frontend foi acionado automaticamente pelo merge na branch `main`, porém a migration `20261010140000_create_impersonation_foundation.sql` e as Edge Functions `impersonate-user` e `end-impersonation` nunca haviam sido aplicadas na instância de produção do Supabase Cloud. A documentação preexistente em `docs/deploy.md` continha instrução com ordem invertida, indicando merge primeiro e aplicação de banco depois.  
 * **Prevenção Definitiva:** Instituição compulsória desta Regra de Deploy Parity e implementação de gate duro programático via hook `PreToolUse` do Antigravity (`scripts/check-deploy-parity.cjs`), que bloqueia comandos de deploy e push para `main` caso migrations ou functions estejam pendentes no Supabase Cloud.
+
+---
+
+## 7. Estado Atual de Paridade Verificado (Pós-Ciclo D)
+
+* **Data da Verificação:** 13/10/2026
+* **Projeto Remoto:** `yantfnekslrzhussewdh` (Smart Exit School — `sa-east-1`)
+* **Status de Migrations:** **27/27 sincronizadas** (`local == remote`), 0 pendentes, 0 local-only.
+* **Status das Edge Functions:**
+  * `impersonate-user`: Versão 5 `ACTIVE` (código local idêntico ao remoto verificado via download diff).
+  * `end-impersonation`: Versão 4 `ACTIVE`.
+  * `invite-member`: Versão 2 `ACTIVE`.
+  * `accept-invite`: Versão 2 `ACTIVE`.
+* **Procedimento de Rollback:** Em caso de anomalia, siga estritamente o [Runbook: Rollback de Impersonation](runbooks/rollback-impersonation.md).
