@@ -85,10 +85,10 @@ Regras arquiteturais e operacionais consolidadas na [ADR-029](./adr/0029-imperso
 - Toda sessão de suporte exige justificativa explícita (`reason`) com **mínimo de 5 caracteres** úteis (`length(trim(reason)) >= 5`).
 
 ### 3.2 Token e Ciclo de Vida
-- A Edge Function `impersonate-user` emite token JWT manual assinado com `HS256` contendo as claims do usuário-alvo e `role: 'authenticated'`.
-- **TTL Estrito:** O token possui expiração máxima de **45 minutos** (2700 segundos), sem possibilidade de renovação automática.
-- **Sentinela Anti-Refresh:** A resposta retorna `refresh_token: 'impersonation_no_refresh'`, impedindo que o GoTrue renove a sessão.
-- **Controle no Client:** O cliente executa compulsoriamente `supabase.auth.stopAutoRefresh()` ao entrar em impersonation e exibe o `SupportBanner` com timer regressivo.
+- A Edge Function `impersonate-user` (v5) emite par de tokens JWT efêmeros (`access_token` e `refresh_token`) contendo as claims do usuário-alvo e `role: 'authenticated'`.
+- **TTL Estrito:** O token possui expiração máxima de **45 minutos** (2700 segundos), sem possibilidade de renovação automática no backend.
+- **Compatibilidade GoTrue:** A emissão de par de tokens estruturado permite que `supabase.auth.setSession()` inicialize a sessão do cliente sem disparar erro de token sentinela inválido. O serviço `impersonationService.js` implementa fallback resiliente para ambientes legados onde apenas `access_token` esteja presente.
+- **Controle no Client:** O cliente executa compulsoriamente `supabase.auth.stopAutoRefresh()` ao entrar em impersonation e exibe o `SupportBanner` com timer regressivo de 45 minutos.
 
 ### 3.3 Auditoria Imutável
 - Cada sessão grava snapshot em `public.impersonation_audit_logs`:
@@ -251,5 +251,5 @@ A fonte soberana da fila operacional é `public.pickup_events`.
 | **Proteção de Privilégios Destrutivos** | Migration 0021 revogou `TRUNCATE` de todas as tabelas para a role `authenticated` |
 | **Controle de Acesso de Plataforma** | Validação por RPC `public.is_platform_admin()` tanto no banco quanto nos route guards do React |
 | **Imutabilidade de Auditoria** | Tabela `impersonation_audit_logs` restrita a manipulação pelas Edge Functions de sistema |
-| **Anti-Renovação de Sessão de Suporte** | Sentinela `impersonation_no_refresh` e `stopAutoRefresh()` no cliente |
+| **Sessão Efêmera de Suporte** | TTL estrito de 45 minutos (2700s), desativação de auto-refresh no cliente (`stopAutoRefresh()`), restauração atômica de sessão e runbook de rollback documentado |
 | **Unicidade de Chamada Ativa** | Constraint de banco impede mais de uma chamada ativa por matrícula simultaneamente |
