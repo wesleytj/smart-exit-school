@@ -6,7 +6,7 @@ const test = base.extend<{
   betaPage: import('@playwright/test').Page;
 }>({
   alphaPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ recordVideo: { dir: 'test-results/' } });
     const page = await context.newPage();
     const email = process.env.E2E_ALPHA_EMAIL || 'alpha-user@smart-exit.local';
     const password = process.env.E2E_ALPHA_PASSWORD || 'SenhaForte123!';
@@ -15,7 +15,7 @@ const test = base.extend<{
     await context.close();
   },
   betaPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ recordVideo: { dir: 'test-results/' } });
     const page = await context.newPage();
     const email = process.env.E2E_BETA_EMAIL || 'beta-user@smart-exit.local';
     const password = process.env.E2E_BETA_PASSWORD || 'SenhaForte123!';

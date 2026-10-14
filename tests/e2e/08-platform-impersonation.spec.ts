@@ -1,9 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { authenticateUser } from './helpers/auth.helper';
 
-test('E2E-08: platform admin impersona operador de tenant', async ({ browser }) => {
-  const context = await browser.newContext();
-  const page = await context.newPage();
+test('E2E-08: platform admin impersona operador de tenant', async ({ page }) => {
 
   const email = process.env.E2E_PLATFORM_ADMIN_EMAIL || 'admin@alltech.com';
   const password = process.env.E2E_PLATFORM_ADMIN_PASSWORD || 'SenhaForte123!';
@@ -43,6 +41,4 @@ test('E2E-08: platform admin impersona operador de tenant', async ({ browser }) 
   // Retorna para o painel de administração da plataforma
   await page.waitForURL(/\/admin\/institutions/);
   await expect(page.locator('body')).not.toContainText(/Modo Suporte Ativo/i);
-
-  await context.close();
 });
