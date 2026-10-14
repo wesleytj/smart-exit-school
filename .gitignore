@@ -45,3 +45,7 @@ supabase/backup_*.sql
 *.local.md
 qa-credentials.local.md
 .cursor/qa-credentials.local.md
+
+# Scripts e arquivos temporários de diagnóstico
+scripts/temp/
+*.tmp
