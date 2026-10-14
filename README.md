@@ -106,7 +106,7 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 | **Serverless Edge Runtime** | Deno | 2.x (Edge Functions em TypeScript) |
 | **Iconografia** | Lucide React | 1.14.0 |
 | **Test Runner (Unit / Integration)** | Node Test Runner (`node --test`) | Nativo (204 unitários determinísticos, 57 de integração locais) |
-| **Test Runner (E2E Canônico)** | Playwright | 1.64.0 (8 cenários com navegador Chromium real, vídeo e screenshots) |
+| **Test Runner (E2E Canônico)** | Playwright | 1.64.0 (8 cenários com Chromium real, `headless: false` configurado e persistência de vídeos/screenshots em `test-results/`) |
 | **Análise Estática (Lint)** | ESLint | 10.2.1 (0 erros, 0 warnings) |
 | **Integração Contínua** | GitHub Actions | Workflows de Lint + Build + Testes Unitários (`npm run test:unit`) |
 | **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json`; Deploy Parity via `npx supabase db push` |
@@ -170,7 +170,7 @@ npm run dev
 | `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 204 PASS · 0 FAIL (100% determinístico, sem Docker) |
 | `npm run test:integration` | Executa testes de integração (PostgREST local, RLS runtime e impersonation) | 57 testes PASS (requer containers locais Docker/Supabase) |
 | `npm test` | Executa a suíte completa de testes (unitários + integração) | 261 testes PASS (204 unitários + 57 integração) |
-| `npm run test:e2e` | Executa a suíte E2E canônica Playwright em navegador Chromium | 8 cenários PASS · 0 FAIL (gera evidência em vídeo/screenshot) |
+| `npm run test:e2e` | Executa a suíte E2E canônica Playwright (`headless: false` configurado) | 8 cenários PASS · 0 FAIL (evidência objetiva persistida em vídeos .webm e screenshots .png em `test-results/`) |
 | `npm run test:e2e:ui` | Abre a interface visual interativa do Playwright Test Runner | Interface gráfica para depuração passo a passo |
 | `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed invariants) |
 | `npm run validate:rls` | Valida as políticas de RLS e isolamento multi-tenant em runtime | 9 testes PASS · 0 avisos de validação parcial |

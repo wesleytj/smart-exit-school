@@ -25,7 +25,7 @@ A suíte de testes é segregada para garantir determinismo e isolamento de runti
 
 - **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 204 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
 - **Suíte de Integração (`npm run test:integration`):** Compreende 57 testes em 4 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js`, `impersonationSecurityAudit.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma, isolamento RLS multi-tenant real e endpoints das Edge Functions.
-- **Suíte E2E Canônica (`npm run test:e2e`):** 8 cenários executados no navegador real Chromium via Playwright, exercitando os fluxos críticos de ponta a ponta (login, matrículas, chamadas, cancelamento, anos letivos, isolamento, histórico e impersonation) com geração de vídeos e screenshots.
+- **Suíte E2E Canônica (`npm run test:e2e`):** 8 cenários executados no navegador Chromium via Playwright (`headless: false` por padrão em `playwright.config.ts`), exercitando os fluxos críticos de ponta a ponta com evidências objetivas salvas em vídeo (`.webm`) e screenshots (`.png`) em `test-results/`. (Abertura de janela gráfica visível no host não confirmada na execução via IDE; auditoria assegurada pelas mídias persistidas).
 - **Suíte Completa Local (`npm test`):** Executa 261 testes (204 unitários + 57 de integração locais).
 
 ### Por que Integração e E2E não rodam no CI Remoto?
