@@ -122,12 +122,21 @@ Essas fixtures são independentes do seed baseline (`smart-exit-dev-school`) e c
 | `Tenant Beta School` | Beta | `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` | `beta-user@smart-exit.local`<br>(`22222222-2222-2222-2222-222222222222`) | Portão Beta, Nível Fundamental, Turma Beta 1, Aluno `BETA-001`, Matrícula 2026, Chamada ativa |
 
 **Regras de Governança das Fixtures Multi-Tenant:**
-- **Finalidade Estrita:** Destinadas exclusivamente para desenvolvimento local, execução de testes de integração (`src/services/multiTenantIsolationRuntime.test.js`), testes E2E (`src/e2e/`) e validação oficial (`scripts/validate-rls-foundation.mjs`).
+- **Finalidade Estrita:** Destinadas exclusivamente para desenvolvimento local, execução de testes de integração (`src/services/multiTenantIsolationRuntime.test.js`), testes E2E Playwright (`tests/e2e/`) e validação oficial (`scripts/validate-rls-foundation.mjs`).
 - **Segurança de Segredos (Zero Real Secrets):** É terminantemente proibido commitar secrets, tokens ou credenciais reais. As senhas de fixtures no SQL são hashes gerados por `crypt('SenhaForte123!', gen_salt('bf'))` e os tokens JWT são assinados dinamicamente via `SUPABASE_LOCAL_JWT_SECRET`.
 - **Privacidade e Dados Sintéticos:** Nunca utilizar nomes, CPFs, matrículas ou dados pessoais reais em fixtures. Os registros são 100% fictícios (`Aluno Alpha`, `Aluno Beta`, `ALPHA-001`, `BETA-001`).
 - **Isolamento Mandatório:** Nenhuma entidade pertencente ao Tenant Alpha pode referenciar ou ser acessada pelo Tenant Beta no runtime do PostgreSQL.
 - **Proibição Absoluta em Produção:** Estas fixtures nunca devem ser executadas ou aplicadas no Supabase Cloud de Produção. O smoke de produção é restrito exclusivamente ao fixture canônico documentado (`QA Pickup Smoke`).
 - **Idempotência e Preservação:** O script `seed-multi-tenant.sql` utiliza cláusulas `ON CONFLICT DO UPDATE / DO NOTHING` para garantir reexecução segura sem duplicar ou corromper dados locais.
+
+## Higiene de Dados de Testes E2E (Playwright)
+
+Cenários de teste E2E executados via interface do navegador criam registros dinâmicos para validação de fluxo:
+
+1. **Prefixação Padronizada:** Entidades criadas dinamicamente em testes E2E adotam prefixo identificável (`E2E-Aluno-`, `E2E-Turma-`, etc.) facilitando identificação e isolamento.
+2. **Preservação de Baseline:** Cenários que alteram estado singleton (como o `E2E-05`, que ativa ano letivo temporário) são obrigados a restaurar o ano canônico (2026) ativo ao término da suíte (`afterEach`/`finally`).
+3. **Rotina de Limpeza Local:** Registros com prefixo `E2E-%` no banco local são limpos ao término do ciclo de testes, mantendo intocados o seed canônico (`smart-exit-dev-school`), a escola QA canônica (`qa-cursor-escola-teste`) e as fixtures `Tenant Alpha / Tenant Beta`.
+4. **Proibição de Reset:** Permanece estritamente proibido o uso de `supabase db reset` para limpeza de dados rotineira.
 
 ## Relatos obrigatórios
 
