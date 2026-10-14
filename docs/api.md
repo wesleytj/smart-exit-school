@@ -41,32 +41,34 @@ Permite que um Super Admin autenticado gere um token temporário de suporte para
   * `200 OK`:
     ```json
     {
-      "success": true,
-      "access_token": "<jwt_manual_assinado>",
-      "refresh_token": "impersonation_no_refresh",
-      "expires_in": 2700,
-      "token_type": "bearer",
+      "token": "<access_token_jwt_assinado>",
+      "access_token": "<access_token_jwt_assinado>",
+      "refresh_token": "<refresh_token_jwt_assinado>",
+      "expires_at": 1791938100,
+      "impersonation_log_id": "22222222-2222-2222-2222-222222222222",
       "target_user": {
         "id": "00000000-0000-0000-0000-000000000000",
         "email": "usuario@escola.com.br",
-        "name": "Nome do Usuário"
-      },
-      "impersonation_log_id": "22222222-2222-2222-2222-222222222222"
+        "full_name": "Nome do Usuário",
+        "school_id": "11111111-1111-1111-1111-111111111111"
+      }
     }
     ```
-  * `400 Bad Request`: `Missing target_user_id in request body` ou `Reason must be at least 5 characters`.
+  * `400 Bad Request`: `Missing target_user_id` ou `Reason must contain at least 5 characters`.
   * `401 Unauthorized`: Cabeçalho Authorization ausente ou token inválido/expirado.
   * `403 Forbidden`: `Forbidden: caller is not a platform admin`.
   * `404 Not Found`: Usuário alvo não encontrado.
-* **Claims Cunhadas no JWT:**
+* **Claims Cunhadas no JWT (Access Token & Refresh Token HS256):**
   * `sub`: UUID do usuário alvo
   * `role`: `'authenticated'`
   * `aud`: `'authenticated'`
   * `email`: E-mail do usuário alvo
   * `exp`: Timestamp Unix atual + 2700 segundos (45 minutos)
-  * `impersonated`: `true`
-  * `impersonated_by`: UUID do Super Admin chamador
+  * `iat`: Timestamp Unix atual
+  * `is_impersonated`: `true`
+  * `impersonator_id`: UUID do Super Admin chamador
   * `impersonation_log_id`: UUID do registro criado em `impersonation_audit_logs`
+  * `token_type`: `'refresh'` (presente exclusivamente no refresh token)
 
 ---
 
