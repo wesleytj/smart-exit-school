@@ -81,11 +81,30 @@ npx playwright test --reporter=list
 npm run test:e2e:ui
 ```
 
-### Execução em Modo Headed (Debug / Janela Gráfica se suportado pelo ambiente)
+### Execução em Modo Headed (Google Chrome Visível)
+O Playwright utiliza o navegador Google Chrome real instalado no sistema (`channel: 'chrome'`). Por padrão, a execução local é configurada com janela gráfica (`headless: false` em `playwright.config.ts`), podendo ser executada em segundo plano via `E2E_HEADLESS=1`.
+
 ```bash
 npx playwright test --headed
 ```
-*Nota:* Em `playwright.config.ts`, `headless: false` é o padrão (modo headless ativado apenas com `E2E_HEADLESS=1`). Evidências visuais de cada teste são sempre salvas em `test-results/` (`.webm` e `.png`).
+Evidências visuais de cada teste continuam sendo persistidas em `test-results/` (`.webm` e `.png`).
+
+### Controle de Velocidade para Acompanhamento Visual (Slow Motion)
+Para acompanhar visualmente cada ação (cliques, digitação e transições) na janela do Google Chrome, utilize a variável de ambiente `E2E_SLOWMO`, que define um atraso em milissegundos entre as operações.
+
+O valor recomendado para acompanhamento visual é **400 ms** (faixa confortável: 250–500 ms).
+
+Exemplo de execução com slow motion no PowerShell:
+```powershell
+$env:E2E_SLOWMO=400; npx playwright test --headed
+```
+
+Execução de um cenário específico em slow motion:
+```powershell
+$env:E2E_SLOWMO=400; npx playwright test --headed tests/e2e/08-platform-impersonation.spec.ts
+```
+
+> **Velocidade Padrão:** Se `E2E_SLOWMO=0` ou se a variável não estiver definida, a suíte é executada na velocidade máxima padrão sem atraso artificial.
 
 ### Execução de um Cenário E2E Específico
 ```bash

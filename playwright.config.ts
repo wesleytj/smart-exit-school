@@ -21,6 +21,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'on',
     video: 'on',
+    launchOptions: {
+      slowMo: process.env.E2E_SLOWMO ? parseInt(process.env.E2E_SLOWMO, 10) : 0,
+    },
   },
   projects: [
     {
