@@ -24,7 +24,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Suspender/Reativar | Toggle status Ativo/Inativo | `InstitutionsManager.jsx` |
 | Logout | Encerra sessão Auth e navega para `/login` | `InstitutionsManager.jsx` |
 | Catálogo global de usuários | ✅ Super Admin busca usuários por nome, e-mail e instituição via RPC `list_platform_users` | `InstitutionsManager.jsx`, `platformAdminService.js` |
-| Impersonar escola (login como usuário) | ✅ Super Admin acessa conta de usuário-alvo via impersonation auditada, com JWT manual, sentinela anti-refresh, TTL 45min e trilha imutável em `impersonation_audit_logs` | `InstitutionsManager.jsx`, Edge Functions `impersonate-user` / `end-impersonation` |
+| Impersonar escola (login como usuário) | ✅ Super Admin acessa conta de usuário-alvo via impersonation auditada, com par de tokens JWT efêmeros (v5) compatíveis com GoTrue, TTL 45min, auto-refresh suspenso no cliente e trilha imutável em `impersonation_audit_logs` ([ADR-029](./adr/0029-impersonation-user-level-jwt.md) e [ADR-030](./adr/0030-hardening-verify-jwt-impersonation.md)) | `InstitutionsManager.jsx`, Edge Functions `impersonate-user` / `end-impersonation` |
 | Banner de suporte (Impersonation) | ✅ Componente `SupportBanner` com identificação visual, contador regressivo de 45min e botão de encerramento seguro | `SupportBanner.jsx` |
 | Logs de auditoria | ✅ Tabela `public.impersonation_audit_logs` com snapshots imutáveis de e-mail/nome, constraints de validação, RLS restritivo e testes de segurança (Grupos A/B) | `impersonation_audit_logs`, Edge Functions |
 | Migração plano Pro → Basic | Automática no load | `InstitutionsManager.jsx` |
@@ -76,7 +76,7 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Funcionalidade | Status |
 |----------------|--------|
 | Persistência relacional | ✅ Dados persistidos no PostgreSQL (`students` e `student_enrollments`) via DAL |
-| Cadastrar aluno | ✅ |
+| Cadastrar aluno | ✅ Cadastro via modal com validação de `birth_date` obrigatório e vínculo com ano letivo ativo |
 | Editar aluno | ✅ |
 | Excluir aluno | ✅ |
 | Vincular turma | ✅ Vínculo formal em `public.student_group_assignments` |
