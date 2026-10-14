@@ -23,10 +23,10 @@ Node.js **22.x**, alinhado a `docs/instalacao.md` (LTS 20.x ou 22.x) e ao requis
 
 A suíte de testes é segregada para garantir determinismo e isolamento de runtime:
 
-- **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 198 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
-- **Suíte de Integração (`npm run test:integration`):** Compreende testes em 4 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js`, `impersonationSecurityAudit.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma, isolamento RLS multi-tenant real e endpoints das Edge Functions.
-- **Suíte E2E (`npm run test:e2e`):** Exercita os fluxos completos do sistema autenticado (matrículas, chamadas, cancelamento, anos letivos, isolamento e auditoria).
-- **Suíte Completa (`npm test`):** Executa todos os testes unitários e de integração locais.
+- **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 204 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
+- **Suíte de Integração (`npm run test:integration`):** Compreende 57 testes em 4 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js`, `impersonationSecurityAudit.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma, isolamento RLS multi-tenant real e endpoints das Edge Functions.
+- **Suíte E2E Canônica (`npm run test:e2e`):** 8 cenários executados no navegador real Chromium via Playwright, exercitando os fluxos críticos de ponta a ponta (login, matrículas, chamadas, cancelamento, anos letivos, isolamento, histórico e impersonation) com geração de vídeos e screenshots.
+- **Suíte Completa Local (`npm test`):** Executa 261 testes (204 unitários + 57 de integração locais).
 
 ### Por que Integração e E2E não rodam no CI Remoto?
 As suítes de integração e E2E requerem o ecossistema completo de containers Docker do Supabase (PostgreSQL 17 relacional com RLS ativo, PostgREST, Auth e Edge Runtime). Para manter o CI remoto ágil (execução em ~15s), determinístico e sem custos de infraestrutura pesada em runners do GitHub Actions, esses testes são executados localmente antes da abertura de Pull Requests.
