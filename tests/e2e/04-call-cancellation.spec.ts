@@ -5,13 +5,12 @@ test('E2E-04: cancelar chamada ativa com confirmação binária', async ({ authe
   await expect(page.locator('h1')).toContainText(/Monitor de Saída/i);
 
   // Seleciona portão e chama um aluno
-  const callSelect = page.locator('select:has-text("Selecione")').first();
-  if (await callSelect.isVisible()) {
-    await callSelect.selectOption({ index: 1 });
-  }
+  const callSelect = page.locator('select').filter({ has: page.locator('option:not([value=""])') }).first();
+  await callSelect.waitFor({ state: 'visible' });
+  await callSelect.selectOption({ index: 1 });
 
   const callButton = page.locator('button:has-text("Chamar")').first();
-  await expect(callButton).toBeVisible();
+  await expect(callButton).toBeEnabled();
   await callButton.click();
 
   // Localiza a chamada na fila e aciona o cancelamento

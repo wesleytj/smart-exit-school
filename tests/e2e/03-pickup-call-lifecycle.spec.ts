@@ -9,14 +9,12 @@ test('E2E-03: criar chamada de retirada e concluir', async ({ authenticatedPage:
   const hasActiveCall = await existingConfirmButton.isVisible().catch(() => false);
 
   if (!hasActiveCall) {
-    const callSelect = page.locator('select:has-text("Selecione")').first();
-    if (await callSelect.isVisible()) {
-      await callSelect.selectOption({ index: 1 });
-    }
+    const callSelect = page.locator('select').filter({ has: page.locator('option:not([value=""])') }).first();
+    await callSelect.waitFor({ state: 'visible' });
+    await callSelect.selectOption({ index: 1 });
     const callButton = page.locator('button:has-text("Chamar")').first();
-    if (await callButton.isVisible()) {
-      await callButton.click();
-    }
+    await expect(callButton).toBeEnabled();
+    await callButton.click();
   }
 
   // Confirma a saída do aluno da fila
