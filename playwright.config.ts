@@ -13,12 +13,13 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: [['html', { open: 'never' }], ['list']],
+  outputDir: 'test-results/',
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:5173',
-    headless: true,
+    headless: process.env.CI ? true : false,
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    screenshot: 'on',
+    video: 'on',
   },
   projects: [
     {
