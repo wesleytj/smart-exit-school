@@ -5,7 +5,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Auth%20%2B%20Edge%20Functions-3ECF8E?logo=supabase)](https://supabase.com/)
 [![Deno](https://img.shields.io/badge/Deno-2-000000?logo=deno)](https://deno.land/)
-[![Tests](https://img.shields.io/badge/Tests-217%20passing%20%7C%2018%20env--dependent-yellow)](./src)
+[![Tests](https://img.shields.io/badge/Tests-269%20passing%20(204%20unit%20%7C%2057%20integration%20%7C%208%20e2e)-brightgreen)](./src)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](./.github/workflows)
 
 > Sistema SaaS moderno de gestão, organização e chamada inteligente de saída de alunos para instituições de ensino.
@@ -89,8 +89,8 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 
 ### 3.5 Ciclo de Vida da Sessão de Impersonation
 * **JWT Manual Assinado:** cunhado na Edge Function com algoritmo HMAC-SHA256 (`HS256`) utilizando a chave `SUPABASE_AUTH_JWT_SECRET`.
-* **Claims Customizadas:** injeção direta de `impersonated: true`, `impersonated_by` e `impersonation_log_id`, consumíveis no PostgREST via `auth.jwt()`.
-* **Token Sentinela:** uso de `refresh_token: 'impersonation_no_refresh'` associado à desativação voluntária do temporizador via `supabase.auth.stopAutoRefresh()`, prevenindo falhas de refresh e poluição na tabela interna `auth.sessions`.
+* **Claims Customizadas:** injeção direta de `is_impersonated: true`, `impersonator_id` e `impersonation_log_id`, consumíveis no PostgREST via `auth.jwt()`.
+* **Par de Tokens Efêmeros:** emissão atômica de `access_token` e `refresh_token` assinados com TTL estrito de 45 minutos (2700s), desativação de auto-refresh (`supabase.auth.stopAutoRefresh()`) e fallback defensivo no cliente DAL.
 
 ---
 
@@ -105,7 +105,8 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 | **Backend & Banco de Dados** | Supabase (PostgreSQL 17 + RLS + PostgREST) | `@supabase/supabase-js` 2.108.2 |
 | **Serverless Edge Runtime** | Deno | 2.x (Edge Functions em TypeScript) |
 | **Iconografia** | Lucide React | 1.14.0 |
-| **Test Runner** | Node Test Runner (`node --test`) | Nativo (198 unitários determinísticos no CI, 44 de integração locais) |
+| **Test Runner (Unit / Integration)** | Node Test Runner (`node --test`) | Nativo (204 unitários determinísticos, 57 de integração locais) |
+| **Test Runner (E2E Canônico)** | Playwright | 1.64.0 (8 cenários com navegador Chromium real, vídeo e screenshots) |
 | **Análise Estática (Lint)** | ESLint | 10.2.1 (0 erros, 0 warnings) |
 | **Integração Contínua** | GitHub Actions | Workflows de Lint + Build + Testes Unitários (`npm run test:unit`) |
 | **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json`; Deploy Parity via `npx supabase db push` |
@@ -118,6 +119,8 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 * **Node.js:** versão 20.x ou 22.x LTS (recomendado: `22.x`)
 * **Docker Desktop:** em execução (obrigatório para containers locais do Supabase, testes de integração e E2E)
 * **Supabase CLI:** instalado localmente (`npx supabase`) ou globalmente (`npm install -g supabase`)
+* **Navegadores Playwright:** para suíte E2E (`npx playwright install chromium`)
+* **Ambiente de Testes:** arquivo `.env.e2e` (baseado em `.env.e2e.example`)
 
 ### 5.2 Passo a Passo
 
@@ -164,9 +167,11 @@ npm run dev
 | `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
 | `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
 | `npm run lint` | Executa a validação estática de código | 0 erros, 0 warnings com ESLint 10 |
-| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 198 PASS · 0 FAIL (100% determinístico, sem Docker) |
-| `npm run test:integration` | Executa testes de integração (PostgREST local, RLS runtime e impersonation) | 44 testes (requer containers locais Docker/Supabase) |
-| `npm test` | Executa a suíte completa de testes (unitários + integração) | 198 unitários PASS + testes locais de integração |
+| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 204 PASS · 0 FAIL (100% determinístico, sem Docker) |
+| `npm run test:integration` | Executa testes de integração (PostgREST local, RLS runtime e impersonation) | 57 testes PASS (requer containers locais Docker/Supabase) |
+| `npm test` | Executa a suíte completa de testes (unitários + integração) | 261 testes PASS (204 unitários + 57 integração) |
+| `npm run test:e2e` | Executa a suíte E2E canônica Playwright em navegador Chromium | 8 cenários PASS · 0 FAIL (gera evidência em vídeo/screenshot) |
+| `npm run test:e2e:ui` | Abre a interface visual interativa do Playwright Test Runner | Interface gráfica para depuração passo a passo |
 | `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed invariants) |
 | `npm run validate:rls` | Valida as políticas de RLS e isolamento multi-tenant em runtime | 9 testes PASS · 0 avisos de validação parcial |
 
@@ -187,7 +192,7 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 
 ### 8.1 Manuais Técnicos Oficiais
 * [Estrutura do Projeto](docs/estrutura-do-projeto.md) — Árvore de diretórios, convenções e responsabilidades de pastas.
-* [Banco de Dados & Schema](docs/banco-de-dados.md) — Schema relacional, catálogo de migrations e diagramas ER.
+* [Banco de Dados & Schema](docs/banco-de-dados.md) — Schema relacional, catálogo de 27 migrations e diagramas ER.
 * [Autenticação & Multi-Tenancy](docs/autenticacao.md) — Identidade Supabase Auth, resolução de tenant e guards de sessão.
 * [Permissões & Planos](docs/permissoes.md) — Matriz de acesso entre perfis (Super Admin vs Operador) e restrições por plano.
 * [Funcionalidades Mapeadas](docs/funcionalidades.md) — Catálogo detalhado de recursos entregues por módulo.
@@ -199,14 +204,17 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 * [Regra de Deploy Parity](docs/deploy-parity.md) — Política compulsória de paridade entre frontend, banco e Edge Functions em produção.
 * [API & Rotas](docs/api.md) — Rotas de navegação client-side e contratos das Edge Functions.
 * [Troubleshooting](docs/troubleshooting.md) — Diagnóstico e resolução de erros comuns.
+* [E2E Testing Guide](docs/testes-e2e.md) — Guia de execução da suíte Playwright, variáveis e cenários.
 
-### 8.2 Guias Operacionais Específicos
+### 8.2 Guias Operacionais & Runbooks
 * [Guia de Suporte Técnico via Impersonation](docs/impersonation-support-flow.md) — Passo a passo do operador, banner, encerramento e consultas de auditoria.
+* [Runbook: Rollback de Impersonation](docs/runbooks/rollback-impersonation.md) — Procedimento de reversão atômica de Edge Functions e frontend.
 * [Setup de E-mail Transacional (Brevo SMTP)](docs/infra/smtp-brevo-setup.md) — Configuração do relay SMTP para fluxos de redefinição de senha.
 
 ### 8.3 Decisões Arquiteturais (ADRs)
 * [ADRs Consolidadas 001–028](docs/arquitetura/decisoes.md) — Decisões estruturais permanentes da fundação do sistema.
 * [ADR-029: Impersonation User-Level com JWT Manual](docs/adr/0029-impersonation-user-level-jwt.md) — Decisão arquitetural de personificação via Edge Functions em Deno.
+* [ADR-030: Governança de Validação de JWT nas Edge Functions](docs/adr/0030-hardening-verify-jwt-impersonation.md) — Governança de verificação em camada de aplicação vs gateway.
 
 ### 8.4 Governança de QA
 * [Governança de Dados de QA](docs/qa-data-governance.md) — Princípio de reutilização de fixtures e regras de isolamento.
