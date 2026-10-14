@@ -176,6 +176,35 @@ describe('Impersonation Service Unit & Flow Tests (Branch 3)', () => {
       assert.strictEqual(setSessionPayload.refresh_token, 'fallback-token');
     });
 
+    it('enterImpersonationSession treats null or empty refresh_token as fallback to access token', async () => {
+      let setSessionPayload = null;
+      supabase.auth.setSession = async (payload) => {
+        setSessionPayload = payload;
+        return { data: { session: payload }, error: null };
+      };
+
+      // Test with null
+      await impersonationService.enterImpersonationSession({
+        token: 'fallback-token-null',
+        refresh_token: null,
+        target_user: { id: 'target-1', email: 'prof@escola.com' },
+        impersonation_log_id: 'log-uuid-null'
+      });
+      assert.strictEqual(setSessionPayload.access_token, 'fallback-token-null');
+      assert.strictEqual(setSessionPayload.refresh_token, 'fallback-token-null');
+
+      // Test with empty string
+      await impersonationService.enterImpersonationSession({
+        token: 'fallback-token-empty',
+        refresh_token: '',
+        target_user: { id: 'target-1', email: 'prof@escola.com' },
+        impersonation_log_id: 'log-uuid-empty'
+      });
+      assert.strictEqual(setSessionPayload.access_token, 'fallback-token-empty');
+      assert.strictEqual(setSessionPayload.refresh_token, 'fallback-token-empty');
+    });
+
+
     it('exitImpersonationSession restores admin session, restarts auto-refresh and clears support state', async () => {
       // Prepara estado com impersonation ativa e backup de admin
       mockSessionStorage.set(IMPERSONATION_STATE_KEY, JSON.stringify({ impersonation_log_id: 'log-uuid-456' }));
