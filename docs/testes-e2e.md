@@ -18,8 +18,8 @@ A suíte valida os fluxos críticos de negócio do sistema:
 
 ## 2. Arquitetura e Frameworks
 
-- **Framework Canônico:** [Playwright](https://playwright.dev/) com automação de navegador Chromium real (`headless: false` por padrão em `playwright.config.ts` fora de CI).
-  > **Nota de Observabilidade Factual:** A configuração do Playwright define `headless: false` localmente e persistência de vídeos (`.webm`) e screenshots (`.png`) em `test-results/` como evidência objetiva. Contudo, a abertura efetiva de janela gráfica visível no display do host durante a execução via agentes de IDE/background tasks no Windows **não é confirmada** nesta data. A garantia de execução e auditoria de cada cenário baseia-se nos artefatos de vídeo e imagem persistidos.
+- **Framework Canônico:** [Playwright](https://playwright.dev/) com automação de Google Chrome real (`channel: 'chrome'`, `headless: false` por padrão em `playwright.config.ts`; modo headless ativado via `E2E_HEADLESS=1`).
+  > **Nota de Observabilidade Factual:** A configuração do Playwright define `channel: 'chrome'` e persistência de vídeos (`.webm`) e screenshots (`.png`) em `test-results/` como evidência objetiva. Contudo, a abertura efetiva de janela gráfica visível no display do host durante a execução disparada via agentes de IDE no Windows **não é confirmada** (processos filhos sem superfície interativa no desktop). A garantia de execução e auditoria de cada cenário baseia-se nos artefatos de vídeo e imagem persistidos.
 - **Localização dos Arquivos:** `tests/e2e/`, segregados das suítes de testes unitários (`npm run test:unit`) e de integração de serviços (`npm run test:integration`).
 - **Configuração:** `playwright.config.ts`, gerenciando o `webServer` local (`npm run dev` na porta 5173), timeout de 120s e gravação persistente de vídeos (`.webm`) e screenshots (`.png`) de todos os cenários em `test-results/`.
 - **Fixtures e Helpers:**
@@ -85,7 +85,7 @@ npm run test:e2e:ui
 ```bash
 npx playwright test --headed
 ```
-*Nota:* Em `playwright.config.ts`, `headless: false` já é o padrão para execuções fora de CI (`process.env.CI ? true : false`). Evidências visuais de cada teste são sempre salvas em `test-results/` (`.webm` e `.png`).
+*Nota:* Em `playwright.config.ts`, `headless: false` é o padrão (modo headless ativado apenas com `E2E_HEADLESS=1`). Evidências visuais de cada teste são sempre salvas em `test-results/` (`.webm` e `.png`).
 
 ### Execução de um Cenário E2E Específico
 ```bash
