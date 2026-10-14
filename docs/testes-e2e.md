@@ -18,9 +18,9 @@ A suíte valida os fluxos críticos de negócio do sistema:
 
 ## 2. Arquitetura e Frameworks
 
-- **Framework Canônico:** [Playwright](https://playwright.dev/) com automação de navegador Chromium real em modo headless (ou headed para debug visual).
+- **Framework Canônico:** [Playwright](https://playwright.dev/) com automação de navegador Chromium real (modo headed visível por padrão localmente, headless automático em CI).
 - **Localização dos Arquivos:** `tests/e2e/`, segregados das suítes de testes unitários (`npm run test:unit`) e de integração de serviços (`npm run test:integration`).
-- **Configuração:** `playwright.config.ts`, gerenciando o `webServer` local (`npm run dev` na porta 5173), timeout de 120s e gravação de trace/vídeo em falhas.
+- **Configuração:** `playwright.config.ts`, gerenciando o `webServer` local (`npm run dev` na porta 5173), timeout de 120s e gravação persistente de vídeos (`.webm`) e screenshots (`.png`) de todos os cenários em `test-results/`.
 - **Fixtures e Helpers:**
   - `tests/e2e/fixtures/auth.fixture.ts`: Fixture que automatiza o login real via UI reutilizando o contexto de autenticação do operador do tenant.
   - `tests/e2e/helpers/auth.helper.ts`: Helper de autenticação limpo via formulário HTML de login.
@@ -130,7 +130,7 @@ A esteira de garantia da qualidade do repositório exige que as seguintes valida
 ```bash
 npm run lint             # ESLint 10 (0 erros, 0 warnings)
 npm run build            # Compilação Vite para produção
-npm run test:unit        # 203 testes unitários offline determinísticos
+npm run test:unit        # 204 testes unitários offline determinísticos
 npm run test:integration # 57 testes de integração (Edge Functions + RLS multi-tenant)
 npm run validate:rls     # 9 validações completas de isolamento RLS multi-tenant
 npm run audit:db         # 97 invariantes de schema, RLS e seed verificados pelo Database Auditor
