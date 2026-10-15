@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import process from 'node:process';
 
 // Carrega variáveis locais de suporte caso existam
 if (fs.existsSync('.env.e2e')) {
