@@ -13,6 +13,7 @@
     "test:e2e": "npx playwright test",
     "test:e2e:staging": "E2E_BASE_URL=https://staging.smart-exit-school.vercel.app npx playwright test --headed",
     "test:e2e:reset-fixtures": "node scripts/reset-e2e-fixtures.js",
+    "test:smoke:production": "E2E_BASE_URL=https://smart-exit-school.vercel.app npx playwright test tests/smoke/production.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview",
     "validate:rls": "node scripts/validate-rls-foundation.mjs",

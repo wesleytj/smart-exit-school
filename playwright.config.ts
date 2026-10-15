@@ -7,7 +7,7 @@ if (fs.existsSync('.env.e2e')) {
 }
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
