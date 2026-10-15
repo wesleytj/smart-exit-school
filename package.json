@@ -12,6 +12,7 @@
     "test:integration": "node --test src/services/impersonationFoundation.test.js src/services/impersonationEdgeFunctions.test.js src/services/impersonationSecurityAudit.test.js src/services/multiTenantIsolationRuntime.test.js",
     "test:e2e": "npx playwright test",
     "test:e2e:staging": "E2E_BASE_URL=https://staging.smart-exit-school.vercel.app npx playwright test --headed",
+    "test:e2e:reset-fixtures": "node scripts/reset-e2e-fixtures.js",
     "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview",
     "validate:rls": "node scripts/validate-rls-foundation.mjs",
