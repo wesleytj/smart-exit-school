@@ -2,7 +2,7 @@
 
 ## 1. Visão Geral
 
-O Smart Exit School opera com estrita segregação multi-ambiente para garantir governança, previsibilidade e isolamento operacional. Embora não existam clientes finais ativos em produção neste momento, a separação formal entre os ambientes é obrigatória segundo o Operating Model da plataforma.
+O Smart Exit School opera com segregação de ambientes para garantir governança, previsibilidade e isolamento operacional. Embora não existam clientes finais ativos em produção neste momento, a separação formal entre os ambientes é obrigatória segundo o Operating Model da plataforma.
 
 A arquitetura desacoplada distribui a aplicação entre o frontend na **Vercel** e os serviços de backend/banco de dados no **Supabase Cloud**.
 
@@ -10,38 +10,27 @@ A arquitetura desacoplada distribui a aplicação entre o frontend na **Vercel**
 
 ## 2. Matriz Canônica de Ambientes
 
-| Parâmetro | Desenvolvimento Local (Dev) | Homologação (Staging) | Produção (Production) |
-|---|---|---|---|
-| **Finalidade** | Desenvolvimento de features, testes unitários e auditoria de schema | Execução da suíte E2E completa, validação de PRs e pré-lançamento | Operação real, telões de TV em produção e testes de fumaça (smoke) |
-| **Frontend URL** | `http://localhost:5173` | `https://staging.smart-exit-school.vercel.app` (ou local apontando p/ staging) | `https://smart-exit-school.vercel.app` |
-| **Supabase Project Ref** | `smart-exit-school` (Docker local) | `apzxlahymqtjntjntbztong` | `yantfnekslrzhussewdh` |
-| **Supabase URL** | `http://127.0.0.1:54321` | `https://apzxlahymqtjntjntbztong.supabase.co` | `https://yantfnekslrzhussewdh.supabase.co` |
-| **Arquivo de Configuração Local** | `.env.local` / `.env.e2e` | `.env.staging` (template: `.env.staging.example`) | `.env.production` (template: `.env.production.example`) |
-| **Suíte de Testes Permitida** | Unitários, integração e E2E local | **Suíte E2E completa parametrizada** (8/8 cenários) | **Apenas Smoke Tests read-only** |
-| **Mutações de Banco** | Migrations locais, seed baseline e auditor | Migrations e reset de fixtures versionado | **Proibido** mutação via testes; apenas migrations aprovadas (`G-DB`) |
+| Parâmetro | Desenvolvimento Local (Dev) | Produção (Production) |
+|---|---|---|
+| **Finalidade** | Desenvolvimento de features, testes unitários, suíte E2E completa e auditoria de schema | Operação real, telões de TV em produção e testes de fumaça (smoke) |
+| **Frontend URL** | `http://localhost:5173` | `https://smart-exit-school.vercel.app` |
+| **Supabase Project Ref** | `smart-exit-school` (Docker local) | `yantfnekslrzhussewdh` |
+| **Supabase URL** | `http://127.0.0.1:54321` | `https://yantfnekslrzhussewdh.supabase.co` |
+| **Arquivo de Configuração Local** | `.env.local` / `.env.e2e` | `.env.production` (template: `.env.production.example`) |
+| **Suíte de Testes Permitida** | Unitários, integração e E2E local (8/8 cenários) | **Apenas Smoke Tests read-only** |
+| **Mutações de Banco** | Migrations locais, seed baseline e reset de fixtures local | **Proibido** mutação via testes; apenas migrations aprovadas (`G-DB`) |
 
 ---
 
 ## 3. Arquivos de Configuração de Ambiente
 
-Os arquivos com credenciais reais (`.env.staging` e `.env.production`) são estritamente ignorados pelo Git em [.gitignore](../.gitignore) e nunca devem ser commitados.
+O arquivo com credenciais reais (`.env.production`) é estritamente ignorado pelo Git em [.gitignore](../.gitignore) e nunca deve ser commitado.
 
-Para configurar novas instâncias ou máquinas de desenvolvimento, copie os templates versionados:
+Para configurar novas instâncias ou máquinas de desenvolvimento, copie o template versionado:
 
 ```bash
-# Para o ambiente de staging
-cp .env.staging.example .env.staging
-
 # Para o ambiente de produção
 cp .env.production.example .env.production
-```
-
-### Estrutura do `.env.staging`
-```env
-# .env.staging
-VITE_SUPABASE_URL=https://apzxlahymqtjntjntbztong.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon_key_staging>
-E2E_BASE_URL=http://localhost:5173
 ```
 
 ### Estrutura do `.env.production`
@@ -64,13 +53,7 @@ O Vite carrega variáveis baseando-se no modo de execução (`--mode`):
    ```
    *(utiliza `.env.local` por padrão)*
 
-2. **Rodar localmente conectado ao Staging:**
-   ```bash
-   npx vite --mode staging
-   ```
-   *(carrega `.env.staging` e aponta para o projeto `apzxlahymqtjntjntbztong`)*
-
-3. **Rodar localmente conectado a Produção (modo leitura/inspeção):**
+2. **Rodar localmente conectado a Produção (modo leitura/inspeção):**
    ```bash
    npx vite --mode production
    ```
@@ -80,10 +63,10 @@ O Vite carrega variáveis baseando-se no modo de execução (`--mode`):
 
 ## 5. Uso dos Ambientes nas Suítes de Testes
 
-### Staging: Ambiente Exclusivo da Suíte E2E Completa
-A suíte E2E completa (8 cenários exercitando login, mutação de alunos, criação e cancelamento de chamadas e alternância de anos letivos) executa **exclusivamente contra o ambiente de Staging** ou contra o ambiente de desenvolvimento local.
-- **Comando:** `npm run test:e2e:staging`
-- **Mutações controladas:** Antes da execução em Staging, o estado deve ser restabelecido pelo script versionado de reset (`npm run test:e2e:reset-fixtures`).
+### Desenvolvimento Local: Ambiente da Suíte E2E Completa
+A suíte E2E completa (8 cenários exercitando login, mutação de alunos, criação e cancelamento de chamadas e alternância de anos letivos) executa **exclusivamente contra o ambiente de desenvolvimento local**.
+- **Comando:** `npm run test:e2e`
+- **Mutações controladas:** Antes da execução no ambiente local, o estado deve ser restabelecido pelo script versionado de reset (`npm run test:e2e:reset-fixtures`), que atua exclusivamente sobre o Supabase Local (`http://127.0.0.1:54321`).
 
 ### Produção: Ambiente Exclusivo de Smoke Tests Read-Only
 > **REGRA INVIOLÁVEL DE SEGURANÇA:**  
@@ -100,5 +83,4 @@ O ambiente de Produção aceita unicamente os **Smoke Tests de Produção** (`te
 
 ## 6. Governança de CI/CD por Ambiente
 
-- **Workflow `e2e-staging.yml`:** Acionado em pushes e PRs para a branch `main`, validando a integridade da aplicação contra Staging.
 - **Workflow `smoke-production.yml`:** Executado de forma agendada (cron diário) ou manual, atestando a saúde ininterrupta da aplicação em Produção.

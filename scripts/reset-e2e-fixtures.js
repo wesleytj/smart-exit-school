@@ -10,9 +10,6 @@ if (fs.existsSync('.env.e2e')) {
 if (fs.existsSync('.env.local')) {
   dotenv.config({ path: '.env.local' });
 }
-if (fs.existsSync('.env.staging')) {
-  dotenv.config({ path: '.env.staging' });
-}
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
