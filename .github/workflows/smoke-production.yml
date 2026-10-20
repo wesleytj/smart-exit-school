@@ -1,0 +1,25 @@
+name: Smoke Production
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Todo dia às 8h UTC
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      
+      - run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chrome
+      
+      - run: npm run test:smoke:production
+        env:
+          E2E_BASE_URL: https://smart-exit-school.vercel.app
