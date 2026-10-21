@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { describe, it } from 'node:test'
+import { describe, it, beforeEach, afterEach } from 'node:test'
+import { supabase } from '../lib/supabase.js'
 import { pickupEventRepository, activeCallListQuery } from '../repositories/pickupEventRepository.js'
 import {
   availableStudents,
@@ -500,3 +501,135 @@ describe('pickup operational source', () => {
     assert.equal(tv.includes('exitGate'), false)
   })
 })
+
+describe('subscribeActiveCalls (Realtime)', () => {
+  let restoreSupabase
+  let restoreService
+  let channelCalls = []
+  let onCalls = []
+  let subscribeCalls = []
+  let removeChannelCalls = []
+  let mockChannel
+
+  beforeEach(() => {
+    channelCalls = []
+    onCalls = []
+    subscribeCalls = []
+    removeChannelCalls = []
+
+    mockChannel = {
+      on: (event, config, callback) => {
+        onCalls.push({ event, config, callback })
+        return mockChannel
+      },
+      subscribe: (callback) => {
+        subscribeCalls.push(callback)
+        setTimeout(() => callback('SUBSCRIBED'), 10)
+        return mockChannel
+      },
+      unsubscribe: () => Promise.resolve('ok')
+    }
+
+    restoreSupabase = stub(supabase, {
+      channel: (name) => {
+        channelCalls.push(name)
+        return mockChannel
+      },
+      removeChannel: async (ch) => {
+        removeChannelCalls.push(ch)
+      }
+    })
+
+    restoreService = stub(pickupService, {
+      getActiveCallsBySchool: async (schoolId) => ({
+        data: [{ id: 'call-1', school_id: schoolId }],
+        error: null
+      })
+    })
+  })
+
+  afterEach(() => {
+    if (restoreSupabase) restoreSupabase()
+    if (restoreService) restoreService()
+  })
+
+  it('deve criar canal Realtime com filtro de school_id', async () => {
+    const schoolId = 'school-123'
+    const onResult = () => {}
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, onResult)
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    assert.equal(channelCalls.length, 1)
+    assert.equal(channelCalls[0], `pickup_events:${schoolId}`)
+    assert.equal(onCalls.length, 1)
+    assert.equal(onCalls[0].event, 'postgres_changes')
+    assert.deepEqual(onCalls[0].config, {
+      event: '*',
+      schema: 'public',
+      table: 'pickup_events',
+      filter: `school_id=eq.${schoolId}`
+    })
+    assert.equal(typeof onCalls[0].callback, 'function')
+
+    unsubscribe()
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  })
+
+  it('deve chamar onResult após receber evento Realtime', async () => {
+    const schoolId = 'school-123'
+    const resultCalls = []
+    const onResult = (data) => resultCalls.push(data)
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, onResult, { debounceMs: 20 })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // Simular evento Realtime
+    assert.ok(onCalls.length > 0)
+    const payloadHandler = onCalls[0].callback
+    payloadHandler({ eventType: 'INSERT', new: { id: 'event-1', school_id: schoolId } })
+
+    await new Promise((resolve) => setTimeout(resolve, 100)) // Aguardar debounce
+
+    assert.ok(resultCalls.length >= 1)
+
+    unsubscribe()
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  })
+
+  it('deve ativar fallback polling se WebSocket desconectar', async () => {
+    const schoolId = 'school-123'
+    const onResult = () => {}
+    const statusCalls = []
+    const onStatusChange = (status) => statusCalls.push(status)
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, onResult, { onStatusChange })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // Simular erro de conexão
+    assert.ok(subscribeCalls.length > 0)
+    const statusCallback = subscribeCalls[0]
+    statusCallback('CHANNEL_ERROR')
+
+    assert.ok(statusCalls.includes('fallback'))
+
+    unsubscribe()
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  })
+
+  it('deve limpar canal e timers ao desmontar', async () => {
+    const schoolId = 'school-123'
+    const onResult = () => {}
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, onResult)
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    unsubscribe()
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    assert.equal(removeChannelCalls.length, 1)
+    assert.equal(removeChannelCalls[0], mockChannel)
+  })
+})
+
