@@ -231,18 +231,147 @@ export const pickupService = {
   },
 
   /**
-   * Relê a fila ativa enquanto Monitor ou TV estiverem abertos.
-   * Supabase Realtime pode substituir este intervalo sem mudar a fonte da fila.
+   * Sincronização em tempo real das chamadas ativas com Supabase Realtime
+   * e estratégia dual-mode com polling de fallback automático.
    */
-  subscribeActiveCalls(schoolId, onResult) {
-    if (!schoolId) {
-      return () => {};
-    }
+  subscribeActiveCalls(schoolId, onResult, options = {}) {
+    if (!schoolId) return () => {};
 
-    const timer = setInterval(() => {
-      void this.getActiveCallsBySchool(schoolId).then(onResult);
-    }, ACTIVE_CALL_POLL_MS);
+    const {
+      debounceMs = 50,
+      fallbackPollMs = 5000,
+      heartbeatMs = 30000,
+      onStatusChange = () => {},
+    } = options;
 
-    return () => clearInterval(timer);
+    let channel = null;
+    let fallbackTimer = null;
+    let heartbeatTimer = null;
+    let debounceTimer = null;
+    let isSubscribed = false;
+
+    // Fetch inicial imediato
+    const fetchInitial = async () => {
+      try {
+        const result = await this.getActiveCallsBySchool(schoolId);
+        if (!result.error) {
+          onResult(result.data);
+        }
+      } catch (err) {
+        console.error('[pickupService] Erro no fetch inicial:', err);
+      }
+    };
+
+    // Refetch com debounce (coalescer múltiplos eventos simultâneos)
+    const debouncedRefetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          const result = await this.getActiveCallsBySchool(schoolId);
+          if (!result.error) {
+            onResult(result.data);
+          }
+        } catch (err) {
+          console.error('[pickupService] Erro no refetch:', err);
+        }
+      }, debounceMs);
+    };
+
+    // Ativar polling de fallback
+    const startFallbackPolling = () => {
+      if (fallbackTimer) return; // Já está ativo
+      console.warn('[pickupService] Ativando polling de fallback (WebSocket desconectado)');
+      onStatusChange('fallback');
+      fallbackTimer = setInterval(() => {
+        void this.getActiveCallsBySchool(schoolId).then((result) => {
+          if (!result.error) onResult(result.data);
+        });
+      }, fallbackPollMs);
+    };
+
+    // Desativar polling de fallback
+    const stopFallbackPolling = () => {
+      if (fallbackTimer) {
+        clearInterval(fallbackTimer);
+        fallbackTimer = null;
+        console.info('[pickupService] Polling de fallback desativado');
+      }
+    };
+
+    // Heartbeat suave para reconciliação periódica
+    const startHeartbeat = () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(() => {
+        void this.getActiveCallsBySchool(schoolId).then((result) => {
+          if (!result.error) onResult(result.data);
+        });
+      }, heartbeatMs);
+    };
+
+    // Criar canal Realtime
+    const createChannel = async () => {
+      try {
+        const { db, supabase: directSupabase } = await import('../lib/supabase.js');
+        const supabase = typeof db === 'function' ? await db() : directSupabase;
+
+        channel = supabase
+          .channel(`pickup_events:${schoolId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'pickup_events',
+              filter: `school_id=eq.${schoolId}`,
+            },
+            (payload) => {
+              console.debug('[pickupService] Evento Realtime recebido:', payload.eventType, payload.new?.id);
+              debouncedRefetch();
+            }
+          )
+          .subscribe((status, err) => {
+            console.info('[pickupService] Status da subscription:', status, { isSubscribed });
+            if (err) {
+              console.error('[pickupService] Erro no status da subscription:', err);
+            }
+            onStatusChange(status);
+
+            if (status === 'SUBSCRIBED') {
+              isSubscribed = true;
+              stopFallbackPolling();
+              startHeartbeat();
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              isSubscribed = false;
+              startFallbackPolling();
+            }
+          });
+      } catch (err) {
+        console.error('[pickupService] Erro ao criar canal Realtime:', err);
+        startFallbackPolling();
+      }
+    };
+
+    // Inicializar
+    void fetchInitial();
+    void createChannel();
+
+    // Função de cleanup
+    return () => {
+      console.info('[pickupService] Limpando subscription');
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (fallbackTimer) clearInterval(fallbackTimer);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (channel) {
+        void (async () => {
+          try {
+            const { db, supabase: directSupabase } = await import('../lib/supabase.js');
+            const supabase = typeof db === 'function' ? await db() : directSupabase;
+            await supabase.removeChannel(channel);
+          } catch (err) {
+            console.error('[pickupService] Erro ao remover canal:', err);
+          }
+        })();
+      }
+    };
   }
 };
