@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Clock, GraduationCap, MapPin, User, Volume2 } from "lucide-react"
-import { ACTIVE_CALL_POLL_MS, pickupService, splitActiveQueue } from "../services/pickupService.js"
+import { pickupService, splitActiveQueue } from "../services/pickupService.js"
 import { themeService } from "../services/themeService"
 import { schoolOpsStore } from "../services/schoolOpsStore"
 import { toPanelSchool } from "../services/tenantAccess"
@@ -50,35 +50,6 @@ export default function TvDisplay() {
   }, [school, status])
 
   useEffect(() => {
-    let stopped = false
-    let requestSeq = 0
-    let timer = null
-
-    async function init() {
-      if (status !== "ready" || !schoolId) {
-        setActiveCalls([])
-        return
-      }
-
-      const requestId = ++requestSeq
-      const result = await pickupService.getActiveCallsBySchool(schoolId)
-      if (stopped || requestId !== requestSeq) return
-
-      if (!result.error) {
-        setActiveCalls(result.data)
-      }
-
-      if (stopped) return
-
-      timer = setInterval(() => {
-        const pollId = ++requestSeq
-        void pickupService.getActiveCallsBySchool(schoolId).then((next) => {
-          if (stopped || pollId !== requestSeq || next.error) return
-          setActiveCalls(next.data)
-        })
-      }, ACTIVE_CALL_POLL_MS)
-    }
-
     const handleStorageChange = (e) => {
       if (e.key === STORAGE_KEYS.DARK_MODE) {
         void themeService.getThemePreference().then(setIsDarkMode)
@@ -86,13 +57,30 @@ export default function TvDisplay() {
     }
 
     window.addEventListener("storage", handleStorageChange)
-    void init()
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (status !== "ready" || !schoolId) {
+      return
+    }
+
+    let stopped = false
+    let requestSeq = 0
+
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, (data) => {
+      const currentSeq = ++requestSeq
+      if (stopped || currentSeq !== requestSeq) return
+      setActiveCalls(data)
+    })
 
     return () => {
       stopped = true
-      requestSeq += 1
-      if (timer) clearInterval(timer)
-      window.removeEventListener("storage", handleStorageChange)
+      requestSeq++
+      if (unsubscribe) unsubscribe()
+      setActiveCalls([])
     }
   }, [schoolId, status])
 
