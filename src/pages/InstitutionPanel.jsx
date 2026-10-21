@@ -19,7 +19,7 @@ import TeamManagementSection from "../components/TeamManagementSection.jsx"
 import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
-import { ACTIVE_CALL_POLL_MS, availableStudents, pickupService } from "../services/pickupService.js"
+import { availableStudents, pickupService } from "../services/pickupService.js"
 import {
   defaultFilters,
   hasActiveFilters,
@@ -263,47 +263,27 @@ export default function InstitutionPanel() {
     else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
-  // 4.6 Fila ativa em pickup_events. O intervalo é a releitura desta fase.
+  // 4.6 Fila ativa em pickup_events. Sincronização via Supabase Realtime com fallback automático.
   useEffect(() => {
     const schoolId = school?.id;
-
-    if (!schoolId) {
-      return;
-    }
+    if (activeTab !== "monitor" || !schoolId) return;
 
     let stopped = false;
+    let requestSeq = 0;
 
-    async function readActiveCalls(reportError) {
-      const requestId = ++callsRequestRef.current;
-      const result = await pickupService.getActiveCallsBySchool(schoolId);
-
-      if (stopped || requestId !== callsRequestRef.current) {
-        return;
-      }
-
-      if (result.error) {
-        if (reportError) {
-          console.error(result.error);
-          setCallsError("Não foi possível carregar a fila.");
-        }
-        return;
-      }
-
-      setActiveCalls(result.data);
+    const unsubscribe = pickupService.subscribeActiveCalls(schoolId, (data) => {
+      const currentSeq = ++requestSeq;
+      if (stopped || currentSeq !== requestSeq) return;
+      setActiveCalls(data);
       setCallsError("");
-    }
-
-    void readActiveCalls(true);
-    const timer = setInterval(() => {
-      void readActiveCalls(false);
-    }, ACTIVE_CALL_POLL_MS);
+    });
 
     return () => {
       stopped = true;
-      callsRequestRef.current += 1;
-      clearInterval(timer);
+      requestSeq++;
+      if (unsubscribe) unsubscribe();
     };
-  }, [school?.id]);
+  }, [activeTab, school?.id]);
 
   // 4.7 Auto-dismiss do feedback de sucesso do cancelamento
   useEffect(() => {
