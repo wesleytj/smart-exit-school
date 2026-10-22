@@ -188,6 +188,16 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 
 ---
 
+## Status dos Ciclos de Desenvolvimento
+
+| Ciclo | Descrição | Status | Data |
+|---|---|---|---|
+| **[Ciclo F](docs/cycles/CICLO-F-CONCLUSAO.md)** | Sincronização em Tempo Real (Realtime) | ✅ Concluído | 21/10/2026 |
+
+**Próximo ciclo:** Ciclo G (a definir)
+
+---
+
 ## 8. Documentação Técnica & ADRs
 
 ### 8.1 Manuais Técnicos Oficiais
