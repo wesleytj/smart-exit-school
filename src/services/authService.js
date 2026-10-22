@@ -2,6 +2,19 @@ import { supabase } from '../lib/supabase.js';
 import { STORAGE_KEYS } from './core/keys.js';
 import { storageClient } from './core/storageClient.js';
 
+export function getPasswordInputProps(show) {
+  return {
+    inputType: show ? 'text' : 'password',
+    buttonAriaLabel: show ? 'Ocultar senha' : 'Mostrar senha',
+    buttonAriaPressed: Boolean(show),
+  };
+}
+
+export function togglePasswordVisibility(current) {
+  return !current;
+}
+
+
 export function createAuthService(client = supabase, storage = storageClient) {
   return {
     async logout() {
