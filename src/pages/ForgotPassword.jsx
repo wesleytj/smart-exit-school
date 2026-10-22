@@ -1,8 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Mail, ArrowLeft, Send, CheckCircle2 } from "lucide-react"
-import { authService } from "../services/authService"
-import { validateEmail } from "../services/authValidation"
+import { authService, validateEmail } from "../services/authService"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")

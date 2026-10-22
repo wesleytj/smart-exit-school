@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getPasswordInputProps, togglePasswordVisibility } from './authService.js';
-import { validateEmail, validatePasswordUpdate } from './authValidation.js';
-import { createAuthService } from './authService.js';
+import { createAuthService, getPasswordInputProps, togglePasswordVisibility, validateEmail, validatePasswordUpdate } from './authService.js';
 
 describe('PasswordInput visibility toggle and accessibility', () => {
   it('alterna a visibilidade da senha e fornece atributos de acessibilidade corretos', () => {
