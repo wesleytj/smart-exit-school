@@ -8,7 +8,10 @@ import {
   compareCalledAtDesc,
   mapActiveCall,
   pickupService,
-  splitActiveQueue
+  splitActiveQueue,
+  buildExitHistoryCsv,
+  formatWaitTime,
+  MAX_CSV_EXPORT_ROWS
 } from './pickupService.js'
 
 const SCHOOL_ID = '76f29d9f-c6fd-4561-89f8-403fef0ccb40'
@@ -632,4 +635,432 @@ describe('subscribeActiveCalls (Realtime)', () => {
     assert.equal(removeChannelCalls[0], mockChannel)
   })
 })
+
+function makeHistoryRow(overrides = {}) {
+  return {
+    id: 'evt-1',
+    school_id: SCHOOL_ID,
+    student_enrollment_id: 'enr-1',
+    gate_id: 'gate-1',
+    status: 'completed',
+    called_at: '2026-10-22T10:00:00.000Z',
+    completed_at: '2026-10-22T10:02:30.000Z',
+    cancelled_at: null,
+    created_at: '2026-10-22T10:00:00.000Z',
+    updated_at: '2026-10-22T10:02:30.000Z',
+    gates: { id: 'gate-1', name: 'Portão Principal' },
+    student_enrollments: {
+      id: 'enr-1',
+      student_id: 'std-1',
+      student_identifier: 'MAT-101',
+      students: { id: 'std-1', full_name: 'Lucas Pereira' },
+      student_group_assignments: [
+        {
+          status: 'active',
+          academic_group_id: 'grp-1',
+          academic_groups: { id: 'grp-1', name: '5º Ano A' }
+        }
+      ]
+    },
+    ...overrides
+  }
+}
+
+describe('P1 Exit History Repository (pickupEventRepository.listHistoryBySchool)', () => {
+  it('returns error when schoolId is missing', async () => {
+    const res = await pickupEventRepository.listHistoryBySchool({})
+    assert.equal(res.data.length, 0)
+    assert.equal(res.error.message, 'Escola autorizada ausente.')
+
+    const countRes = await pickupEventRepository.countHistoryBySchool({})
+    assert.equal(countRes.count, 0)
+    assert.equal(countRes.error.message, 'Escola autorizada ausente.')
+  })
+
+  it('filters by schoolId and excludes called status events', async () => {
+    let queriedTables = []
+    let statusFilterApplied = null
+    let schoolIdFilter = null
+
+    const restore = stub(supabase, {
+      from: (table) => {
+        queriedTables.push(table)
+        const chain = {
+          select: () => chain,
+          eq: (col, val) => {
+            if (col === 'school_id') schoolIdFilter = val
+            return chain
+          },
+          in: (col, val) => {
+            if (col === 'status') statusFilterApplied = val
+            return chain
+          },
+          gte: () => chain,
+          lte: () => chain,
+          order: () => chain,
+          range: () => chain,
+          then: (resolve) => resolve({ data: [makeHistoryRow()], error: null })
+        }
+        return chain
+      }
+    })
+
+    const res = await pickupEventRepository.listHistoryBySchool({
+      schoolId: SCHOOL_ID,
+      from: '2026-10-22T00:00:00.000Z', // Recent date (< 30 days)
+      to: '2026-10-22T23:59:59.999Z'
+    })
+    restore()
+
+    assert.equal(res.error, null)
+    assert.equal(schoolIdFilter, SCHOOL_ID)
+    assert.deepEqual(statusFilterApplied, ['completed', 'cancelled'])
+    assert.equal(queriedTables.includes('pickup_events'), true)
+    // Recent query should not query archive
+    assert.equal(queriedTables.includes('pickup_events_archive'), false)
+  })
+
+  it('queries both pickup_events and pickup_events_archive when date range includes older than 30 days', async () => {
+    let queriedTables = []
+
+    const restore = stub(supabase, {
+      from: (table) => {
+        queriedTables.push(table)
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          in: () => chain,
+          gte: () => chain,
+          lte: () => chain,
+          order: () => chain,
+          range: () => chain,
+          then: (resolve) => {
+            if (table === 'pickup_events') {
+              return resolve({ data: [makeHistoryRow({ id: 'recent-1' })], error: null })
+            }
+            return resolve({ data: [makeHistoryRow({ id: 'archived-1', completed_at: '2026-08-01T10:00:00.000Z' })], error: null })
+          }
+        }
+        return chain
+      }
+    })
+
+    const res = await pickupEventRepository.listHistoryBySchool({
+      schoolId: SCHOOL_ID,
+      from: '2026-07-01T00:00:00.000Z' // 3+ months ago
+    })
+    restore()
+
+    assert.equal(res.error, null)
+    assert.equal(queriedTables.includes('pickup_events'), true)
+    assert.equal(queriedTables.includes('pickup_events_archive'), true)
+    assert.equal(res.data.length, 2)
+  })
+
+  it('countHistoryBySchool aggregates total count across queried tables', async () => {
+    const restore = stub(supabase, {
+      from: (table) => {
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          in: () => chain,
+          gte: () => chain,
+          lte: () => chain,
+          then: (resolve) => {
+            if (table === 'pickup_events') return resolve({ count: 15, error: null })
+            return resolve({ count: 35, error: null })
+          }
+        }
+        return chain
+      }
+    })
+
+    const res = await pickupEventRepository.countHistoryBySchool({
+      schoolId: SCHOOL_ID,
+      from: '2026-06-01T00:00:00.000Z'
+    })
+    restore()
+
+    assert.equal(res.error, null)
+    assert.equal(res.count, 50)
+  })
+})
+
+describe('P1 Exit History Service (pickupService.getExitHistory)', () => {
+  it('maps raw rows to normalized UI exit events and calculates wait time', async () => {
+    const mockRow = makeHistoryRow({
+      called_at: '2026-10-22T14:00:00.000Z',
+      completed_at: '2026-10-22T14:03:45.000Z'
+    })
+
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async () => ({ data: [mockRow], error: null }),
+      countHistoryBySchool: async () => ({ count: 1, error: null })
+    })
+
+    const res = await pickupService.getExitHistory({ schoolId: SCHOOL_ID })
+    restore()
+
+    assert.equal(res.error, null)
+    assert.equal(res.total, 1)
+    assert.equal(res.data.length, 1)
+
+    const item = res.data[0]
+    assert.equal(item.studentName, 'Lucas Pereira')
+    assert.equal(item.studentIdentifier, 'MAT-101')
+    assert.equal(item.groupName, '5º Ano A')
+    assert.equal(item.gateName, 'Portão Principal')
+    assert.equal(item.status, 'completed')
+    assert.equal(item.waitTimeSeconds, 225) // 3 min 45 s
+    assert.equal(item.waitTimeFormatted, '3 min 45 s')
+  })
+
+  it('filters results by search string matching student name or identifier', async () => {
+    const rows = [
+      makeHistoryRow({ id: '1', student_enrollments: { student_identifier: 'A1', students: { full_name: 'Beatriz Lima' }, student_group_assignments: [] } }),
+      makeHistoryRow({ id: '2', student_enrollments: { student_identifier: 'B2', students: { full_name: 'Carlos Silva' }, student_group_assignments: [] } })
+    ]
+
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async () => ({ data: rows, error: null }),
+      countHistoryBySchool: async () => ({ count: 2, error: null })
+    })
+
+    const searchByName = await pickupService.getExitHistory({ schoolId: SCHOOL_ID, search: 'beatriz' })
+    assert.equal(searchByName.data.length, 1)
+    assert.equal(searchByName.data[0].studentName, 'Beatriz Lima')
+
+    const searchById = await pickupService.getExitHistory({ schoolId: SCHOOL_ID, search: 'B2' })
+    assert.equal(searchById.data.length, 1)
+    assert.equal(searchById.data[0].studentName, 'Carlos Silva')
+
+    restore()
+  })
+
+  it('filters results by groupId matching active group', async () => {
+    const rows = [
+      makeHistoryRow({
+        id: '1',
+        student_enrollments: {
+          students: { full_name: 'Aluno 1' },
+          student_group_assignments: [{ status: 'active', academic_group_id: 'grp-alpha', academic_groups: { name: 'Alpha' } }]
+        }
+      }),
+      makeHistoryRow({
+        id: '2',
+        student_enrollments: {
+          students: { full_name: 'Aluno 2' },
+          student_group_assignments: [{ status: 'active', academic_group_id: 'grp-beta', academic_groups: { name: 'Beta' } }]
+        }
+      })
+    ]
+
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async () => ({ data: rows, error: null }),
+      countHistoryBySchool: async () => ({ count: 2, error: null })
+    })
+
+    const res = await pickupService.getExitHistory({ schoolId: SCHOOL_ID, groupId: 'grp-beta' })
+    restore()
+
+    assert.equal(res.data.length, 1)
+    assert.equal(res.data[0].groupName, 'Beta')
+  })
+
+  it('supports pagination with limit and offset', async () => {
+    const rows = Array.from({ length: 10 }, (_, i) => makeHistoryRow({ id: `evt-${i}` }))
+
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async ({ limit = 25, offset = 0 } = {}) => ({
+        data: rows.slice(offset, offset + limit),
+        error: null
+      }),
+      countHistoryBySchool: async () => ({ count: 10, error: null })
+    })
+
+    const page1 = await pickupService.getExitHistory({ schoolId: SCHOOL_ID, limit: 3, offset: 0 })
+    assert.equal(page1.data.length, 3)
+    assert.equal(page1.data[0].id, 'evt-0')
+
+    const page2 = await pickupService.getExitHistory({ schoolId: SCHOOL_ID, limit: 3, offset: 3 })
+    assert.equal(page2.data.length, 3)
+    assert.equal(page2.data[0].id, 'evt-3')
+
+    restore()
+  })
+})
+
+describe('P1 Exit Metrics Service (pickupService.getExitMetrics)', () => {
+  it('computes totals, cancellation rate, average wait time and breakdown by gate and group', async () => {
+    const rows = [
+      makeHistoryRow({
+        id: '1',
+        status: 'completed',
+        called_at: '2026-10-22T10:00:00.000Z',
+        completed_at: '2026-10-22T10:01:00.000Z', // 60s
+        gates: { name: 'Portão Leste' },
+        student_enrollments: {
+          students: { full_name: 'A' },
+          student_group_assignments: [{ status: 'active', academic_groups: { name: '1º Ano' } }]
+        }
+      }),
+      makeHistoryRow({
+        id: '2',
+        status: 'completed',
+        called_at: '2026-10-22T10:00:00.000Z',
+        completed_at: '2026-10-22T10:03:00.000Z', // 180s
+        gates: { name: 'Portão Leste' },
+        student_enrollments: {
+          students: { full_name: 'B' },
+          student_group_assignments: [{ status: 'active', academic_groups: { name: '2º Ano' } }]
+        }
+      }),
+      makeHistoryRow({
+        id: '3',
+        status: 'cancelled',
+        called_at: '2026-10-22T10:00:00.000Z',
+        cancelled_at: '2026-10-22T10:02:00.000Z',
+        gates: { name: 'Portão Oeste' },
+        student_enrollments: {
+          students: { full_name: 'C' },
+          student_group_assignments: [{ status: 'active', academic_groups: { name: '1º Ano' } }]
+        }
+      })
+    ]
+
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async () => ({ data: rows, error: null })
+    })
+
+    const res = await pickupService.getExitMetrics({ schoolId: SCHOOL_ID })
+    restore()
+
+    assert.equal(res.error, null)
+    const m = res.data
+    assert.equal(m.total, 3)
+    assert.equal(m.completed, 2)
+    assert.equal(m.cancelled, 1)
+    assert.equal(m.cancellationRate, '33.3%')
+    assert.equal(m.averageWaitTimeSeconds, 120) // (60 + 180) / 2 = 120
+    assert.equal(m.averageWaitTimeFormatted, '2 min')
+    assert.equal(m.byGate['Portão Leste'], 2)
+    assert.equal(m.byGate['Portão Oeste'], 1)
+    assert.equal(m.byGroup['1º Ano'], 2)
+    assert.equal(m.byGroup['2º Ano'], 1)
+  })
+
+  it('handles zero events gracefully', async () => {
+    const restore = stub(pickupEventRepository, {
+      listHistoryBySchool: async () => ({ data: [], error: null })
+    })
+
+    const res = await pickupService.getExitMetrics({ schoolId: SCHOOL_ID })
+    restore()
+
+    assert.equal(res.error, null)
+    assert.equal(res.data.total, 0)
+    assert.equal(res.data.completed, 0)
+    assert.equal(res.data.cancelled, 0)
+    assert.equal(res.data.cancellationRate, '0.0%')
+    assert.equal(res.data.averageWaitTimeSeconds, 0)
+    assert.equal(res.data.averageWaitTimeFormatted, '0 s')
+    assert.equal(res.data.byGate.length, 0)
+    assert.equal(res.data.byGroup.length, 0)
+  })
+})
+
+describe('P1 Exit History CSV Export (buildExitHistoryCsv)', () => {
+  it('formats rows with UTF-8 BOM, semicolon separator and proper headers', () => {
+    const rows = [
+      {
+        id: 'evt-1',
+        studentName: 'Ana Souza',
+        studentIdentifier: '2026-001',
+        groupName: '5º Ano A',
+        gateName: 'Portão Norte',
+        status: 'completed',
+        dateFormatted: '22/10/2026',
+        calledTime: '14:00',
+        closedTime: '14:03',
+        waitTimeFormatted: '3 min'
+      },
+      {
+        id: 'evt-2',
+        studentName: 'Bruno Costa',
+        studentIdentifier: '',
+        groupName: '6º Ano B',
+        gateName: 'Portão Sul',
+        status: 'cancelled',
+        dateFormatted: '22/10/2026',
+        calledTime: '14:10',
+        closedTime: '14:12',
+        waitTimeFormatted: '2 min'
+      }
+    ]
+
+    const csv = buildExitHistoryCsv(rows)
+
+    assert.equal(csv.startsWith('\uFEFF'), true, 'Must start with UTF-8 BOM')
+    const lines = csv.slice(1).trim().split('\r\n')
+    assert.equal(lines.length, 3)
+
+    assert.equal(
+      lines[0],
+      '"Data";"Horário Chamada";"Horário Saída/Cancelamento";"Tempo de Espera";"Aluno";"Matrícula";"Turma";"Portão";"Status"'
+    )
+    assert.match(
+      lines[1],
+      /"22\/10\/2026";"14:00";"14:03";"3 min";"Ana Souza";"2026-001";"5º Ano A";"Portão Norte";"Concluída"/
+    )
+    assert.match(
+      lines[2],
+      /"22\/10\/2026";"14:10";"14:12";"2 min";"Bruno Costa";"-";"6º Ano B";"Portão Sul";"Cancelada"/
+    )
+  })
+
+  it('escapes quotes, semicolons and newlines properly in values', () => {
+    const rows = [
+      {
+        id: 'evt-special',
+        studentName: 'José "Zezinho"; Silva',
+        studentIdentifier: '',
+        groupName: 'Turma\nA',
+        gateName: 'Portão Principal',
+        status: 'completed',
+        dateFormatted: '22/10/2026',
+        calledTime: '15:00',
+        closedTime: '15:05',
+        waitTimeFormatted: '5 min'
+      }
+    ]
+
+    const csv = buildExitHistoryCsv(rows)
+    assert.match(csv, /"José ""Zezinho""; Silva"/)
+  })
+
+  it('enforces maximum export cap of 2000 rows', () => {
+    assert.equal(MAX_CSV_EXPORT_ROWS, 2000)
+    const largeDataset = Array.from({ length: 2500 }, (_, i) => ({
+      id: `id-${i}`,
+      studentName: `Aluno ${i}`,
+      status: 'completed'
+    }))
+
+    const csv = buildExitHistoryCsv(largeDataset)
+    const dataLines = csv.slice(1).trim().split('\r\n').slice(1) // Drop header
+    assert.equal(dataLines.length, 2000)
+  })
+
+  it('formatWaitTime handles various duration boundaries', () => {
+    assert.equal(formatWaitTime(0), '0 s')
+    assert.equal(formatWaitTime(30), '30 s')
+    assert.equal(formatWaitTime(60), '1 min')
+    assert.equal(formatWaitTime(75), '1 min 15 s')
+    assert.equal(formatWaitTime(3600), '60 min')
+    assert.equal(formatWaitTime(3690), '61 min 30 s')
+    assert.equal(formatWaitTime(null), '-')
+    assert.equal(formatWaitTime(undefined), '-')
+  })
+})
+
 
