@@ -2,7 +2,7 @@ import { academicGroupRepository } from '../repositories/academicGroupRepository
 import { academicLevelRepository } from '../repositories/academicLevelRepository.js';
 import { academicShiftRepository } from '../repositories/academicShiftRepository.js';
 import { schoolYearService } from './schoolYearService.js';
-import { nextDisplayOrder } from './gateOrder.js';
+import { nextDisplayOrder } from './gateService.js';
 
 function requireSchoolId(schoolId) {
   if (!schoolId) {

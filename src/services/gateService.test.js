@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { nextDisplayOrder } from './gateOrder.js'
+import { nextDisplayOrder } from './gateService.js'
 
 describe('nextDisplayOrder', () => {
   it('starts at 1 when the school has no gates', () => {
