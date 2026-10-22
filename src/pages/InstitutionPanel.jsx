@@ -16,6 +16,7 @@ import { gateService } from "../services/gateService"
 import AcademicStructureSection from "../components/AcademicStructureSection.jsx"
 import SchoolYearsSection from "../components/SchoolYearsSection.jsx"
 import TeamManagementSection from "../components/TeamManagementSection.jsx"
+import ExitReportsSection from "../components/ExitReportsSection.jsx"
 import { studentService } from "../services/studentService.js"
 import { academicGroupService } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
@@ -908,7 +909,7 @@ export default function InstitutionPanel() {
             { id: "school-years", icon: Calendar, label: "Anos Letivos" },
             { id: "gates", icon: DoorOpen, label: "Gestão de Portões" },
             { id: "import", icon: UploadCloud, label: "Importar Dados" },
-            { id: "reports", icon: FileText, label: "Relatórios Avançados", locked: school.plan === "Basic" },
+            { id: "reports", icon: FileText, label: "Histórico e Relatórios" },
             { id: "fleet", icon: MapPin, label: 'Rotas & "Estou Chegando"', locked: school.plan === "Basic" || school.plan === "Premium" },
             { id: "team", icon: UserCheck, label: "Equipe & Usuários" },
             { id: "settings", icon: Settings, label: "Configurações" }
@@ -1618,34 +1619,10 @@ export default function InstitutionPanel() {
         )}
 
         {/* ------------------------------------------ */}
-        {/* ABA: RELATÓRIOS AVANÇADOS */}
+        {/* ABA: HISTÓRICO E RELATÓRIOS DE SAÍDAS */}
         {/* ------------------------------------------ */}
-        {activeTab === "reports" && (
-          <div className="p-8 flex-1 overflow-y-auto">
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Relatórios Avançados</h1>
-              <p className="text-slate-500">Análise de fluxo, horários de pico e frequência dos alunos.</p>
-            </div>
-
-            {school.plan === "Basic" ? (
-              <div className="max-w-2xl bg-white dark:bg-[#1a1a1a] rounded-3xl border border-slate-200 dark:border-[#2a2a2a] shadow-sm p-10 flex flex-col items-center text-center mt-4">
-                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-primary mb-6">
-                  <Lock size={32} />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Funcionalidade Exclusiva do Plano Premium</h2>
-                <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">
-                  Sua instituição está no plano <span className="font-bold text-slate-700 dark:text-slate-300">Basic</span>. Faça o upgrade hoje mesmo para ter acesso a relatórios detalhados de auditoria de saídas, gráficos de desempenho de portões e histórico completo de chamadas.
-                </p>
-                <button className="bg-primary text-white hover:opacity-90 font-bold px-8 py-4 rounded-xl flex items-center gap-2 transition shadow-sm">
-                  <TrendingUp size={20} /> Falar com Suporte & Mudar de Plano
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-[#1a1a1a] p-6 rounded-2xl border border-slate-200 dark:border-[#2a2a2a] text-slate-600 dark:text-slate-300">
-                📊 Em breve: Gráficos e inteligência de dados da sua instituição aqui.
-              </div>
-            )}
-          </div>
+        {activeTab === "reports" && authorizedSchool?.id && (
+          <ExitReportsSection schoolId={authorizedSchool.id} schoolPlan={school?.plan} />
         )}
 
         {/* ------------------------------------------ */}
