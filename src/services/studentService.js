@@ -3,10 +3,9 @@ import { studentRepository } from '../repositories/studentRepository.js';
 import { studentEnrollmentRepository } from '../repositories/studentEnrollmentRepository.js';
 import { studentGroupAssignmentRepository } from '../repositories/studentGroupAssignmentRepository.js';
 import { schoolYearRepository } from '../repositories/schoolYearRepository.js';
-import { currentAcademicYear } from './academicYear.js';
 import { studentEnrollmentService } from './studentEnrollmentService.js';
 import { studentGroupAssignmentService } from './studentGroupAssignmentService.js';
-import { schoolYearService } from './schoolYearService.js';
+import { schoolYearService, currentAcademicYear } from './schoolYearService.js';
 
 function requireSchoolId(schoolId) {
   if (!schoolId) {

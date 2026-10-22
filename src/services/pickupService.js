@@ -1,4 +1,4 @@
-import { currentAcademicYear } from './academicYear.js';
+import { currentAcademicYear } from './schoolYearService.js';
 import { pickupEventRepository } from '../repositories/pickupEventRepository.js';
 
 export const ACTIVE_CALL_POLL_MS = 5000;
