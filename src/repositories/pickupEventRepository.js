@@ -11,6 +11,60 @@ const ACTIVE_CALL_COLUMNS = [
 
 const EVENT_COLUMNS = 'id, school_id, student_enrollment_id, gate_id, status, called_at, completed_at, cancelled_at';
 
+const HISTORY_COLUMNS = [
+  'id',
+  'school_id',
+  'student_enrollment_id',
+  'gate_id',
+  'status',
+  'called_at',
+  'completed_at',
+  'cancelled_at',
+  'gates(id, name)',
+  'student_enrollments(id, student_id, students(id, full_name, identifier), student_group_assignments(status, academic_groups(id, name)))'
+].join(', ');
+
+function normalizeDateBoundaries(from, to) {
+  let normFrom = from;
+  let normTo = to;
+
+  if (typeof from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(from.trim())) {
+    normFrom = `${from.trim()}T00:00:00.000Z`;
+  }
+  if (typeof to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(to.trim())) {
+    normTo = `${to.trim()}T23:59:59.999Z`;
+  }
+
+  return { from: normFrom, to: normTo };
+}
+
+function applyHistoryFilters(queryBuilder, { schoolId, status, gateId, from, to }) {
+  let q = queryBuilder.eq('school_id', schoolId);
+
+  if (status === 'completed' || status === 'cancelled') {
+    q = q.eq('status', status);
+  } else {
+    // Chamadas 'called' NUNCA entram no histórico
+    q = q.in('status', ['completed', 'cancelled']);
+  }
+
+  if (gateId) {
+    q = q.eq('gate_id', gateId);
+  }
+
+  const { from: normFrom, to: normTo } = normalizeDateBoundaries(from, to);
+
+  if (normFrom) {
+    q = q.gte('called_at', normFrom);
+  }
+
+  if (normTo) {
+    q = q.lte('called_at', normTo);
+  }
+
+  return q;
+}
+
 async function db() {
   const { supabase } = await import('../lib/supabase.js');
   return supabase;
@@ -149,5 +203,101 @@ export const pickupEventRepository = {
       .eq('status', 'called')
       .select(EVENT_COLUMNS)
       .maybeSingle();
+  },
+
+  async listHistoryBySchool({
+    schoolId,
+    status = 'all',
+    gateId = null,
+    from = null,
+    to = null,
+    limit = 25,
+    offset = 0,
+    includeArchive = true
+  } = {}) {
+    const supabase = await db();
+
+    let hotQuery = supabase
+      .from('pickup_events')
+      .select(HISTORY_COLUMNS, { count: 'exact' });
+    hotQuery = applyHistoryFilters(hotQuery, { schoolId, status, gateId, from, to });
+    hotQuery = hotQuery.order('called_at', { ascending: false });
+
+    if (!includeArchive) {
+      const { data, count, error } = await hotQuery.range(offset, offset + limit - 1);
+      return { data: data || [], count: count || 0, error };
+    }
+
+    let archiveQuery = supabase
+      .from('pickup_events_archive')
+      .select(HISTORY_COLUMNS, { count: 'exact' });
+    archiveQuery = applyHistoryFilters(archiveQuery, { schoolId, status, gateId, from, to });
+    archiveQuery = archiveQuery.order('called_at', { ascending: false });
+
+    const [hotRes, archiveRes] = await Promise.all([
+      hotQuery,
+      archiveQuery
+    ]);
+
+    if (hotRes.error && !archiveRes.error) {
+      return { data: [], count: 0, error: hotRes.error };
+    }
+
+    const hotData = hotRes.data || [];
+    const archiveData = (archiveRes.error ? [] : archiveRes.data) || [];
+    const totalCount = (hotRes.count || 0) + (archiveRes.error ? 0 : (archiveRes.count || 0));
+
+    const combined = [...hotData, ...archiveData].sort((a, b) => {
+      const timeA = new Date(a.completed_at || a.cancelled_at || a.called_at || 0).getTime();
+      const timeB = new Date(b.completed_at || b.cancelled_at || b.called_at || 0).getTime();
+      return timeB - timeA;
+    });
+
+    const pagedData = combined.slice(offset, offset + limit);
+
+    return {
+      data: pagedData,
+      count: totalCount,
+      error: hotRes.error || null
+    };
+  },
+
+  async countHistoryBySchool({
+    schoolId,
+    status = 'all',
+    gateId = null,
+    from = null,
+    to = null,
+    includeArchive = true
+  } = {}) {
+    const supabase = await db();
+
+    let hotQuery = supabase
+      .from('pickup_events')
+      .select('id', { count: 'exact', head: true });
+    hotQuery = applyHistoryFilters(hotQuery, { schoolId, status, gateId, from, to });
+
+    if (!includeArchive) {
+      const { count, error } = await hotQuery;
+      return { count: count || 0, error };
+    }
+
+    let archiveQuery = supabase
+      .from('pickup_events_archive')
+      .select('id', { count: 'exact', head: true });
+    archiveQuery = applyHistoryFilters(archiveQuery, { schoolId, status, gateId, from, to });
+
+    const [hotRes, archiveRes] = await Promise.all([
+      hotQuery,
+      archiveQuery
+    ]);
+
+    const hotCount = hotRes.count || 0;
+    const archiveCount = archiveRes.error ? 0 : (archiveRes.count || 0);
+
+    return {
+      count: hotCount + archiveCount,
+      error: hotRes.error || null
+    };
   }
 };
