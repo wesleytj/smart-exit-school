@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { impersonationAuditRepository } from '../repositories/impersonationAuditRepository.js';
 
 const metaEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
 const nodeEnv = typeof globalThis !== 'undefined' && globalThis.process ? globalThis.process.env : undefined;
@@ -293,8 +294,334 @@ export const impersonationService = {
     return { restored };
   },
 
+  /**
+   * Constrói mapa user_id -> { full_name, email } para enriquecer logs de auditoria
+   * sem precisar de embed proibido em public.profiles.
+   */
+  async getPlatformUsersMap() {
+    const map = new Map();
+
+    try {
+      const { data } = await this.listPlatformUsers({ limit: 200 });
+      if (Array.isArray(data)) {
+        for (const user of data) {
+          if (user.user_id) {
+            map.set(user.user_id, {
+              full_name: user.full_name || null,
+              email: user.email || null
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Falha ao obter catálogo para mapeamento de audit:', err);
+    }
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUser = sessionData?.session?.user;
+      if (currentUser?.id && !map.has(currentUser.id)) {
+        map.set(currentUser.id, {
+          full_name: currentUser.user_metadata?.full_name || currentUser.email || 'Super Admin',
+          email: currentUser.email || null
+        });
+      }
+    } catch {
+      // Ignora erro de sessão
+    }
+
+    return map;
+  },
+
+  /**
+   * Consulta histórico de auditoria de impersonation normalizado e paginado.
+   */
+  async getImpersonationAuditHistory({
+    superAdminId = null,
+    targetUserId = null,
+    schoolId = null,
+    period = 'today',
+    from = null,
+    to = null,
+    page = 1,
+    pageSize = 25,
+    limit,
+    offset,
+    userMap = null
+  } = {}) {
+    const size = Math.max(1, Math.min(2000, Number(limit ?? pageSize) || 25));
+    const off = offset !== undefined ? Math.max(0, Number(offset) || 0) : ((Math.max(1, Number(page) || 1) - 1) * size);
+    const p = offset !== undefined ? Math.floor(off / size) + 1 : Math.max(1, Number(page) || 1);
+
+    const { from: resolvedFrom, to: resolvedTo } = resolvePeriodDates(period, from, to);
+
+    const res = await impersonationAuditRepository.listImpersonationAudit({
+      superAdminId,
+      targetUserId,
+      schoolId,
+      from: resolvedFrom,
+      to: resolvedTo,
+      limit: size,
+      offset: off
+    });
+
+    if (res.error) {
+      return {
+        data: [],
+        total: 0,
+        totalCount: 0,
+        page: p,
+        pageSize: size,
+        totalPages: 0,
+        error: res.error
+      };
+    }
+
+    let resolvedUserMap = userMap;
+    if (!resolvedUserMap) {
+      resolvedUserMap = await this.getPlatformUsersMap();
+    }
+
+    const mapped = (res.data || []).map((row) => mapImpersonationAuditLog(row, resolvedUserMap));
+    const totalCount = res.count !== undefined ? res.count : mapped.length;
+    const totalPages = Math.ceil(totalCount / size) || 1;
+
+    return {
+      data: mapped,
+      total: totalCount,
+      totalCount,
+      page: p,
+      pageSize: size,
+      totalPages,
+      error: null
+    };
+  },
+
+  /**
+   * Calcula métricas analíticas e consolidadas de impersonation para o período filtrado.
+   */
+  async getImpersonationAuditMetrics({
+    superAdminId = null,
+    targetUserId = null,
+    schoolId = null,
+    period = 'today',
+    from = null,
+    to = null
+  } = {}) {
+    const { from: resolvedFrom, to: resolvedTo } = resolvePeriodDates(period, from, to);
+
+    const res = await impersonationAuditRepository.listImpersonationAudit({
+      superAdminId,
+      targetUserId,
+      schoolId,
+      from: resolvedFrom,
+      to: resolvedTo,
+      limit: 2000,
+      offset: 0
+    });
+
+    if (res.error) {
+      return {
+        data: {
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          expired: 0,
+          activeOrExpired: 0,
+          averageDurationSeconds: 0,
+          averageDurationFormatted: '-'
+        },
+        error: res.error
+      };
+    }
+
+    const rows = res.data || [];
+    let completed = 0;
+    let inProgress = 0;
+    let expired = 0;
+    let totalDurationSeconds = 0;
+
+    const now = new Date();
+
+    for (const row of rows) {
+      const status = classifyImpersonationStatus(row, now);
+      if (status === 'completed') {
+        completed += 1;
+        if (row.started_at && row.ended_at) {
+          const diffSec = Math.max(0, Math.round((new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()) / 1000));
+          totalDurationSeconds += diffSec;
+        }
+      } else if (status === 'in-progress') {
+        inProgress += 1;
+      } else if (status === 'expired') {
+        expired += 1;
+      }
+    }
+
+    const total = rows.length;
+    const avgSeconds = completed > 0 ? Math.round(totalDurationSeconds / completed) : 0;
+    const avgFormatted = completed > 0 ? formatImpersonationDuration(new Date(0).toISOString(), new Date(avgSeconds * 1000).toISOString()) : '-';
+
+    return {
+      data: {
+        total,
+        completed,
+        inProgress,
+        expired,
+        activeOrExpired: inProgress + expired,
+        averageDurationSeconds: avgSeconds,
+        averageDurationFormatted: avgFormatted
+      },
+      error: null
+    };
+  },
+
   getImpersonationState,
   isImpersonating,
   getAdminSessionBackup,
   clearSchoolLocalCache
 };
+
+export function formatImpersonationDuration(startedAt, endedAt) {
+  if (!startedAt || !endedAt) {
+    return null;
+  }
+  const startMs = new Date(startedAt).getTime();
+  const endMs = new Date(endedAt).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+    return null;
+  }
+
+  const diffSeconds = Math.max(0, Math.round((endMs - startMs) / 1000));
+  if (diffSeconds < 60) {
+    return `${diffSeconds}s`;
+  }
+  if (diffSeconds < 3600) {
+    const mins = Math.floor(diffSeconds / 60);
+    const secs = diffSeconds % 60;
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  }
+
+  const hours = Math.floor(diffSeconds / 3600);
+  const remMins = Math.floor((diffSeconds % 3600) / 60);
+  return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+}
+
+export function classifyImpersonationStatus(row, now = new Date()) {
+  const endedAt = row?.ended_at || row?.endedAt;
+  if (endedAt) {
+    return 'completed';
+  }
+
+  const startedAt = row?.started_at || row?.startedAt;
+  if (!startedAt) {
+    return 'expired';
+  }
+
+  const startMs = new Date(startedAt).getTime();
+  const nowMs = new Date(now).getTime();
+  const elapsedMs = Math.max(0, nowMs - startMs);
+  const TTL_MS = 45 * 60 * 1000; // 45 minutos (TTL do JWT cunhado)
+
+  if (elapsedMs < TTL_MS) {
+    return 'in-progress';
+  }
+
+  return 'expired';
+}
+
+export function resolvePeriodDates(period, customFrom = null, customTo = null, now = new Date()) {
+  if (period === 'custom') {
+    return {
+      from: customFrom || null,
+      to: customTo || null
+    };
+  }
+
+  if (period === 'all') {
+    return { from: null, to: null };
+  }
+
+  const nowTime = now.getTime();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  if (period === 'today') {
+    return {
+      from: `${todayStr}T00:00:00.000Z`,
+      to: `${todayStr}T23:59:59.999Z`
+    };
+  }
+
+  if (period === 'yesterday') {
+    const yesterdayDate = new Date(nowTime - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+    return {
+      from: `${yesterdayStr}T00:00:00.000Z`,
+      to: `${yesterdayStr}T23:59:59.999Z`
+    };
+  }
+
+  if (period === '7d') {
+    const d7 = new Date(nowTime - 7 * 24 * 60 * 60 * 1000);
+    return {
+      from: `${d7.toISOString().slice(0, 10)}T00:00:00.000Z`,
+      to: `${todayStr}T23:59:59.999Z`
+    };
+  }
+
+  if (period === '30d') {
+    const d30 = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
+    return {
+      from: `${d30.toISOString().slice(0, 10)}T00:00:00.000Z`,
+      to: `${todayStr}T23:59:59.999Z`
+    };
+  }
+
+  if (period === 'month') {
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    return {
+      from: `${year}-${month}-01T00:00:00.000Z`,
+      to: `${todayStr}T23:59:59.999Z`
+    };
+  }
+
+  return { from: null, to: null };
+}
+
+export function mapImpersonationAuditLog(row, userMap = null) {
+  const superAdminId = row?.super_admin_id || row?.superAdminId || null;
+  const userInfo = userMap?.get ? userMap.get(superAdminId) : (userMap ? userMap[superAdminId] : null);
+
+  const superAdminName = userInfo?.full_name || userInfo?.name || null;
+  const superAdminEmail = userInfo?.email || null;
+
+  const startedAt = row?.started_at || row?.startedAt || null;
+  const endedAt = row?.ended_at || row?.endedAt || null;
+
+  let durationSeconds = null;
+  if (startedAt && endedAt) {
+    const diff = Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000));
+    durationSeconds = diff;
+  }
+
+  return {
+    id: row?.id,
+    superAdminId,
+    superAdminName,
+    superAdminEmail,
+    targetUserId: row?.target_user_id || row?.targetUserId || null,
+    targetUserName: row?.target_user_name || row?.targetUserName || '',
+    targetUserEmail: row?.target_user_email || row?.targetUserEmail || '',
+    schoolId: row?.target_school_id || row?.targetSchoolId || row?.schoolId || null,
+    schoolName: row?.schools?.name || row?.schoolName || '',
+    reason: row?.reason || '',
+    startedAt,
+    endedAt,
+    ipAddress: row?.ip_address || row?.ipAddress || null,
+    userAgent: row?.user_agent || row?.userAgent || null,
+    duration: formatImpersonationDuration(startedAt, endedAt),
+    durationSeconds,
+    status: classifyImpersonationStatus(row)
+  };
+}
