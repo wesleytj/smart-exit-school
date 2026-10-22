@@ -193,8 +193,9 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 | Ciclo | Descrição | Status | Data |
 |---|---|---|---|
 | **[Ciclo F](docs/cycles/CICLO-F-CONCLUSAO.md)** | Sincronização em Tempo Real (Realtime) | ✅ Concluído | 21/10/2026 |
+| **[Ciclo G — P1](docs/cycles/CICLO-G-P1-CONCLUSAO.md)** | Histórico e Relatórios de Saídas (PR #96) | ✅ Concluído | 22/10/2026 |
 
-**Próximo ciclo:** Ciclo G (a definir)
+**Próximo ciclo:** Ciclo G — P2 (a definir) / Consolidação de Higiene
 
 ---
 

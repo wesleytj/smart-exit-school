@@ -103,7 +103,7 @@ O acesso do Super Admin ao domínio operacional da escola ocorre exclusivamente 
 | Gestão de Portões | ✅ |
 | Importar Dados | ✅ |
 | Configurações (dados cadastrais) | ✅ Leitura |
-| Relatórios Avançados | 🔒 Bloqueado — tela upgrade |
+| Histórico e Relatórios de Saídas (P1) | ✅ Consulta, filtros e CSV nativo liberados |
 | Rotas & Estou Chegando | 🔒 Bloqueado — tela upgrade |
 | Whitelabel (logo/cores) | 🔒 Overlay bloqueio |
 | Dark mode | 🔒 Bloqueado |
@@ -117,7 +117,7 @@ O acesso do Super Admin ao domínio operacional da escola ocorre exclusivamente 
 | Tudo do Basic | ✅ |
 | Whitelabel (logo + cores) | ✅ |
 | Dark mode | ✅ |
-| Relatórios Avançados | ⚠️ Menu desbloqueado; conteúdo informativo |
+| Histórico e Relatórios de Saídas (P1) | ✅ Consulta, filtros e CSV nativo liberados (dashboards preditivos 🚧) |
 | Rotas & Estou Chegando | 🔒 Bloqueado — upgrade Diamond |
 | API Key / Idioma avançado | 🔒 Overlay Diamond |
 | Nome/logo exibidos | Nome e logo da escola |
@@ -147,7 +147,7 @@ O acesso do Super Admin ao domínio operacional da escola ocorre exclusivamente 
 
 ```javascript
 // InstitutionPanel.jsx
-{ id: "reports", locked: school.plan === "Basic" },
+{ id: "reports", label: "Histórico e Relatórios" }, // Liberado para todos os planos
 { id: "fleet", locked: school.plan === "Basic" || school.plan === "Premium" },
 ```
 

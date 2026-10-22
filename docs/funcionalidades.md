@@ -127,14 +127,18 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Validação e aceite de convite | ✅ Fluxo na rota `/accept-invite` e RPC atômica `accept_school_invitation` |
 | Revogação de convite pendente | ✅ Inativação do token no banco via DAL |
 
-### Aba: Relatórios Avançados 🔒 / 🚧
+### Aba: Histórico e Relatórios de Saídas ✅ (Ciclo G — P1)
 
-| Plano | Comportamento |
-|-------|---------------|
-| Basic | Tela de upgrade (bloqueado) |
-| Premium/Diamond | Placeholder: "Em breve: Gráficos e inteligência de dados" |
-
-**Funcionalidade incompleta** — apenas UI de bloqueio/placeholder.
+| Funcionalidade | Status |
+|----------------|--------|
+| Consulta de saídas | ✅ Chamadas finalizadas (`completed`) e canceladas (`cancelled`) com tempos de espera (`ExitReportsSection`) |
+| Fonte de dados híbrida transparente | ✅ Consulta direta em `public.pickup_events` (< 30 dias) e união com `public.pickup_events_archive` (> 30 dias) via `pickupEventRepository` |
+| Filtros operacionais | ✅ Período rápido (Hoje, Ontem, 7d, 30d, Mês) e personalizado (`from`/`to`), status, portão, turma e busca textual debounced por aluno/matrícula |
+| Métricas consolidadas | ✅ Total de saídas, taxa de sucesso, taxa de cancelamento e tempo médio de espera formatado |
+| Exportação CSV nativa | ✅ Download com UTF-8 BOM (`\uFEFF`), delimitador `;`, escape pt-BR e cap seguro de 2.000 linhas |
+| Impressão / PDF | ✅ Impressão nativa (`window.print()`) com layout otimizado via Tailwind `print:` |
+| Disponibilidade por plano | ✅ Liberado para todos os planos (Basic, Premium, Diamond) para a rotina diária da escola |
+| Dashboards analíticos avançados | 🚧 Previsto para planos superiores (gráficos preditivos de fluxo e rotas) |
 
 ### Aba: Rotas & "Estou Chegando" 🔒 / 🚧
 
