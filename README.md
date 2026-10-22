@@ -223,7 +223,7 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 * [Setup de E-mail Transacional (Brevo SMTP)](docs/infra/smtp-brevo-setup.md) — Configuração do relay SMTP para fluxos de redefinição de senha.
 
 ### 8.3 Decisões Arquiteturais (ADRs)
-* [ADRs Consolidadas 001–028](docs/arquitetura/decisoes.md) — Decisões estruturais permanentes da fundação do sistema.
+* [Decisões Arquiteturais (ADRs 001–030)](docs/adr/README.md) — Registro canônico de decisões estruturais permanentes.
 * [ADR-029: Impersonation User-Level com JWT Manual](docs/adr/0029-impersonation-user-level-jwt.md) — Decisão arquitetural de personificação via Edge Functions em Deno.
 * [ADR-030: Governança de Validação de JWT nas Edge Functions](docs/adr/0030-hardening-verify-jwt-impersonation.md) — Governança de verificação em camada de aplicação vs gateway.
 

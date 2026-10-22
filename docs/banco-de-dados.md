@@ -12,7 +12,7 @@ Todas as entidades principais de negócio estão integradas e consolidadas no **
 A persistência do Smart Exit School está consolidada no Supabase PostgreSQL através da Data Access Layer (DAL). O schema relacional cobre autenticação, Platform Admins, catálogo institucional, anos letivos configuráveis, núcleo acadêmico, portões operacionais, alunos, matrículas, eventos de chamada com cancelamento (`public.pickup_events`), trilha imutável de auditoria de suporte (`public.impersonation_audit_logs`) e fundação completa de Row Level Security (RLS). O `localStorage` atua exclusivamente como cache volátil de interface e preferências locais de navegação.
 
 - Documentação de modelagem de domínio: [arquitetura/modelagem.md](arquitetura/modelagem.md)
-- Decisões arquiteturais (ADRs): [arquitetura/decisoes.md](arquitetura/decisoes.md) e [adr/0029-impersonation-user-level-jwt.md](adr/0029-impersonation-user-level-jwt.md)
+- Decisões arquiteturais (ADRs): [adr/README.md](adr/README.md)
 
 ---
 

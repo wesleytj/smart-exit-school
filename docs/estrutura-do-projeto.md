@@ -248,7 +248,7 @@ Provedores de estado reativo global e hooks de consumo seguro:
 | `docs/adr/0029-impersonation-user-level-jwt.md` | ADR-029: Impersonation User-Level com JWT Manual assinado em Edge Function (Deno) |
 | `docs/impersonation-support-flow.md` | Guia de suporte operacional de ponta a ponta para impersonation |
 | `docs/infra/smtp-brevo-setup.md` | Configuração de relay SMTP transacional com Brevo |
-| `docs/arquitetura/decisoes.md` | ADRs congeladas 001–028 (fonte de verdade arquitetural permanente) |
+| `docs/adr/README.md` | Catálogo canônico de ADRs 001–030 |
 | `docs/arquitetura/modelagem.md` | Entidades e relacionamentos de domínio |
 | `docs/arquitetura/padroes.md` | Convenções de código, banco e commits |
 | `docs/arquitetura/checklist-modelagem.md` | Checklist antes de novas migrations |

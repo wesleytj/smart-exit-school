@@ -1,6 +1,6 @@
 # Autenticação — Smart Exit School
 
-A identidade do usuário é a sessão do Supabase Auth ([ADR-004](./arquitetura/decisoes.md#adr-004-identidade-e-autenticacao-via-supabase-auth)). O identificador usado pela aplicação é `auth.uid()`. `public.schools` representa a organização e não guarda credencial ([ADR-005](./arquitetura/decisoes.md#adr-005-representacao-de-escola-em-publicschools)). `public.profiles` não carrega `school_id` ([ADR-007](./arquitetura/decisoes.md#adr-007-perfil-de-usuario-em-publicprofiles)). A autorização do tenant não é lida de `profiles`.
+A identidade do usuário é a sessão do Supabase Auth ([ADR-004](./adr/0004-autenticacao.md)). O identificador usado pela aplicação é `auth.uid()`. `public.schools` representa a organização e não guarda credencial ([ADR-005](./adr/0005-schools.md)). `public.profiles` não carrega `school_id` ([ADR-007](./adr/0007-profiles.md)). A autorização do tenant não é lida de `profiles`.
 
 ```text
 Supabase Auth
@@ -65,7 +65,7 @@ Logout encerra a sessão do Supabase Auth (`supabase.auth.signOut()`) e limpa ca
 
 ## Platform Admin
 
-Platform Admin e usuário de escola são domínios rigorosamente separados ([ADR-028](./arquitetura/decisoes.md#adr-028-separacao-entre-platform-admin-e-dominio-operacional-de-escola)).
+Platform Admin e usuário de escola são domínios rigorosamente separados ([ADR-028](./adr/0028-dominios-platform-e-tenant.md)).
 
 - A autoridade de plataforma é a RPC `is_platform_admin()`, não `school_members`.
 - O fluxo oficial de Platform Admin é `/admin/institutions`.

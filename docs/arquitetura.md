@@ -138,7 +138,7 @@ A fila de chamadas em tempo real é centralizada na tabela `public.pickup_events
 | [adr/0029-impersonation-user-level-jwt.md](adr/0029-impersonation-user-level-jwt.md) | ADR-029: Impersonation User-Level com JWT Manual |
 | [impersonation-support-flow.md](impersonation-support-flow.md) | Guia completo de suporte técnico operacional |
 | [infra/smtp-brevo-setup.md](infra/smtp-brevo-setup.md) | Configuração de relay SMTP Brevo para e-mail transacional |
-| [arquitetura/decisoes.md](arquitetura/decisoes.md) | ADRs consolidadas 001 a 028 |
+| [adr/README.md](adr/README.md) | Catálogo de Decisões Arquiteturais (ADRs 001 a 030) |
 | [arquitetura/modelagem.md](arquitetura/modelagem.md) | Modelo relacional de domínio |
 | [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções técnicas de código e banco |
 | [banco-de-dados.md](banco-de-dados.md) | Detalhamento de schema, RLS e seed baseline |
