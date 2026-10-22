@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { platformAdminService } from '../services/platformAdminService';
-import { isSameUserRevalidation } from '../services/platformAdminResolution';
+import { platformAdminService, isSameUserRevalidation } from '../services/platformAdminService';
 import { PlatformAdminContext } from './platformAdminContext';
 
 export function PlatformAdminProvider({ children }) {

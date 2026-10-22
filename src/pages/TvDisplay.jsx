@@ -5,7 +5,7 @@ import { themeService } from "../services/themeService"
 import { schoolOpsStore } from "../services/schoolOpsStore"
 import { toPanelSchool } from "../services/tenantAccess"
 import { useTenantSession } from "../hooks/useTenantSession"
-import { STORAGE_KEYS } from "../services/core/keys"
+import { STORAGE_KEYS } from "../services/keys"
 
 export default function TvDisplay() {
   const { status, school } = useTenantSession()

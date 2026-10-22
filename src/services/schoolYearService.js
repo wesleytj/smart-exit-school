@@ -1,5 +1,9 @@
 import { schoolYearRepository } from '../repositories/schoolYearRepository.js';
 
+export function currentAcademicYear(now = new Date()) {
+  return now.getFullYear();
+}
+
 function requireSchoolId(schoolId) {
   if (!schoolId) {
     return new Error('Escola autorizada ausente.');

@@ -2,8 +2,7 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { KeyRound, ArrowLeft, AlertTriangle, Loader2 } from "lucide-react"
 import PasswordInput from "../components/PasswordInput"
-import { authService } from "../services/authService"
-import { validatePasswordUpdate } from "../services/authValidation"
+import { authService, validatePasswordUpdate } from "../services/authService"
 
 export default function UpdatePassword() {
   const [password, setPassword] = useState("")

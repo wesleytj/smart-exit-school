@@ -9,7 +9,7 @@ Documentação das regras de negócio do sistema, derivada exclusivamente do com
 ### 1.1 Multi-instituição
 
 - Uma instância da aplicação serve múltiplas escolas (instituições)
-- Autenticação e identidade gerenciadas pelo Supabase Auth (`auth.uid()`), sem credenciais de email/senha isoladas diretamente na entidade escola ([ADR-005](./arquitetura/decisoes.md#adr-005-representacao-de-escola-em-publicschools))
+- Autenticação e identidade gerenciadas pelo Supabase Auth (`auth.uid()`), sem credenciais de email/senha isoladas diretamente na entidade escola ([ADR-005](./adr/0005-schools.md))
 - Resolução de escola ativa (tenant) através de membership ativa em `public.school_members` vinculada ao perfil do usuário
 - Gestão global de instituições e catálogo reservada exclusivamente a Platform Admins via RPC `public.is_platform_admin()`
 - Dados e operações de cada escola são isolados por `school_id` nas tabelas relacionais do Supabase sob políticas de Row Level Security (RLS)

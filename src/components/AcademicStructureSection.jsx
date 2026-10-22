@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react"
 import { BookOpen, Pencil, Plus } from "lucide-react"
 import { academicLevelService } from "../services/academicLevelService.js"
-import { academicGroupService } from "../services/academicGroupService.js"
+import { academicGroupService, shiftLabel, sortShifts } from "../services/academicGroupService.js"
 import { schoolYearService } from "../services/schoolYearService.js"
-import { shiftLabel, sortShifts } from "../services/academicShiftLabels.js"
 
 export default function AcademicStructureSection({ schoolId }) {
   const [levelsList, setLevelsList] = useState([]);

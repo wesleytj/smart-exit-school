@@ -1,6 +1,18 @@
 import { useState, forwardRef } from "react"
 import { Lock, Eye, EyeOff } from "lucide-react"
-import { getPasswordInputProps, togglePasswordVisibility } from "../services/passwordVisibility"
+
+export function getPasswordInputProps(show) {
+  return {
+    inputType: show ? 'text' : 'password',
+    buttonAriaLabel: show ? 'Ocultar senha' : 'Mostrar senha',
+    buttonAriaPressed: Boolean(show),
+  };
+}
+
+export function togglePasswordVisibility(current) {
+  return !current;
+}
+
 
 const PasswordInput = forwardRef(function PasswordInput(
   {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { isSameUserRevalidation } from './platformAdminResolution.js'
+import { isSameUserRevalidation } from './platformAdminService.js'
 
 describe('isSameUserRevalidation', () => {
   it('treats the first resolution as a blocking load', () => {

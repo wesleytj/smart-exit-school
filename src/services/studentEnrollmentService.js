@@ -1,5 +1,5 @@
 import { studentEnrollmentRepository } from '../repositories/studentEnrollmentRepository.js';
-import { currentAcademicYear } from './academicYear.js';
+import { currentAcademicYear } from './schoolYearService.js';
 
 function requireStudentId(studentId) {
   if (!studentId) {

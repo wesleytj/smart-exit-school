@@ -4,7 +4,7 @@ import { academicGroupRepository } from '../repositories/academicGroupRepository
 import { studentRepository } from '../repositories/studentRepository.js'
 import { studentEnrollmentRepository } from '../repositories/studentEnrollmentRepository.js'
 import { studentGroupAssignmentRepository } from '../repositories/studentGroupAssignmentRepository.js'
-import { currentAcademicYear } from './academicYear.js'
+import { currentAcademicYear } from './schoolYearService.js'
 import { studentService, mapStudentError, requireBirthDate } from './studentService.js'
 import { studentGroupAssignmentService } from './studentGroupAssignmentService.js'
 

@@ -43,7 +43,7 @@ import {
   dismissCancelFeedback
 } from "../services/cancelCallDialog.js"
 import { themeService } from "../services/themeService"
-import { storageClient } from "../services/core/storageClient"
+import { storageClient } from "../services/storageClient"
 import { schoolOpsStore } from "../services/schoolOpsStore"
 import { pickOperationalState, toPanelSchool } from "../services/tenantAccess"
 import { useTenantSession } from "../hooks/useTenantSession"

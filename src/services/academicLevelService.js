@@ -1,5 +1,5 @@
 import { academicLevelRepository } from '../repositories/academicLevelRepository.js';
-import { nextDisplayOrder } from './gateOrder.js';
+import { nextDisplayOrder } from './gateService.js';
 
 function requireSchoolId(schoolId) {
   if (!schoolId) {

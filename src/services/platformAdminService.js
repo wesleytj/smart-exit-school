@@ -1,5 +1,10 @@
-import { supabase } from '../lib/supabase';
-import { platformAdminRepository } from '../repositories/platformAdminRepository';
+import { supabase } from '../lib/supabase.js';
+import { platformAdminRepository } from '../repositories/platformAdminRepository.js';
+
+export function isSameUserRevalidation(resolvedUserId, sessionUserId) {
+  return Boolean(resolvedUserId) && resolvedUserId === sessionUserId;
+}
+
 
 export const platformAdminService = {
   async isPlatformAdmin(profileId) {

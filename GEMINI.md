@@ -57,7 +57,7 @@ Para cumprir os Quality Gates e o Completion Model do AADS neste projeto, utiliz
 
 Antes de propor alteracoes no SES, consulte a documentacao relevante em `docs/`:
 - Arquitetura geral: `docs/arquitetura.md`
-- Decisoes consolidadas: `docs/arquitetura/decisoes.md`
+- Decisoes consolidadas: `docs/adr/README.md`
 - Governanca de QA: `docs/qa-data-governance.md`
 - Banco de dados e schema: `docs/banco-de-dados.md`
 - Autenticacao e permissoes: `docs/autenticacao.md` e `docs/permissoes.md`
