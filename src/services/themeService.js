@@ -1,5 +1,5 @@
-import { storageClient } from './core/storageClient';
-import { STORAGE_KEYS } from './core/keys';
+import { storageClient } from './storageClient.js';
+import { STORAGE_KEYS } from './keys.js';
 
 export const themeService = {
   async getThemePreference() {

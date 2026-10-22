@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase.js';
-import { STORAGE_KEYS } from './core/keys.js';
-import { storageClient } from './core/storageClient.js';
+import { STORAGE_KEYS } from './keys.js';
+import { storageClient } from './storageClient.js';
 
 export function getPasswordInputProps(show) {
   return {
