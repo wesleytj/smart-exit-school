@@ -11,6 +11,7 @@ import { invitationService } from "../services/invitationService"
 import { usePlatformAdmin } from "../hooks/usePlatformAdmin"
 import { useTenantSession } from "../hooks/useTenantSession"
 import { supabase } from "../lib/supabase"
+import ImpersonationAuditSection from "../components/ImpersonationAuditSection"
 
 export default function InstitutionsManager() {
   const navigate = useNavigate()
@@ -386,6 +387,18 @@ export default function InstitutionsManager() {
             <Users size={18} />
             Catálogo de Usuários & Suporte
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("audit")}
+            className={`pb-4 px-5 font-bold text-sm border-b-2 transition flex items-center gap-2 cursor-pointer ${
+              activeTab === "audit"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <ShieldAlert size={18} />
+            Auditoria de Suporte
+          </button>
         </div>
 
         {/* ======================================================== */}
@@ -752,6 +765,13 @@ export default function InstitutionsManager() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* ABA 3: AUDITORIA DE SUPORTE (P2) */}
+        {/* ======================================================== */}
+        {activeTab === "audit" && (
+          <ImpersonationAuditSection institutions={institutions} />
         )}
 
       </main>

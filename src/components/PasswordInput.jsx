@@ -1,7 +1,7 @@
 import { useState, forwardRef } from "react"
 import { Lock, Eye, EyeOff } from "lucide-react"
 
-export function getPasswordInputProps(show) {
+function getPasswordInputProps(show) {
   return {
     inputType: show ? 'text' : 'password',
     buttonAriaLabel: show ? 'Ocultar senha' : 'Mostrar senha',
@@ -9,7 +9,7 @@ export function getPasswordInputProps(show) {
   };
 }
 
-export function togglePasswordVisibility(current) {
+function togglePasswordVisibility(current) {
   return !current;
 }
 
