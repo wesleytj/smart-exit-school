@@ -19,20 +19,18 @@ smart-exit-school/
 ├── README.md
 │
 ├── docs/                             # Documentação técnica oficial
-│   ├── adr/                          # Architecture Decision Records
-│   │   └── 0029-impersonation-user-level-jwt.md
+│   ├── adr/                          # Architecture Decision Records (ADRs 001–030)
+│   ├── cycles/                       # Relatórios de ciclos e auditorias históricas
 │   ├── infra/                        # Guias de infraestrutura e serviços
 │   │   └── smtp-brevo-setup.md
 │   ├── impersonation-support-flow.md # Guia operacional do fluxo de impersonation
 │   ├── qa-data-governance.md         # Política de dados de QA (reutilizar antes de criar)
 │   ├── qa-inventory.md               # Snapshot read-only de fixtures
 │   ├── qa-production-smoke.md        # Roteiro operacional de smoke em produção
-│   ├── auditoria-isolamento-multi-tenant.md # Spike #47 — auditoria read-only RLS/tenant
-│   └── arquitetura/                  # ADRs 001–028, modelagem, padrões
+│   └── arquitetura/                  # Modelagem de domínio e padrões técnicos
 │
 ├── public/
 │   ├── favicon.svg
-│   ├── icons.svg
 │   └── sounds/call.mp3
 │
 ├── supabase/
@@ -116,15 +114,11 @@ smart-exit-school/
     └── services/                     # Camada de Serviços de Negócio (DAL - Services)
         ├── academicGroupService.js
         ├── academicLevelService.js
-        ├── academicShiftLabels.js
         ├── academicStructure.test.js
-        ├── academicYear.js
         ├── authPasswordFlows.test.js
         ├── authService.js
-        ├── authValidation.js
         ├── cancelCallDialog.js       # Máquina de estados do diálogo de cancelamento
         ├── cancelCallDialog.test.js
-        ├── gateOrder.js
         ├── gateService.js
         ├── gateService.test.js
         ├── impersonationEdgeFunctions.test.js
@@ -133,22 +127,22 @@ smart-exit-school/
         ├── impersonationService.js
         ├── impersonationService.test.js
         ├── invitationService.js      # Validação e confirmação de convites institucionais
+        ├── keys.js                   # Chaves constantes de storage operacional
         ├── memberInvitation.test.js
         ├── multiTenantIsolation.test.js
-        ├── passwordVisibility.js
         ├── pickupArchive.test.js
         ├── pickupArchiveService.js   # Invocação da RPC archive_old_pickup_events
         ├── pickupCallFilter.js       # Ordenação e filtros da fila de chamadas
         ├── pickupCallFilter.test.js
         ├── pickupService.js
         ├── pickupService.test.js
-        ├── platformAdminResolution.js
         ├── platformAdminResolution.test.js
         ├── platformAdminService.js
         ├── schoolOpsStore.js
         ├── schoolService.js
         ├── schoolYearService.js
         ├── schoolYearService.test.js
+        ├── storageClient.js          # Cliente de persistência local/runtime
         ├── studentEnrollmentService.js
         ├── studentFlow.test.js
         ├── studentGroupAssignmentService.js
@@ -156,11 +150,7 @@ smart-exit-school/
         ├── tenantAccess.js
         ├── tenantAccess.test.js
         ├── tenantSessionService.js
-        ├── themeService.js
-        └── core/
-            ├── keys.js
-            ├── storageClient.js
-            └── supabaseClient.js
+        └── themeService.js
 ```
 
 ---
