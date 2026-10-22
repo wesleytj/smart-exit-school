@@ -215,6 +215,10 @@ export const pickupEventRepository = {
     offset = 0,
     includeArchive = true
   } = {}) {
+    if (!schoolId) {
+      return { data: [], count: 0, error: new Error('Escola autorizada ausente.') };
+    }
+
     const supabase = await db();
 
     let hotQuery = supabase
@@ -223,7 +227,11 @@ export const pickupEventRepository = {
     hotQuery = applyHistoryFilters(hotQuery, { schoolId, status, gateId, from, to });
     hotQuery = hotQuery.order('called_at', { ascending: false });
 
-    if (!includeArchive) {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const isStrictlyRecent = Boolean(from && new Date(from).getTime() > thirtyDaysAgo);
+    const shouldQueryArchive = includeArchive && !isStrictlyRecent;
+
+    if (!shouldQueryArchive) {
       const { data, count, error } = await hotQuery.range(offset, offset + limit - 1);
       return { data: data || [], count: count || 0, error };
     }
@@ -270,6 +278,10 @@ export const pickupEventRepository = {
     to = null,
     includeArchive = true
   } = {}) {
+    if (!schoolId) {
+      return { count: 0, error: new Error('Escola autorizada ausente.') };
+    }
+
     const supabase = await db();
 
     let hotQuery = supabase
@@ -277,7 +289,11 @@ export const pickupEventRepository = {
       .select('id', { count: 'exact', head: true });
     hotQuery = applyHistoryFilters(hotQuery, { schoolId, status, gateId, from, to });
 
-    if (!includeArchive) {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const isStrictlyRecent = Boolean(from && new Date(from).getTime() > thirtyDaysAgo);
+    const shouldQueryArchive = includeArchive && !isStrictlyRecent;
+
+    if (!shouldQueryArchive) {
       const { count, error } = await hotQuery;
       return { count: count || 0, error };
     }

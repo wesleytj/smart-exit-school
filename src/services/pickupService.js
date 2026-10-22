@@ -113,9 +113,9 @@ export function mapExitEvent(row) {
     enrollmentId: row.student_enrollment_id,
     studentId: student?.id || enrollment?.student_id || null,
     studentName: student?.full_name || '',
-    studentIdentifier: student?.identifier || '',
+    studentIdentifier: student?.identifier || student?.student_identifier || enrollment?.student_identifier || enrollment?.identifier || '',
     groupName: activeAssignment?.academic_groups?.name || '',
-    groupId: activeAssignment?.academic_groups?.id || null,
+    groupId: activeAssignment?.academic_group_id || activeAssignment?.academic_groups?.id || null,
     gateId: row.gate_id,
     gateName: row.gates?.name || '',
     status: row.status,
@@ -498,16 +498,18 @@ export const pickupService = {
     to = null,
     page = 1,
     pageSize = 25,
+    limit,
+    offset,
     includeArchive = true
   } = {}) {
     const schoolError = requireSchoolId(schoolId);
     if (schoolError) {
-      return { data: [], totalCount: 0, page: 1, pageSize: 25, totalPages: 0, error: schoolError };
+      return { data: [], total: 0, totalCount: 0, page: 1, pageSize: 25, totalPages: 0, error: schoolError };
     }
 
-    const p = Math.max(1, Number(page) || 1);
-    const size = Math.max(1, Math.min(100, Number(pageSize) || 25));
-    const offset = (p - 1) * size;
+    const size = Math.max(1, Math.min(2000, Number(limit ?? pageSize) || 25));
+    const off = offset !== undefined ? Math.max(0, Number(offset) || 0) : ((Math.max(1, Number(page) || 1) - 1) * size);
+    const p = offset !== undefined ? Math.floor(off / size) + 1 : Math.max(1, Number(page) || 1);
 
     const result = await pickupEventRepository.listHistoryBySchool({
       schoolId,
@@ -516,12 +518,12 @@ export const pickupService = {
       from,
       to,
       limit: size,
-      offset,
+      offset: off,
       includeArchive
     });
 
     if (result.error) {
-      return { data: [], totalCount: 0, page: p, pageSize: size, totalPages: 0, error: result.error };
+      return { data: [], total: 0, totalCount: 0, page: p, pageSize: size, totalPages: 0, error: result.error };
     }
 
     let mapped = (result.data || []).map(mapExitEvent);
@@ -542,11 +544,17 @@ export const pickupService = {
       );
     }
 
-    const totalCount = result.count || 0;
+    // Caso o repositório retorne mais dados que o limite (ex.: mocks/stubs em testes)
+    if (mapped.length > size) {
+      mapped = mapped.slice(0, size);
+    }
+
+    const totalCount = result.count !== undefined ? result.count : mapped.length;
     const totalPages = Math.ceil(totalCount / size);
 
     return {
       data: mapped,
+      total: totalCount,
       totalCount,
       page: p,
       pageSize: size,
@@ -614,7 +622,7 @@ export const pickupService = {
 
     const averageWaitTimeSeconds = waitEventsCount > 0
       ? Math.round(totalWaitSeconds / waitEventsCount)
-      : null;
+      : 0;
 
     const gateMap = new Map();
     const groupMap = new Map();
@@ -641,12 +649,22 @@ export const pickupService = {
     }
 
     const byGate = Array.from(gateMap.values()).sort((a, b) => b.count - a.count);
+    for (const item of byGate) {
+      byGate[item.gateName] = item.count;
+    }
+
     const byGroup = Array.from(groupMap.values()).sort((a, b) => b.count - a.count);
+    for (const item of byGroup) {
+      byGroup[item.groupName] = item.count;
+    }
 
     return {
       data: {
+        total: totalExits,
         totalExits,
+        completed: completedCount,
         completedCount,
+        cancelled: cancelledCount,
         cancelledCount,
         cancellationRate,
         averageWaitTimeSeconds,
