@@ -23,10 +23,12 @@ Node.js **22.x**, alinhado a `docs/instalacao.md` (LTS 20.x ou 22.x) e ao requis
 
 A suíte de testes é segregada para garantir determinismo e isolamento de runtime:
 
-- **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 204 testes puros em 14 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
-- **Suíte de Integração (`npm run test:integration`):** Compreende 57 testes em 4 arquivos (`impersonationFoundation.test.js`, `impersonationEdgeFunctions.test.js`, `impersonationSecurityAudit.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma, isolamento RLS multi-tenant real e endpoints das Edge Functions.
+- **Suíte Unitária (`npm run test:unit`):** Executada compulsoriamente no CI remoto. Compreende 241 testes puros em 15 arquivos, 100% determinísticos e independentes de rede ou containers locais (sem necessidade de Docker ou Supabase).
+- **Suíte de Integração DB (`npm run test:integration:db`):** Compreende 21 testes em 2 arquivos (`impersonationFoundation.test.js` e `multiTenantIsolationRuntime.test.js`) que exercitam PostgREST local, RPCs de plataforma e isolamento RLS multi-tenant real (100% PASS local).
+- **Suíte de Integração Edge (`npm run test:integration:edge`):** Compreende 36 testes em 2 arquivos (`impersonationEdgeFunctions.test.js` e `impersonationSecurityAudit.test.js`) que validam endpoints das Edge Functions e auditoria de impersonation. Possui probe transparente de conectividade e skip condicional documentado quando o Edge Runtime local está desligado (23 PASS + 13 SKIP), executando 36 PASS quando o runtime está ativo.
+- **Suíte de Integração Completa (`npm run test:integration`):** Wrapper que executa `test:integration:db` e `test:integration:edge` em sequência (57 testes).
 - **Suíte E2E Canônica (`npm run test:e2e`):** 8 cenários executados no Google Chrome real (`channel: 'chrome'`) via Playwright, com `headless: false` por padrão (headless sob demanda via `E2E_HEADLESS=1`). Exercita os fluxos críticos de ponta a ponta com evidências salvas em vídeo (`.webm`) e screenshots (`.png`) em `test-results/`.
-- **Suíte Completa Local (`npm test`):** Executa 261 testes (204 unitários + 57 de integração locais).
+- **Suíte Completa Local (`npm test`):** Executa a suíte combinada unitária e de integração locais (298 testes).
 
 ### Por que Integração e E2E não rodam no CI Remoto?
 As suítes de integração e E2E requerem o ecossistema completo de containers Docker do Supabase (PostgreSQL 17 relacional com RLS ativo, PostgREST, Auth e Edge Runtime). Para manter o CI remoto ágil (execução em ~15s), determinístico e sem custos de infraestrutura pesada em runners do GitHub Actions, esses testes são executados localmente antes da abertura de Pull Requests.
