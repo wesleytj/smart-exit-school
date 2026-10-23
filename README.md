@@ -5,7 +5,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.2.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Auth%20%2B%20Edge%20Functions-3ECF8E?logo=supabase)](https://supabase.com/)
 [![Deno](https://img.shields.io/badge/Deno-2-000000?logo=deno)](https://deno.land/)
-[![Tests](https://img.shields.io/badge/Tests-269%20passing%20(204%20unit%20%7C%2057%20integration%20%7C%208%20e2e)-brightgreen)](./src)
+[![Tests](https://img.shields.io/badge/Tests-306%20passing%20(241%20unit%20%7C%2057%20integration%20%7C%208%20e2e)-brightgreen)](./src)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](./.github/workflows)
 
 > Sistema SaaS moderno de gestão, organização e chamada inteligente de saída de alunos para instituições de ensino.
@@ -167,9 +167,9 @@ npm run dev
 | `npm run dev` | Inicia o servidor de desenvolvimento Vite com HMR | Servidor ativo em `http://localhost:5173` |
 | `npm run build` | Compila o bundle otimizado de produção | Diretório `dist/` gerado com sucesso |
 | `npm run lint` | Executa a validação estática de código | 0 erros, 0 warnings com ESLint 10 |
-| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 204 PASS · 0 FAIL (100% determinístico, sem Docker) |
+| `npm run test:unit` | Executa a suíte de testes unitários offline (executada no CI) | 241 PASS · 0 FAIL (100% determinístico, sem Docker) |
 | `npm run test:integration` | Executa testes de integração (PostgREST local, RLS runtime e impersonation) | 57 testes PASS (requer containers locais Docker/Supabase) |
-| `npm test` | Executa a suíte completa de testes (unitários + integração) | 261 testes PASS (204 unitários + 57 integração) |
+| `npm test` | Executa a suíte completa de testes (unitários + integração) | 298 testes PASS (241 unitários + 57 integração) |
 | `npm run test:e2e` | Executa a suíte E2E canônica Playwright (`headless: false` configurado) | 8 cenários PASS · 0 FAIL (evidência objetiva persistida em vídeos .webm e screenshots .png em `test-results/`) |
 | `npm run test:e2e:ui` | Abre a interface visual interativa do Playwright Test Runner | Interface gráfica para depuração passo a passo |
 | `npm run audit:db` | Executa o Database Auditor v1 | 97 PASS · 0 FAIL · 5 WARN (valida schema, RLS e seed invariants) |
@@ -194,8 +194,9 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 |---|---|---|---|
 | **[Ciclo F](docs/cycles/CICLO-F-CONCLUSAO.md)** | Sincronização em Tempo Real (Realtime) | ✅ Concluído | 21/10/2026 |
 | **[Ciclo G — P1](docs/cycles/CICLO-G-P1-CONCLUSAO.md)** | Histórico e Relatórios de Saídas (PR #96) | ✅ Concluído | 22/10/2026 |
+| **[Ciclo G — P2](docs/cycles/CICLO-G-P2-CONCLUSAO.md)** | Visualizador de Auditoria de Impersonation (PR #98) | ✅ Concluído | 22/10/2026 |
 
-**Próximo ciclo:** Ciclo G — P2 (a definir) / Consolidação de Higiene
+**Próximo ciclo:** A definir conforme priorização de produto / roadmap.
 
 ---
 

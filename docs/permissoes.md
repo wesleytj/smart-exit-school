@@ -4,7 +4,7 @@
 
 | Perfil | Identificação | Autenticação & Mecanismo | Escopo e Acesso Operacional |
 |--------|---------------|--------------------------|-----------------------------|
-| **Platform Admin (Super Admin)** | RPC `is_platform_admin()` | Supabase Auth; fluxo `/admin/institutions`; não é tenant | Gestão global de instituições, catálogo de usuários e suporte técnico via impersonation |
+| **Platform Admin (Super Admin)** | RPC `is_platform_admin()` | Supabase Auth; fluxo `/admin/institutions`; não é tenant | Gestão global de instituições, catálogo de usuários, suporte técnico via impersonation e auditoria completa de sessões |
 | **Operador de Escola** | Membership ativa em `school_members` | Supabase Auth (`auth.uid()`) | Operação diária da unidade escolar vinculada (alunos, turmas, chamadas, anos letivos) |
 | **Operador Impersonado** | JWT manual assinado (HS256) | Edge Function `impersonate-user`; token temporário auditado | Acesso em primeira pessoa ao painel do operador-alvo com isolamento RLS de tenant; sem privilégio de plataforma |
 | **Telão (anônimo)** | Sem login | Acesso público à rota `/tv`; não autoriza tenant | Fila de chamadas da escola via cache de exibição |
@@ -22,6 +22,7 @@ O catálogo `public.roles` contém `owner`, `administrator`, `secretary` e `gate
 graph TD
     SA[Super Admin] --> |CRUD Global| Schools[Instituições /admin/institutions]
     SA --> |Leitura Global| Users[Catálogo de Usuários RPC]
+    SA --> |Auditoria Forense| Audit[Auditoria de Impersonation]
     SA -.-> |Impersonation Auditada| OP[Operador de Escola]
     OP --> |CRUD Tenant| OwnData[Dados da Escola: Alunos, Turmas, Anos Letivos]
     OP --> |Read/Write| Monitor[Monitor de Saída / Painel]
@@ -39,6 +40,7 @@ graph TD
 | Dashboard global de instituições | ✅ | ❌ | ❌ |
 | Catálogo global de usuários (`list_platform_users`) | ✅ | ❌ | ❌ |
 | Iniciar / encerrar Impersonation | ✅ | ❌ | ❌ |
+| Visualizador de auditoria de impersonation (P2) | ✅ | ❌ | ❌ |
 | Operar saída de alunos (chamar) | ❌ | ✅ | ✅ |
 | Cancelar chamadas de saída (`cancelled_at`) | ❌ | ✅ | ✅ |
 | Consultar arquivo de chamadas (`pickup_events_archive`) | ❌ | ✅ | ✅ |
@@ -89,6 +91,9 @@ O acesso do Super Admin ao domínio operacional da escola ocorre exclusivamente 
    - O SDK cliente executa `supabase.auth.stopAutoRefresh()` para garantir que o token expire deterministicamente após 45 minutos (2700 segundos), encerrando a sessão de suporte e evitando permanência indevida.
 5. **Restauração Segura:**
    - Ao encerrar a impersonation, o cliente restaura os tokens originais do Platform Admin a partir de `sessionStorage`, limpa os caches de tenant em memória e reativa `supabase.auth.startAutoRefresh()`.
+6. **Auditoria de Impersonation Soberana (Ciclo G — P2):**
+   - A visualização dos logs de auditoria em `/admin/institutions` é autorizada a todos os usuários com papel ativo de **Platform Admin** (resolvido soberanamente pela RPC `public.is_platform_admin()`).
+   - A funcionalidade é estritamente de governança da plataforma, **sem qualquer gating ou restrição por plano escolar** (Basic, Premium ou Diamond).
 
 ---
 

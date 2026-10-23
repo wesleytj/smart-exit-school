@@ -27,7 +27,14 @@ Mapeamento completo do estado atual, organizado por perfil de usuário.
 | Impersonar escola (login como usuário) | ✅ Super Admin acessa conta de usuário-alvo via impersonation auditada, com par de tokens JWT efêmeros (v5) compatíveis com GoTrue, TTL 45min, auto-refresh suspenso no cliente e trilha imutável em `impersonation_audit_logs` ([ADR-029](./adr/0029-impersonation-user-level-jwt.md) e [ADR-030](./adr/0030-hardening-verify-jwt-impersonation.md)) | `InstitutionsManager.jsx`, Edge Functions `impersonate-user` / `end-impersonation` |
 | Banner de suporte (Impersonation) | ✅ Componente `SupportBanner` com identificação visual, contador regressivo de 45min e botão de encerramento seguro | `SupportBanner.jsx` |
 | Logs de auditoria | ✅ Tabela `public.impersonation_audit_logs` com snapshots imutáveis de e-mail/nome, constraints de validação, RLS restritivo e testes de segurança (Grupos A/B) | `impersonation_audit_logs`, Edge Functions |
+| Visualizador de auditoria de impersonation (P2) | ✅ Aba dedicada "Auditoria" em `/admin/institutions` com métricas consolidadas, filtros combinados, paginação e modal forense ([Ciclo G — P2](./cycles/CICLO-G-P2-CONCLUSAO.md)) | `ImpersonationAuditSection.jsx`, `impersonationService.js`, `impersonationAuditRepository.js` |
 | Migração plano Pro → Basic | Automática no load | `InstitutionsManager.jsx` |
+
+### Auditoria de Suporte
+- Consulta detalhada de sessões de impersonation com filtros por super admin, usuário-alvo, escola e período.
+- Métricas consolidadas (total, concluídas, em andamento, expiradas, duração média).
+- Badges visuais de status (concluída, em andamento, expirada com TTL 45 min).
+- Modal de detalhes técnicos (IP, user-agent) para auditoria forense.
 
 ### Incompletas / Ausentes
 
