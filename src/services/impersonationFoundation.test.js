@@ -20,13 +20,14 @@ const PLATFORM_ADMIN_ID = '6f4f26ae-0bcf-434d-94ee-ada82ddc8b25';
 const REGULAR_USER_ID = '99999999-9999-4999-8999-999999999999';
 
 function createToken(sub, role = 'authenticated') {
+  const now = Math.floor(Date.now() / 1000);
   return jwt.sign(
     {
       aud: 'authenticated',
       role,
       sub,
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      iat: Math.floor(Date.now() / 1000)
+      exp: now + 3600,
+      iat: now - 10
     },
     JWT_SECRET
   );
