@@ -68,3 +68,47 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  integration-db:
+    name: Integration (DB & RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase (minimal services)
+        run: |
+          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,realtime,storage,studio,vector
+
+      - name: Seed Multi-Tenant Fixtures
+        run: |
+          cat supabase/seed-multi-tenant.sql | docker exec -i supabase_db_smart-exit-school psql -U postgres -d postgres
+
+      - name: Validate RLS Foundation
+        env:
+          VITE_SUPABASE_URL: "http://127.0.0.1:54321"
+          VITE_SUPABASE_ANON_KEY: "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"
+          SUPABASE_LOCAL_JWT_SECRET: "super-secret-jwt-token-with-at-least-32-characters-long"
+        run: npm run validate:rls
+
+      - name: Run DB Integration Tests
+        env:
+          VITE_SUPABASE_URL: "http://127.0.0.1:54321"
+          VITE_SUPABASE_ANON_KEY: "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"
+          SUPABASE_LOCAL_JWT_SECRET: "super-secret-jwt-token-with-at-least-32-characters-long"
+        run: npm run test:integration:db
+
