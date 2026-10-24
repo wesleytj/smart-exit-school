@@ -108,7 +108,7 @@ O **Smart Exit School (SES)** é uma plataforma desenvolvida pela **AllTech Solu
 | **Test Runner (Unit / Integration)** | Node Test Runner (`node --test`) | Nativo (204 unitários determinísticos, 57 de integração locais) |
 | **Test Runner (E2E Canônico)** | Playwright | 1.64.0 (8 cenários com Chromium real, `headless: false` configurado e persistência de vídeos/screenshots em `test-results/`) |
 | **Análise Estática (Lint)** | ESLint | 10.2.1 (0 erros, 0 warnings) |
-| **Integração Contínua** | GitHub Actions | Workflows de Lint + Build + Testes Unitários (`npm run test:unit`) |
+| **Integração Contínua** | GitHub Actions | Workflows de Lint + Build + Testes Unitários (`npm run test:unit`) + Integração DB & RLS (`npm run test:integration:db`) |
 | **Deploy & Hosting** | Vercel (Frontend SPA) + Supabase Cloud (Backend) | SPA rewrite configurado via `vercel.json`; Deploy Parity via `npx supabase db push` |
 
 ---
