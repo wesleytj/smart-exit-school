@@ -59,6 +59,23 @@ values
     '',
     now(),
     now()
+),
+(
+    '6f4f26ae-0bcf-434d-94ee-ada82ddc8b25',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'admin@alltech.com',
+    crypt('SenhaForte123!', gen_salt('bf')),
+    now(),
+    '{"full_name": "admin"}'::jsonb,
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '',
+    '',
+    '',
+    '',
+    now(),
+    now()
 )
 on conflict (id) do nothing;
 
@@ -66,8 +83,14 @@ on conflict (id) do nothing;
 insert into public.profiles (id, full_name)
 values
     ('11111111-1111-1111-1111-111111111111', 'Operador Tenant Alpha'),
-    ('22222222-2222-2222-2222-222222222222', 'Operador Tenant Beta')
+    ('22222222-2222-2222-2222-222222222222', 'Operador Tenant Beta'),
+    ('6f4f26ae-0bcf-434d-94ee-ada82ddc8b25', 'admin')
 on conflict (id) do update set full_name = excluded.full_name;
+
+-- 2.1 Platform Admin
+insert into public.platform_admins (profile_id, created_by)
+values ('6f4f26ae-0bcf-434d-94ee-ada82ddc8b25', '6f4f26ae-0bcf-434d-94ee-ada82ddc8b25')
+on conflict (profile_id) do nothing;
 
 -- 3. Escolas (Tenants)
 insert into public.schools (id, name, slug, status, plan, primary_color, secondary_color)

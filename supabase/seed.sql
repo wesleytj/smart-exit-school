@@ -92,6 +92,34 @@ resolved_school as (
     where s.slug = 'smart-exit-dev-school'
     limit 1
 ),
+seed_year as (
+    insert into public.school_years (
+        school_id,
+        year,
+        is_active,
+        starts_at,
+        ends_at
+    )
+    select
+        rs.id,
+        2026,
+        true,
+        date '2026-01-01',
+        date '2026-12-31'
+    from resolved_school rs
+    on conflict (school_id, year)
+    do update set is_active = true
+    returning id, school_id
+),
+resolved_year as (
+    select id, school_id from seed_year
+    union all
+    select sy.id, sy.school_id
+    from public.school_years sy
+    join resolved_school rs on rs.id = sy.school_id
+    where sy.year = 2026
+    limit 1
+),
 seed_level as (
     insert into public.academic_levels (
         school_id,
@@ -137,6 +165,7 @@ seed_group_morning as (
         school_id,
         academic_level_id,
         academic_shift_id,
+        school_year_id,
         name,
         display_order,
         status
@@ -145,12 +174,14 @@ seed_group_morning as (
         rl.school_id,
         rl.id,
         ms.id,
+        ry.id,
         'EF3MA',
         1,
         'active'
     from resolved_level rl
     cross join morning_shift ms
-    on conflict (school_id, academic_level_id, academic_shift_id, name)
+    cross join resolved_year ry
+    on conflict (school_id, academic_level_id, academic_shift_id, school_year_id, name)
     do update
     set
         display_order = excluded.display_order,
@@ -163,6 +194,7 @@ seed_group_afternoon as (
         school_id,
         academic_level_id,
         academic_shift_id,
+        school_year_id,
         name,
         display_order,
         status
@@ -171,12 +203,14 @@ seed_group_afternoon as (
         rl.school_id,
         rl.id,
         afs.id,
+        ry.id,
         'EF3TA',
         2,
         'active'
     from resolved_level rl
     cross join afternoon_shift afs
-    on conflict (school_id, academic_level_id, academic_shift_id, name)
+    cross join resolved_year ry
+    on conflict (school_id, academic_level_id, academic_shift_id, school_year_id, name)
     do update
     set
         display_order = excluded.display_order,
@@ -233,16 +267,20 @@ seed_enrollment as (
     insert into public.student_enrollments (
         student_id,
         academic_year,
+        school_year_id,
         status
     )
     select
         rs.id,
         2026,
+        ry.id,
         'active'
     from resolved_student rs
+    cross join resolved_year ry
     on conflict (student_id, academic_year)
     do update
     set
+        school_year_id = excluded.school_year_id,
         status = excluded.status,
         updated_at = now()
     returning id
