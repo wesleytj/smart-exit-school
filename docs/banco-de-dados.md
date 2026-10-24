@@ -18,7 +18,7 @@ A persistência do Smart Exit School está consolidada no Supabase PostgreSQL at
 
 ## PostgreSQL — Schema implementado
 
-O banco de dados relacional é governado por **27 migrations versionadas** sequenciais em `supabase/migrations/`:
+O banco de dados relacional é governado por **28 migrations versionadas** sequenciais em `supabase/migrations/`:
 
 | Migration | Arquivo | Domínio / Descrição |
 |-----------|---------|---------------------|
@@ -49,6 +49,7 @@ O banco de dados relacional é governado por **27 migrations versionadas** seque
 | 0025 | `20261012173000_create_pickup_events_archive.sql` | Arquivamento histórico (`public.pickup_events_archive`), índices temporais parciais e RPC de lote `archive_old_pickup_events` |
 | 0026 | `20261013140000_create_activate_school_year_rpc.sql` | RPC transacional atômica `public.activate_school_year(p_year_id, p_school_id)` para alternância de ano letivo ativo sem lacuna operacional |
 | 0027 | `20261013150000_align_student_grants_for_authenticated.sql` | Alinhamento de permissões de escrita (`INSERT`, `UPDATE`, `DELETE`) em `students`, `student_enrollments` e `student_group_assignments` para o role `authenticated` |
+| 0028 | `20261020021938_enable_realtime_for_pickup_events.sql` | Habilitação de Supabase Realtime para chamadas (`public.pickup_events`): configura `REPLICA IDENTITY FULL` e adiciona à publicação `supabase_realtime` para assinaturas WebSocket (Ciclo F) |
 
 **Seed idempotente:** `supabase/seed.sql`
 

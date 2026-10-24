@@ -24,14 +24,15 @@ const USER_B_ID = '22222222-2222-2222-2222-222222222222';
 const PLATFORM_ADMIN_ID = '6f4f26ae-0bcf-434d-94ee-ada82ddc8b25';
 
 function createAccessToken(userId, role = 'authenticated', extraClaims = {}) {
+  const now = Math.floor(Date.now() / 1000);
   return jwt.sign(
     {
       aud: 'authenticated',
       role,
       sub: userId,
       email: `${userId}@smart-exit.local`,
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      iat: Math.floor(Date.now() / 1000),
+      exp: now + 3600,
+      iat: now - 10,
       iss: 'supabase',
       ...extraClaims
     },
