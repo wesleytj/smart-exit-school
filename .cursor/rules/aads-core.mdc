@@ -17,8 +17,8 @@ Always (governance).
 
 ## Agent behavior
 
-1. Treat `ai/aads/constitution/constitution.md` as the highest authority for permanent limits.
-2. Resolve document conflicts with `ai/aads/engine/source-of-truth-map.md`.
+1. Treat `AGENTS.md` and `docs/historico/aads-framework-v0.4.0.md` as the primary authorities for permanent limits.
+2. Resolve document conflicts using the Source of Truth Map in `AGENTS.md` and the historical compendium.
 3. Never violate Constitution principles to go faster.
 4. Never invent architecture, patterns, directories, services, or conventions without checking existing project solutions and ADRs first.
 5. Prefer reuse of existing patterns over new approaches.
@@ -32,6 +32,6 @@ Checklists, shell commands, Git steps, workflow copies.
 
 ## References
 
-- `ai/aads/constitution/constitution.md`
-- `ai/aads/engine/source-of-truth-map.md`
-- `ai/aads/engine/aads-operating-model.md`
+- `AGENTS.md`
+- `docs/historico/aads-framework-v0.4.0.md`
+- `.agents/rules/`

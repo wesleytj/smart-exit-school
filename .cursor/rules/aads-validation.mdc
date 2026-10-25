@@ -31,8 +31,8 @@ Do **not** rely on this rule for purely exploratory Q&A with no implementation.
 2. Run **existing project** quality commands when applicable (never hardcode stack commands here).
 3. Report failures clearly; do not claim success with known task-related errors.
 4. Consult checklists by reference only:
-   - `ai/aads/checklists/feature-checklist.md`
-   - `ai/aads/checklists/definition-of-done.md`
+   - `docs/historico/aads-framework-v0.4.0.md` (Feature Checklist & DoD sections)
+   - `AGENTS.md` (Section 6 — Obrigação de Validação e Completion Model)
 
 ## Completion Model
 
@@ -49,8 +49,6 @@ List Delivery pending when Implementation Complete is earned but Git delivery is
 
 ## References
 
-- `ai/aads/engine/aads-operating-model.md`
-- `ai/aads/engine/source-of-truth-map.md`
-- `ai/aads/constitution/constitution.md`
-- `ai/aads/checklists/definition-of-done.md`
-- `ai/aads/engine/automatic-checks.md`
+- `AGENTS.md`
+- `docs/historico/aads-framework-v0.4.0.md`
+- `.agents/rules/`

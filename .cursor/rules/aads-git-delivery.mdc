@@ -37,7 +37,7 @@ Do **not** load for pure exploration or implementation-only work with no deliver
 
 ## Agent behavior
 
-1. Follow `ai/aads/standards/git-workflow.md` for delivery steps.
+1. Follow `AGENTS.md` (Section 3 — Autonomia Operacional e Política Git) and `docs/historico/aads-framework-v0.4.0.md` for delivery steps.
 2. Respect permissions; do not force push/merge when unauthorized.
 3. Before push/merge: Quality Gates intent, correct branch, issue linkage, human approval when required.
 4. Use `Closes #N` when closing issues via PR.
@@ -52,8 +52,6 @@ Do **not** load for pure exploration or implementation-only work with no deliver
 
 ## References
 
-- `ai/aads/engine/aads-operating-model.md`
-- `ai/aads/engine/source-of-truth-map.md`
-- `ai/aads/constitution/constitution.md`
-- `ai/aads/standards/git-workflow.md`
-- `ai/aads/checklists/git-checklist.md`
+- `AGENTS.md`
+- `docs/historico/aads-framework-v0.4.0.md`
+- `.agents/rules/`

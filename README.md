@@ -187,6 +187,7 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 * [GEMINI.md](./GEMINI.md): Contexto consolidado de arquitetura, padrões de persistência e stack tecnológica.
 * [.agents/rules/](./.agents/rules/): Regras permanentes de persistência DAL, governança de dados de QA e segurança de banco de dados.
 * [.agents/skills/](./.agents/skills/): Procedimentos padronizados para auditoria local de banco e testes operacionais de smoke.
+* [AADS 0.4.0 Compêndio Histórico](docs/historico/aads-framework-v0.4.0.md): Acervo histórico consolidado do framework AADS v0.4.0.
 
 ---
 
