@@ -239,8 +239,4 @@ Provedores de estado reativo global e hooks de consumo seguro:
 | `docs/impersonation-support-flow.md` | Guia de suporte operacional de ponta a ponta para impersonation |
 | `docs/infra/smtp-brevo-setup.md` | Configuração de relay SMTP transacional com Brevo |
 | `docs/adr/README.md` | Catálogo canônico de ADRs 001–030 |
-| `docs/arquitetura/modelagem.md` | Entidades e relacionamentos de domínio |
-| `docs/arquitetura/padroes.md` | Convenções de código, banco e commits |
-| `docs/arquitetura/checklist-modelagem.md` | Checklist antes de novas migrations |
-| `docs/arquitetura/workflow.md` | Fluxo de trabalho de engenharia |
-| `docs/arquitetura/arquitetura-futura.md` | Roadmap arquitetural |
+| `docs/arquitetura/historico-concepcao-embrionaria.md` | Compêndio histórico de modelagem, convenções, workflow e arquitetura embrionária |

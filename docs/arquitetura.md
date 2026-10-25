@@ -139,7 +139,6 @@ A fila de chamadas em tempo real é centralizada na tabela `public.pickup_events
 | [impersonation-support-flow.md](impersonation-support-flow.md) | Guia completo de suporte técnico operacional |
 | [infra/smtp-brevo-setup.md](infra/smtp-brevo-setup.md) | Configuração de relay SMTP Brevo para e-mail transacional |
 | [adr/README.md](adr/README.md) | Catálogo de Decisões Arquiteturais (ADRs 001 a 030) |
-| [arquitetura/modelagem.md](arquitetura/modelagem.md) | Modelo relacional de domínio |
-| [arquitetura/padroes.md](arquitetura/padroes.md) | Convenções técnicas de código e banco |
+| [arquitetura/historico-concepcao-embrionaria.md](arquitetura/historico-concepcao-embrionaria.md) | Compêndio histórico de modelagem, convenções e padrões embrionários |
 | [banco-de-dados.md](banco-de-dados.md) | Detalhamento de schema, RLS e seed baseline |
 | [autenticacao.md](autenticacao.md) | Modelo normativo de autenticação e sessão |
