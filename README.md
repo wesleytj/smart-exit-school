@@ -194,9 +194,9 @@ O Smart Exit School é governado compulsoriamente pelo protocolo operacional **A
 
 | Ciclo | Descrição | Status | Data |
 |---|---|---|---|
-| **[Ciclo F](docs/cycles/CICLO-F-CONCLUSAO.md)** | Sincronização em Tempo Real (Realtime) | ✅ Concluído | 21/10/2026 |
-| **[Ciclo G — P1](docs/cycles/CICLO-G-P1-CONCLUSAO.md)** | Histórico e Relatórios de Saídas (PR #96) | ✅ Concluído | 22/10/2026 |
-| **[Ciclo G — P2](docs/cycles/CICLO-G-P2-CONCLUSAO.md)** | Visualizador de Auditoria de Impersonation (PR #98) | ✅ Concluído | 22/10/2026 |
+| **[Ciclo F](docs/cycles/historico-entregas-ciclos.md#3-ciclo-f--sincronização-em-tempo-real-realtime)** | Sincronização em Tempo Real (Realtime) | ✅ Concluído | 21/10/2026 |
+| **[Ciclo G — P1](docs/cycles/historico-entregas-ciclos.md#2-ciclo-g--p1-histórico-e-relatórios-de-saídas)** | Histórico e Relatórios de Saídas (PR #96) | ✅ Concluído | 22/10/2026 |
+| **[Ciclo G — P2](docs/cycles/historico-entregas-ciclos.md#1-ciclo-g--p2-visualizador-de-auditoria-de-impersonation)** | Visualizador de Auditoria de Impersonation (PR #98) | ✅ Concluído | 22/10/2026 |
 
 **Próximo ciclo:** A definir conforme priorização de produto / roadmap.
 
