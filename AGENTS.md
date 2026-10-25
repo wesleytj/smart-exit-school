@@ -13,7 +13,7 @@ Em **toda e qualquer interação** neste workspace, o agente deve executar o seg
 
 1. **Identificação do Workspace:** Reconhecer que está operando no projeto *Smart Exit School*.
 2. **Consulta às Regras Ativas:** Verificar as regras da Constituição Global, das regras do projeto (`AGENTS.md`, `GEMINI.md`, `.agents/rules/`) e o catálogo de Decision Gates.
-3. **Localização do Estado Vigente:** Localizar a documentação AADS relevante para o escopo (`docs/`, `ai/aads/`, migrations em `supabase/migrations/`, inventário de QA em `docs/qa-inventory.md`, smoke em `docs/qa-production-smoke.md`).
+3. **Localização do Estado Vigente:** Localizar a documentação AADS relevante para o escopo (`docs/`, compêndio histórico em `docs/historico/`, migrations em `supabase/migrations/`, inventário de QA em `docs/qa-inventory.md`, smoke em `docs/qa-production-smoke.md`).
 4. **Determinação do Estado do Projeto:** Identificar o estado real da base de código e do ambiente (branch Git, status de migrations, build/lint).
 5. **Verificação de Decision Gates:** Verificar se existe algum Decision Gate aberto, fechado ou pendente relacionado à ação solicitada.
 6. **Verificação de Limitações Anteriores:** Checar se há decisões arquiteturais permanentes (ADRs), diretrizes de segurança ou salvaguardas que limitem a ação.
@@ -27,7 +27,7 @@ Em caso de divergência ou ambiguidade, prevalece estritamente a seguinte ordem 
 
 1. **Instruções do Sistema / Plataforma** (limites invioláveis da infraestrutura do host).
 2. **Regras de Segurança da Plataforma** (políticas de permissão e sandbox).
-3. **Regras AADS Permanentes do Workspace** (Constituição AADS, `AGENTS.md`, SoT Map).
+3. **Regras AADS Permanentes do Workspace** (Constituição Global AADS, `AGENTS.md`, `.agents/rules/`, SoT Map).
 4. **Estado e Decision Gates AADS Vigentes** (gates ativos, status de aprovação registrado).
 5. **Instruções Específicas do Usuário** (pedidos, refinamentos e direcionamentos do turno atual).
 6. **Execução Técnica** (código, comandos, testes e mutações).

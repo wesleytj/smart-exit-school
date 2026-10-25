@@ -60,8 +60,7 @@ When finishing work, declare Implementation / Delivery / Release Complete per Op
 
 ## References
 
-- `ai/aads/engine/aads-operating-model.md`
-- `ai/aads/engine/source-of-truth-map.md`
-- `ai/aads/constitution/constitution.md`
-- `ai/aads/standards/work-item-classification.md`
+- `AGENTS.md`
+- `docs/historico/aads-framework-v0.4.0.md`
+- `.agents/rules/`
 - `docs/qa-data-governance.md` (SES QA domain data)

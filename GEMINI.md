@@ -61,3 +61,4 @@ Antes de propor alteracoes no SES, consulte a documentacao relevante em `docs/`:
 - Governanca de QA: `docs/qa-data-governance.md`
 - Banco de dados e schema: `docs/banco-de-dados.md`
 - Autenticacao e permissoes: `docs/autenticacao.md` e `docs/permissoes.md`
+- Acervo historico AADS: `docs/historico/aads-framework-v0.4.0.md`

@@ -113,7 +113,7 @@ flowchart TD
 
 ## 5. Evidências Obrigatórias para Declarar "Release Complete"
 
-Sob o Completion Model do AADS (`ai/aads/engine/aads-operating-model.md`), o estado **Release Complete** só pode ser reivindicado pelo agente ou equipe após a apresentação e arquivamento das seguintes evidências:
+Sob o Completion Model do AADS (conforme formalizado em [AGENTS.md](../AGENTS.md#6-obrigação-de-validação-e-completion-model) e no histórico [docs/historico/aads-framework-v0.4.0.md](historico/aads-framework-v0.4.0.md)), o estado **Release Complete** só pode ser reivindicado pelo agente ou equipe após a apresentação e arquivamento das seguintes evidências:
 
 | Camada | Verificação / Comando | Evidência Requerida |
 |---|---|---|
