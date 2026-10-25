@@ -99,3 +99,32 @@ quadrantChart
 - Prioridade entre convite de usuários via UI vs Realtime no telão;
 - Escopo comercial da gestão de planos Trial;
 - Política de retenção e expurgo dos logs de auditoria (`impersonation_audit_logs`).
+
+---
+
+## Histórico — Changelog Inicial (Baseline Junho 2026)
+
+Documentado na criação da documentação técnica inicial do projeto (2025-06-21, versão `0.0.0`):
+
+### Estado Funcional Inicial
+- SPA React 19 com Vite 8, React Router DOM 7, Tailwind CSS 4.
+- 4 páginas iniciais: Login, Super Admin, Painel Institucional, Telão.
+- Persistência 100% em `localStorage` (chaves prefixadas `@SmartExit:`) com seed mock de 3 escolas.
+- Autenticação mock local com Super Admin hardcoded.
+- Planos SaaS conceituais (Basic, Premium, Diamond, Trial).
+
+### Módulos e Componentes do Baseline
+- `InstitutionPanel.jsx` (~1305 linhas) — núcleo inicial do sistema.
+- `InstitutionsManager.jsx` (~388 linhas).
+- `TvDisplay.jsx` (~206 linhas).
+- `Login.jsx` (~109 linhas).
+- `StudentCard.jsx` e `students.js` (componentes da fase embrionária).
+
+### Known Issues Originais da Fase Zero
+1. Credenciais em texto plano e senha admin no código-fonte.
+2. Rota admin sem proteção e status inativo sem bloqueio de login.
+3. Dois modelos de portão (`exits` vs `gatesList`).
+4. Código morto (`StudentCard`, `students.js`, `App.css`).
+5. Ausência de banco de dados relacional e backend de autenticação.
+*(Todos esses pontos foram integralmente sanados ao longo das migrations 0001 a 0027 e dos Ciclos A a H).*
+
