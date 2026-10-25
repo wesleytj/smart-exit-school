@@ -17,7 +17,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:5173',
     channel: 'chrome',
-    headless: process.env.E2E_HEADLESS === '1',
+    headless: process.env.CI ? true : process.env.E2E_HEADLESS === '1',
     trace: 'retain-on-failure',
     screenshot: 'on',
     video: 'on',
