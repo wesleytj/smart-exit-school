@@ -44,3 +44,21 @@ As funções são implantadas com a flag `--no-verify-jwt` para gerenciar autent
 npx supabase functions deploy invite-member --no-verify-jwt
 npx supabase functions deploy accept-invite --no-verify-jwt
 ```
+
+---
+
+## 4. Secret Obrigatória em Produção — Impersonation
+
+- `SUPABASE_JWT_SECRET` e/ou `JWT_SECRET` devem estar configuradas nas Edge Functions de impersonation (`impersonate-user` e `end-impersonation`).
+- O valor é o JWT secret real do projeto Supabase Cloud (obtido via Management API `projects/<ref>/postgrest` ou Dashboard → Project Settings → API → JWT Settings).
+- **Nunca** deixe a Edge Function cair no fallback de desenvolvimento local (`super-secret-jwt-token-with-at-least-32-characters-long`) em produção.
+- Comando para configurar:
+  ```bash
+  npx supabase secrets set JWT_SECRET="<JWT_SECRET_DO_PROJETO>" --project-ref yantfnekslrzhussewdh
+  ```
+- Deploy das funções pós-configuração de secret:
+  ```bash
+  npx supabase functions deploy impersonate-user --no-verify-jwt --project-ref yantfnekslrzhussewdh
+  npx supabase functions deploy end-impersonation --no-verify-jwt --project-ref yantfnekslrzhussewdh
+  ```
+
