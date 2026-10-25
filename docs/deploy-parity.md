@@ -139,14 +139,18 @@ Se qualquer uma das evidências acima estiver pendente, o estado deve permanecer
 
 ---
 
-## 7. Estado Atual de Paridade Verificado (Pós-Ciclo D)
+## 7. Estado Atual de Paridade Verificado (Pós-Fix JWT Impersonation)
 
-* **Data da Verificação:** 13/10/2026
+* **Data da Verificação:** 24/10/2026
 * **Projeto Remoto:** `yantfnekslrzhussewdh` (Smart Exit School — `sa-east-1`)
 * **Status de Migrations:** **27/27 sincronizadas** (`local == remote`), 0 pendentes, 0 local-only.
 * **Status das Edge Functions:**
-  * `impersonate-user`: Versão 5 `ACTIVE` (código local idêntico ao remoto verificado via download diff).
-  * `end-impersonation`: Versão 4 `ACTIVE`.
-  * `invite-member`: Versão 2 `ACTIVE`.
-  * `accept-invite`: Versão 2 `ACTIVE`.
+  * `impersonate-user`: Versão 6 `ACTIVE` (com `verify_jwt: false` e secret `JWT_SECRET` alinhada).
+  * `end-impersonation`: Versão 5 `ACTIVE` (com `verify_jwt: false`).
+  * `invite-member`: Versão 3 `ACTIVE`.
+  * `accept-invite`: Versão 3 `ACTIVE`.
+* **Secrets de Produção Obrigatórias:**
+  * `JWT_SECRET`: Configurada no Supabase Cloud (garante assinatura simétrica HS256 alinhada ao GoTrue de produção).
+  * `BREVO_*`: Configurado para envio de e-mails transacionais de convite.
 * **Procedimento de Rollback:** Em caso de anomalia, siga estritamente o [Runbook: Rollback de Impersonation](runbooks/rollback-impersonation.md).
+
