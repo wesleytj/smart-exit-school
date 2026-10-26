@@ -47,6 +47,7 @@ import { storageClient } from "../services/storageClient"
 import { schoolOpsStore } from "../services/schoolOpsStore"
 import { pickOperationalState, toPanelSchool } from "../services/tenantAccess"
 import { useTenantSession } from "../hooks/useTenantSession"
+import { resolveSidebarBranding } from "../services/institutionBranding"
 
 // ==================================================================
 // CONFIGURAÇÕES GLOBAIS E DADOS ESTÁTICOS (Fora do Componente)
@@ -359,6 +360,7 @@ export default function InstitutionPanel() {
   // ==================================================================
   if (!school) return null;
 
+  const branding = resolveSidebarBranding(school);
   const activeGates = gatesList.filter((gate) => gate.status === "active");
   const monitorStudents = availableStudents(
     persistedStudents.filter((student) => student.status === "active" && student.assignmentId),
@@ -886,17 +888,17 @@ export default function InstitutionPanel() {
       <aside className="w-64 bg-white dark:bg-[#1a1a1a] border-r border-slate-200 dark:border-[#2a2a2a] flex flex-col shadow-sm z-10 transition-colors">
         {/* LOGO E NOME */}
         <div className="p-6 border-b border-slate-100 dark:border-[#2a2a2a] flex items-center gap-3">
-          {school.plan !== "Basic" && school.customLogo ? (
-            <img src={school.customLogo} alt="Logo da Escola" className="max-h-10 w-auto shrink-0 rounded-full" />
+          {branding.useCustomLogo ? (
+            <img src={school.customLogo} alt={branding.logoAlt} className="max-h-10 w-auto shrink-0 rounded-full" />
           ) : (
-            <img src={LogoAllTech} alt="AllTech Solutions" className="w-10 h-10 object-contain shrink-0" />
+            <img src={LogoAllTech} alt={branding.logoAlt} className="w-10 h-10 object-contain shrink-0" />
           )}
 
           <div className="overflow-hidden">
-            <h2 className="font-bold text-slate-900 dark:text-white leading-tight truncate" title={school.plan !== "Basic" && school.name ? school.name : "AllTech Solutions"}>
-              {school.plan !== "Basic" && school.name ? school.name : "AllTech Solutions"}
+            <h2 className="font-bold text-slate-900 dark:text-white leading-tight truncate" title={branding.displayName}>
+              {branding.displayName}
             </h2>
-            <p className="text-xs font-semibold uppercase text-primary">Plano {school.plan}</p>
+            <p className="text-xs font-semibold uppercase text-primary">{branding.planBadge}</p>
           </div>
         </div>
 
